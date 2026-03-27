@@ -1,0 +1,25 @@
+[project]
+name = "access2-backend"
+version = "0.1.0"
+description = "Backend for access2"
+requires-python = ">=3.12"
+dependencies = [
+  "fastapi",
+  "uvicorn[standard]",
+  "sqlalchemy>=2.0",
+  "psycopg[binary]",
+  "alembic",
+  "pydantic>=2.0",
+  "pydantic-settings",
+  "python-jose[cryptography]",
+  "passlib[bcrypt]",
+  "redis",
+  "pytest"
+]
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[tool.setuptools]
+packages = ["app"]
