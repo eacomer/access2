@@ -1,33 +1,51 @@
+from __future__ import annotations
+
+from typing import List
+from uuid import UUID
+
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.core.security import get_password_hash
 from app.models.user import User
-from app.schemas.user import UserCreate, UserUpdate
-from app.security import get_password_hash
+from app.schemas.user import UserCreate
 
 
-def get_user_by_id(db: Session, user_id):
-    return db.get(User, user_id)
+class DuplicateEmailError(Exception):
+    """Raised when attempting to create a user with an email that already exists."""
+
+
+def get_user_by_id(db: Session, user_id: UUID) -> User | None:
+    stmt = select(User).where(User.id == user_id)
+    return db.execute(stmt).scalar_one_or_none()
 
 
 def get_user_by_email(db: Session, email: str) -> User | None:
-    statement = select(User).where(User.email == email)
-    return db.scalar(statement)
+    normalized_email = email.strip().lower()
+    stmt = select(User).where(User.email == normalized_email)
+    return db.execute(stmt).scalar_one_or_none()
 
 
-def list_users(db: Session, skip: int = 0, limit: int = 100) -> list[User]:
-    statement = select(User).offset(skip).limit(limit)
-    return list(db.scalars(statement).all())
+def list_users(db: Session, skip: int = 0, limit: int = 50) -> List[User]:
+    stmt = select(User).offset(skip).limit(limit).order_by(User.created_at.desc())
+    return list(db.execute(stmt).scalars().all())
 
 
 def create_user(db: Session, user_in: UserCreate) -> User:
+    normalized_email = user_in.email.strip().lower()
+
+    existing_user = get_user_by_email(db=db, email=normalized_email)
+    if existing_user is not None:
+        raise DuplicateEmailError()
+
     user = User(
-        email=user_in.email,
+        email=normalized_email,
         full_name=user_in.full_name,
         hashed_password=get_password_hash(user_in.password),
         is_active=True,
         is_superuser=False,
     )
+
     db.add(user)
     db.commit()
     db.refresh(user)

@@ -24,12 +24,16 @@ class UserUpdate(BaseModel):
     is_superuser: bool | None = None
 
 
-class UserRead(UserBase):
-    model_config = ConfigDict(from_attributes=True)
-
+class UserRead(BaseModel):
     id: UUID
     created_at: datetime
     updated_at: datetime
+    email: EmailStr
+    full_name: str
+    is_active: bool
+    is_superuser: bool
+
+    model_config = ConfigDict(from_attributes=True)
 
 
 class UserInDB(UserRead):

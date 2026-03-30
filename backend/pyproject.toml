@@ -11,8 +11,11 @@ dependencies = [
   "alembic",
   "pydantic>=2.0",
   "pydantic-settings",
+  "pydantic[email]",
+  "email-validator",
   "python-jose[cryptography]",
   "passlib[bcrypt]",
+  "bcrypt<5",
   "redis",
   "pytest"
 ]
