@@ -1,9 +1,0 @@
-fastapi
-uvicorn[standard]
-sqlalchemy
-psycopg[binary]
-alembic
-redis
-pydantic[email]
-passlib[bcrypt]
-bcrypt<5
