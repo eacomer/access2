@@ -75,3 +75,13 @@ def get_current_user(
         )
 
     return user
+
+
+def get_current_superuser(current_user: User = Depends(get_current_user)) -> User:
+    if not current_user.is_superuser:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Superuser privileges required.",
+        )
+
+    return current_user

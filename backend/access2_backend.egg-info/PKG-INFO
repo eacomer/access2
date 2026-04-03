@@ -1,0 +1,19 @@
+Metadata-Version: 2.4
+Name: access2-backend
+Version: 0.1.0
+Summary: Backend for access2
+Requires-Python: >=3.12
+Requires-Dist: fastapi
+Requires-Dist: uvicorn[standard]
+Requires-Dist: sqlalchemy>=2.0
+Requires-Dist: psycopg[binary]
+Requires-Dist: alembic
+Requires-Dist: pydantic>=2.0
+Requires-Dist: pydantic-settings
+Requires-Dist: pydantic[email]
+Requires-Dist: email-validator
+Requires-Dist: python-jose[cryptography]
+Requires-Dist: passlib[bcrypt]==1.7.4
+Requires-Dist: bcrypt==4.0.1
+Requires-Dist: redis
+Requires-Dist: pytest

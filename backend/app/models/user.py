@@ -1,8 +1,16 @@
-from sqlalchemy import Boolean, String
-from sqlalchemy.orm import Mapped, mapped_column
+from __future__ import annotations
+
+import uuid
+from typing import TYPE_CHECKING
+
+from sqlalchemy import Boolean, ForeignKey, String
+from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
 from app.models.mixins import IDTimestampMixin
+
+if TYPE_CHECKING:
+    from app.models.organization import Organization
 
 
 class User(IDTimestampMixin, Base):
@@ -37,4 +45,14 @@ class User(IDTimestampMixin, Base):
         nullable=False,
         default=False,
         server_default="false",
+    )
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
+    )
+
+    organization: Mapped["Organization"] = relationship(
+        "Organization",
+        back_populates="users",
     )

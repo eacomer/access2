@@ -1,6 +1,9 @@
+from uuid import uuid4
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.models.organization import Organization
 from app.schemas.user import UserCreate
 from app.services.users import create_user
 
@@ -13,12 +16,22 @@ def create_demo_user(
     full_name: str | None = "Demo User",
     is_active: bool = True,
 ) -> None:
+    organization = Organization(
+        name="Demo Org",
+        slug=f"auth-org-{uuid4().hex[:8]}",
+        is_active=True,
+    )
+    db.add(organization)
+    db.commit()
+    db.refresh(organization)
+
     user = create_user(
         db=db,
         user_in=UserCreate(
             email=email,
             password=password,
             full_name=full_name,
+            organization_id=organization.id,
         ),
     )
 
@@ -83,6 +96,7 @@ def test_me_with_valid_token_returns_user(
     body = me_resp.json()
     assert body["email"] == "demo@example.com"
     assert "hashed_password" not in body
+    assert "organization_id" in body
 
 
 def test_inactive_user_login_returns_403(
