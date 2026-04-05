@@ -7,9 +7,12 @@ from fastapi import Depends, HTTPException, status
 from fastapi.security import HTTPAuthorizationCredentials, HTTPBearer
 from sqlalchemy.orm import Session
 
+from app.core.context import RequestContext
 from app.core.database import get_db as core_get_db
 from app.core.security import decode_token
+from app.models.organization import Organization
 from app.models.user import User
+from app.services.organizations import get_organization_by_id
 from app.services.users import get_user_by_id
 
 
@@ -85,3 +88,26 @@ def get_current_superuser(current_user: User = Depends(get_current_user)) -> Use
         )
 
     return current_user
+
+
+def get_current_organization(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+) -> Organization:
+    organization = get_organization_by_id(
+        db=db, organization_id=current_user.organization_id
+    )
+    if organization is None or not organization.is_active:
+        raise HTTPException(
+            status_code=status.HTTP_403_FORBIDDEN,
+            detail="Organization is not available.",
+        )
+
+    return organization
+
+
+def get_request_context(
+    current_user: User = Depends(get_current_user),
+    organization: Organization = Depends(get_current_organization),
+) -> RequestContext:
+    return RequestContext(user=current_user, organization=organization)
