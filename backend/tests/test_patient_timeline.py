@@ -67,14 +67,18 @@ def _create_task(
     *,
     title: str = "Follow up",
     priority: str = "medium",
+    due_at: datetime | None = None,
 ) -> str:
+    payload: dict[str, object] = {
+        "title": title,
+        "description": "Check status",
+        "priority": priority,
+    }
+    if due_at is not None:
+        payload["due_at"] = due_at.isoformat()
     resp = client.post(
         f"/api/v1/escalations/{escalation_id}/tasks",
-        json={
-            "title": title,
-            "description": "Check status",
-            "priority": priority,
-        },
+        json=payload,
         headers=headers,
     )
     assert resp.status_code == 201
@@ -3411,3 +3415,127 @@ def test_patient_timeline_worklist_summary_unfiltered_still_fetches_rows(
     assert env["patient_id"] in ids
     assert second_patient_id in ids
     assert call_count == 1
+
+
+def test_patient_timeline_includes_due_upcoming_event(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-due-upcoming")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    due_at = datetime.now(timezone.utc) + timedelta(hours=6)
+    task_id = _create_task(
+        client,
+        env["headers"],
+        escalation_id,
+        title="Follow-up call",
+        due_at=due_at,
+    )
+    resp = client.get(
+        f"/api/v1/patients/{env['patient_id']}/timeline",
+        headers=env["headers"],
+    )
+    assert resp.status_code == 200
+    listing = resp.json()
+    due_events = [
+        item
+        for item in listing["items"]
+        if item["event_type"] == "intervention_task_due_upcoming" and item["related_task_id"] == task_id
+    ]
+    assert due_events
+    due_event = due_events[0]
+    assert due_event["occurred_at"] == due_at.replace(tzinfo=None).isoformat()
+    assert due_event["metadata"]["due_state"] == "due_upcoming"
+
+
+def test_patient_timeline_includes_due_overdue_event(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-due-overdue")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    due_at = datetime.now(timezone.utc) - timedelta(hours=2)
+    task_id = _create_task(
+        client,
+        env["headers"],
+        escalation_id,
+        title="Retro review",
+        due_at=due_at,
+    )
+    resp = client.get(
+        f"/api/v1/patients/{env['patient_id']}/timeline",
+        headers=env["headers"],
+    )
+    assert resp.status_code == 200
+    listing = resp.json()
+    due_events = [
+        item
+        for item in listing["items"]
+        if item["event_type"] == "intervention_task_due_overdue" and item["related_task_id"] == task_id
+    ]
+    assert due_events
+    due_event = due_events[0]
+    assert due_event["occurred_at"] == due_at.replace(tzinfo=None).isoformat()
+    assert due_event["metadata"]["due_state"] == "overdue"
+
+
+def test_patient_timeline_due_events_skip_terminal_tasks(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-due-terminal")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    due_at = datetime.now(timezone.utc) + timedelta(days=1)
+    task_id = _create_task(
+        client,
+        env["headers"],
+        escalation_id,
+        title="Close out",
+        due_at=due_at,
+    )
+    complete_resp = client.post(
+        f"/api/v1/tasks/{task_id}/complete",
+        json={"completion_note": "Handled"},
+        headers=env["headers"],
+    )
+    assert complete_resp.status_code == 200
+    resp = client.get(
+        f"/api/v1/patients/{env['patient_id']}/timeline",
+        headers=env["headers"],
+    )
+    assert resp.status_code == 200
+    listing = resp.json()
+    assert not any(
+        item["event_type"].startswith("intervention_task_due_") and item["related_task_id"] == task_id
+        for item in listing["items"]
+    )
+
+
+def test_patient_timeline_worklist_summary_surfaces_due_events(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-due-worklist")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    due_at = datetime.now(timezone.utc) + timedelta(hours=8)
+    _create_task(
+        client,
+        env["headers"],
+        escalation_id,
+        title="Monitor labs",
+        due_at=due_at,
+    )
+    payload = _get_worklist_summary(
+        client,
+        env["headers"],
+        params=[("patient_ids", env["patient_id"])],
+    )
+    assert payload["total"] == 1
+    assert len(payload["items"]) == 1
+    row = payload["items"][0]
+    assert row["latest_event_type"] == "intervention_task_due_upcoming"
+    assert row["latest_event_occurred_at"] == due_at.replace(tzinfo=None).isoformat()
