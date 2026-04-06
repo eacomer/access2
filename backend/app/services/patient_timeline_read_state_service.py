@@ -32,14 +32,20 @@ from app.services.patient_timeline_service import (
     EVENT_TYPE_SIGNAL,
     EVENT_TYPE_TASK_CREATED,
     EVENT_TYPE_TASK_OUTCOME,
+    EVENT_TYPE_TASK_DUE_OVERDUE,
+    EVENT_TYPE_TASK_DUE_UPCOMING,
+    OPEN_TASK_STATUSES,
     OPEN_TASK_STATUS_VALUES,
     UNRESOLVED_ESCALATION_STATUS_VALUES,
+    SOURCE_TASK_DUE_OVERDUE,
+    SOURCE_TASK_DUE_UPCOMING,
     PatientTimelineEventNotFoundError,
     PatientTimelineContextMismatchError,
     PatientTimelineContextNotFoundError,
     PatientTimelineFilters,
     TimelineItemPayload,
     compare_timeline_positions,
+    get_due_state_reference_time,
     get_patient_timeline_event,
     get_sorted_patient_timeline_events,
     timeline_event_matches_filters,
@@ -1153,6 +1159,8 @@ def _build_filtered_events_statement(
     filters: PatientTimelineFilters | None,
     allowed_patient_select,
 ):
+    current_time = get_due_state_reference_time()
+
     signal_stmt = (
         select(
             PatientSignal.patient_id.label("patient_id"),
@@ -1219,6 +1227,54 @@ def _build_filtered_events_statement(
         )
     )
 
+    task_due_upcoming_stmt = (
+        select(
+            InterventionTask.patient_id.label("patient_id"),
+            InterventionTask.organization_id.label("organization_id"),
+            InterventionTask.due_at.label("occurred_at"),
+            func.concat(literal(f"{SOURCE_TASK_DUE_UPCOMING}:"), cast(InterventionTask.id, String)).label(
+                "event_id"
+            ),
+            literal(EVENT_TYPE_TASK_DUE_UPCOMING).label("event_type"),
+            InterventionTask.escalation_id.label("related_escalation_id"),
+            InterventionTask.id.label("related_task_id"),
+            cast(PatientEscalation.status, String).label("related_escalation_status"),
+            cast(InterventionTask.status, String).label("related_task_status"),
+        )
+        .outerjoin(
+            PatientEscalation,
+            InterventionTask.escalation_id == PatientEscalation.id,
+        )
+        .where(
+            InterventionTask.due_at.is_not(None),
+            InterventionTask.status.in_(OPEN_TASK_STATUSES),
+            InterventionTask.due_at > current_time,
+        )
+    )
+
+    task_overdue_stmt = (
+        select(
+            InterventionTask.patient_id.label("patient_id"),
+            InterventionTask.organization_id.label("organization_id"),
+            InterventionTask.due_at.label("occurred_at"),
+            func.concat(literal(f"{SOURCE_TASK_DUE_OVERDUE}:"), cast(InterventionTask.id, String)).label("event_id"),
+            literal(EVENT_TYPE_TASK_DUE_OVERDUE).label("event_type"),
+            InterventionTask.escalation_id.label("related_escalation_id"),
+            InterventionTask.id.label("related_task_id"),
+            cast(PatientEscalation.status, String).label("related_escalation_status"),
+            cast(InterventionTask.status, String).label("related_task_status"),
+        )
+        .outerjoin(
+            PatientEscalation,
+            InterventionTask.escalation_id == PatientEscalation.id,
+        )
+        .where(
+            InterventionTask.due_at.is_not(None),
+            InterventionTask.status.in_(OPEN_TASK_STATUSES),
+            InterventionTask.due_at < current_time,
+        )
+    )
+
     outcome_stmt = (
         select(
             InterventionTaskOutcome.patient_id.label("patient_id"),
@@ -1270,6 +1326,8 @@ def _build_filtered_events_statement(
         escalation_stmt,
         escalation_status_stmt,
         task_stmt,
+        task_due_upcoming_stmt,
+        task_overdue_stmt,
         outcome_stmt,
         care_update_stmt,
     ).alias("unioned_timeline_events")

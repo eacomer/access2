@@ -25,6 +25,12 @@ class InterventionTaskAssignRequest(BaseModel):
     model_config = ConfigDict(extra="forbid")
 
 
+class InterventionTaskDueDateRequest(BaseModel):
+    due_at: datetime | None = None
+
+    model_config = ConfigDict(extra="forbid")
+
+
 class InterventionTaskCompleteRequest(BaseModel):
     completion_note: str | None = Field(default=None, max_length=4000)
 

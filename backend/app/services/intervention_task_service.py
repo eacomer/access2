@@ -138,6 +138,23 @@ def assign_task(
     return task
 
 
+def update_task_due_date(
+    db: Session,
+    *,
+    context: RequestContext,
+    task: InterventionTask,
+    due_at: datetime | None,
+) -> InterventionTask:
+    ensure_tenant_scoped_resource(context=context, resource=task)
+    _ensure_task_not_terminal(task)
+
+    task.due_at = due_at
+    db.add(task)
+    db.commit()
+    db.refresh(task)
+    return task
+
+
 def start_task(
     db: Session,
     *,

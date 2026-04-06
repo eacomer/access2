@@ -29,6 +29,8 @@ SOURCE_ESCALATION_STATUS = "escalation_status_event"
 SOURCE_TASK = "intervention_task"
 SOURCE_TASK_OUTCOME = "intervention_task_outcome"
 SOURCE_CARE_UPDATE = "care_update"
+SOURCE_TASK_DUE_UPCOMING = "intervention_task_due_upcoming"
+SOURCE_TASK_DUE_OVERDUE = "intervention_task_overdue"
 
 EVENT_TYPE_SIGNAL = "signal_recorded"
 EVENT_TYPE_ESCALATION = "escalation_triggered"
@@ -36,6 +38,8 @@ EVENT_TYPE_ESCALATION_STATUS = "escalation_status_changed"
 EVENT_TYPE_TASK_CREATED = "intervention_task_created"
 EVENT_TYPE_TASK_OUTCOME = "intervention_task_outcome_logged"
 EVENT_TYPE_CARE_UPDATE = "care_update_logged"
+EVENT_TYPE_TASK_DUE_UPCOMING = "intervention_task_due_upcoming"
+EVENT_TYPE_TASK_DUE_OVERDUE = "intervention_task_due_overdue"
 
 ALL_SOURCE_KINDS = (
     SOURCE_SIGNAL,
@@ -44,6 +48,8 @@ ALL_SOURCE_KINDS = (
     SOURCE_ESCALATION_STATUS,
     SOURCE_TASK_OUTCOME,
     SOURCE_CARE_UPDATE,
+    SOURCE_TASK_DUE_UPCOMING,
+    SOURCE_TASK_DUE_OVERDUE,
 )
 
 ALL_EVENT_TYPES = (
@@ -53,12 +59,16 @@ ALL_EVENT_TYPES = (
     EVENT_TYPE_ESCALATION_STATUS,
     EVENT_TYPE_TASK_OUTCOME,
     EVENT_TYPE_CARE_UPDATE,
+    EVENT_TYPE_TASK_DUE_UPCOMING,
+    EVENT_TYPE_TASK_DUE_OVERDUE,
 )
 
 TASK_RELATED_EVENT_TYPES = (
     EVENT_TYPE_TASK_CREATED,
     EVENT_TYPE_TASK_OUTCOME,
     EVENT_TYPE_CARE_UPDATE,
+    EVENT_TYPE_TASK_DUE_UPCOMING,
+    EVENT_TYPE_TASK_DUE_OVERDUE,
 )
 
 OPEN_TASK_STATUSES: tuple[InterventionTaskStatus, ...] = (
@@ -66,6 +76,12 @@ OPEN_TASK_STATUSES: tuple[InterventionTaskStatus, ...] = (
     InterventionTaskStatus.IN_PROGRESS,
 )
 OPEN_TASK_STATUS_VALUES: tuple[str, ...] = tuple(status.value for status in OPEN_TASK_STATUSES)
+TERMINAL_TASK_STATUSES: tuple[InterventionTaskStatus, ...] = (
+    InterventionTaskStatus.COMPLETED,
+    InterventionTaskStatus.CANCELLED,
+)
+TASK_DUE_STATE_UPCOMING = "due_upcoming"
+TASK_DUE_STATE_OVERDUE = "overdue"
 
 UNRESOLVED_ESCALATION_STATUSES: tuple[EscalationStatus, ...] = (
     EscalationStatus.OPEN,
@@ -265,6 +281,7 @@ def validate_patient_timeline_filters(
 
 def _collect_patient_events(*, db: Session, patient: Patient) -> PatientTimelineDataset:
     events: List[TimelineItemPayload] = []
+    reference_time = get_due_state_reference_time()
     signals = list(_load_signals(db=db, patient=patient))
     escalations = list(_load_escalations(db=db, patient=patient))
     status_events = list(_load_escalation_status_events(db=db, patient=patient))
@@ -278,6 +295,7 @@ def _collect_patient_events(*, db: Session, patient: Patient) -> PatientTimeline
     events.extend(_normalize_task(task) for task in tasks)
     events.extend(_normalize_task_outcome(outcome) for outcome in task_outcomes)
     events.extend(_normalize_care_update(update) for update in care_updates)
+    events.extend(_derive_task_due_events(tasks, reference_time=reference_time))
 
     task_status_index = {task.id: task.status.value for task in tasks}
     escalation_status_index = {escalation.id: escalation.status.value for escalation in escalations}
@@ -483,6 +501,22 @@ def get_patient_timeline_event(
     ensure_tenant_scoped_resource(context=context, resource=patient)
 
     source_kind, source_uuid = _parse_event_id(event_id)
+
+    if source_kind in (SOURCE_TASK_DUE_UPCOMING, SOURCE_TASK_DUE_OVERDUE):
+        task = _load_task_by_id(db, source_uuid)
+        if task is None or task.patient_id != patient.id:
+            raise PatientTimelineEventNotFoundError()
+        ensure_tenant_scoped_resource(context=context, resource=task)
+        reference_time = get_due_state_reference_time()
+        expected_state = (
+            TASK_DUE_STATE_UPCOMING
+            if source_kind == SOURCE_TASK_DUE_UPCOMING
+            else TASK_DUE_STATE_OVERDUE
+        )
+        current_state = _task_due_state(task, reference_time=reference_time)
+        if current_state != expected_state:
+            raise PatientTimelineEventNotFoundError()
+        return _normalize_task_due_state(task, due_state=expected_state)
 
     loader: Callable[[Session, UUID], Any]
     normalizer: Callable[[Any], TimelineItemPayload]
@@ -716,6 +750,79 @@ def _normalize_task(task: InterventionTask) -> TimelineItemPayload:
     }
 
 
+def _derive_task_due_events(
+    tasks: Iterable[InterventionTask],
+    *,
+    reference_time: datetime,
+) -> List[TimelineItemPayload]:
+    derived: List[TimelineItemPayload] = []
+    for task in tasks:
+        due_state = _task_due_state(task, reference_time=reference_time)
+        if due_state is None:
+            continue
+        derived.append(_normalize_task_due_state(task, due_state=due_state))
+    return derived
+
+
+def _task_due_state(task: InterventionTask, *, reference_time: datetime) -> str | None:
+    if task.due_at is None:
+        return None
+    if task.status in TERMINAL_TASK_STATUSES:
+        return None
+    normalized_due_at = _normalize_datetime(task.due_at)
+    normalized_reference = _normalize_datetime(reference_time)
+    if normalized_due_at < normalized_reference:
+        return TASK_DUE_STATE_OVERDUE
+    return TASK_DUE_STATE_UPCOMING
+
+
+def _normalize_task_due_state(task: InterventionTask, *, due_state: str) -> TimelineItemPayload:
+    if task.due_at is None:
+        raise PatientTimelineEventNotFoundError()
+
+    if due_state == TASK_DUE_STATE_OVERDUE:
+        source_kind = SOURCE_TASK_DUE_OVERDUE
+        event_type = EVENT_TYPE_TASK_DUE_OVERDUE
+        title_prefix = "Task overdue"
+    elif due_state == TASK_DUE_STATE_UPCOMING:
+        source_kind = SOURCE_TASK_DUE_UPCOMING
+        event_type = EVENT_TYPE_TASK_DUE_UPCOMING
+        title_prefix = "Task due soon"
+    else:
+        raise PatientTimelineEventNotFoundError()
+
+    display_title = f"{title_prefix}: {task.title}"
+    display_text = task.description or f"Due at {task.due_at.isoformat()}"
+    metadata = {
+        "due_state": due_state,
+        "due_at": _iso(task.due_at),
+        "assigned_user_id": str(task.assigned_user_id) if task.assigned_user_id else None,
+        "escalation_id": str(task.escalation_id),
+        "priority": task.priority.value,
+        "status": task.status.value,
+    }
+
+    return {
+        "event_id": _compose_event_id(source_kind, task.id),
+        "event_type": event_type,
+        "occurred_at": task.due_at,
+        "patient_id": task.patient_id,
+        "organization_id": task.organization_id,
+        "source_id": task.id,
+        "source_kind": source_kind,
+        "display_title": display_title,
+        "display_text": display_text,
+        "status": task.status.value,
+        "priority": task.priority.value,
+        "authored_by_user_id": task.created_by_user_id,
+        "actor_user_id": task.assigned_user_id,
+        "related_escalation_id": task.escalation_id,
+        "related_task_id": task.id,
+        "related_outcome_id": None,
+        "metadata": metadata,
+    }
+
+
 def _normalize_task_outcome(outcome: InterventionTaskOutcome) -> TimelineItemPayload:
     metadata = {
         "completion_summary": outcome.completion_summary,
@@ -824,3 +931,8 @@ def _iso(value: datetime | None) -> str | None:
     if value is None:
         return None
     return value.isoformat()
+
+
+def get_due_state_reference_time() -> datetime:
+    """Central hook for computing the reference time used in due-state calculations."""
+    return datetime.now(timezone.utc)

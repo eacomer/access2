@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+from datetime import datetime, timedelta, timezone
+
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
@@ -369,3 +371,32 @@ def test_completion_summary_required(client: TestClient, db_session: Session) ->
         summary="   ",
     )
     assert resp.status_code == 422
+
+
+def test_task_due_date_update_flow(client: TestClient, db_session: Session) -> None:
+    env = _bootstrap_task(client, db_session, slug="task-due-date")
+    task_id = env["task"]["id"]
+    headers = env["headers"]
+    first_due_at = datetime.now(timezone.utc) + timedelta(days=3)
+
+    create_due = client.post(
+        f"/api/v1/tasks/{task_id}/due-date",
+        json={"due_at": first_due_at.isoformat()},
+        headers=headers,
+    )
+    assert create_due.status_code == 200
+    payload = create_due.json()
+    expected_due_at = first_due_at.replace(tzinfo=None)
+    assert datetime.fromisoformat(payload["due_at"]) == expected_due_at
+
+    detail = client.get(f"/api/v1/tasks/{task_id}", headers=headers)
+    assert detail.status_code == 200
+    assert datetime.fromisoformat(detail.json()["due_at"]) == expected_due_at
+
+    clear_due = client.post(
+        f"/api/v1/tasks/{task_id}/due-date",
+        json={"due_at": None},
+        headers=headers,
+    )
+    assert clear_due.status_code == 200
+    assert clear_due.json()["due_at"] is None

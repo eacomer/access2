@@ -16,6 +16,8 @@ ALLOWED_TIMELINE_SOURCE_KINDS = {
     "intervention_task_outcome",
     "care_update",
     "escalation_status_event",
+    "intervention_task_due_upcoming",
+    "intervention_task_overdue",
 }
 
 ALLOWED_TIMELINE_EVENT_TYPES = {
@@ -25,6 +27,8 @@ ALLOWED_TIMELINE_EVENT_TYPES = {
     "intervention_task_created",
     "intervention_task_outcome_logged",
     "care_update_logged",
+    "intervention_task_due_upcoming",
+    "intervention_task_due_overdue",
 }
 
 ALLOWED_TASK_STATUS_VALUES = {status.value for status in InterventionTaskStatus}

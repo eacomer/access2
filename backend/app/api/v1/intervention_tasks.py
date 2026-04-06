@@ -12,6 +12,7 @@ from app.schemas.task import (
     InterventionTaskAssignRequest,
     InterventionTaskCompleteRequest,
     InterventionTaskCreate,
+    InterventionTaskDueDateRequest,
     InterventionTaskRead,
 )
 from app.schemas.task_outcome import (
@@ -31,6 +32,7 @@ from app.services.intervention_task_service import (
     list_tasks_for_escalation,
     list_tasks_for_patient,
     start_task,
+    update_task_due_date,
 )
 from app.services.intervention_task_outcome_service import (
     TaskOutcomeExistsError,
@@ -170,6 +172,33 @@ def assign_task_endpoint(
         raise HTTPException(
             status_code=status.HTTP_400_BAD_REQUEST,
             detail=str(exc),
+        )
+    except TaskStateError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        )
+
+    return updated
+
+
+@router.post(
+    "/tasks/{task_id}/due-date",
+    response_model=InterventionTaskRead,
+)
+def update_task_due_date_endpoint(
+    task_id: UUID,
+    payload: InterventionTaskDueDateRequest,
+    db: Session = Depends(get_db),
+    context: RequestContext = Depends(get_request_context),
+) -> InterventionTaskRead:
+    task = _get_task_or_error(db=db, context=context, task_id=task_id)
+    try:
+        updated = update_task_due_date(
+            db=db,
+            context=context,
+            task=task,
+            due_at=payload.due_at,
         )
     except TaskStateError as exc:
         raise HTTPException(
