@@ -27,6 +27,7 @@ outcome_status_enum = postgresql.ENUM(
     "no_response",
     "deferred",
     name="interventiontaskoutcomestatus",
+    create_type=False,
 )
 
 

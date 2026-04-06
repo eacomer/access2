@@ -29,6 +29,7 @@ care_update_type_enum = postgresql.ENUM(
     "follow_up",
     "other",
     name="careupdatetype",
+    create_type=False,
 )
 
 
