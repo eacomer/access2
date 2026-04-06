@@ -81,6 +81,26 @@ def _create_task(
     return resp.json()["id"]
 
 
+def _update_escalation_status(
+    client: TestClient,
+    headers: dict[str, str],
+    escalation_id: str,
+    *,
+    status: str,
+    note: str | None = None,
+) -> dict:
+    payload: dict[str, object] = {"status": status}
+    if note is not None:
+        payload["note"] = note
+    resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/status",
+        json=payload,
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    return resp.json()
+
+
 def _complete_task_with_outcome(
     client: TestClient,
     headers: dict[str, str],
@@ -238,6 +258,41 @@ def test_patient_timeline_returns_combined_feed(
 
     occurred_list = [_parse_occurred_at(item["occurred_at"]) for item in payload["items"]]
     assert occurred_list == sorted(occurred_list, reverse=True)
+
+
+def test_patient_timeline_includes_escalation_status_events(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-status-events")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+
+    _update_escalation_status(
+        client,
+        env["headers"],
+        escalation_id,
+        status="in_progress",
+        note="evaluating",
+    )
+    _update_escalation_status(
+        client,
+        env["headers"],
+        escalation_id,
+        status="resolved",
+        note="closed",
+    )
+
+    resp = client.get(
+        f"/api/v1/patients/{env['patient_id']}/timeline",
+        headers=env["headers"],
+    )
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    status_events = [item for item in items if item["event_type"] == "escalation_status_changed"]
+    assert status_events, "expected escalation status change in timeline feed"
+    assert status_events[0]["status"] == "resolved"
+    assert status_events[0]["display_text"] == "closed"
 
 
 def test_patient_timeline_pagination_is_deterministic(

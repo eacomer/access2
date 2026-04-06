@@ -15,6 +15,7 @@ from app.models.patient_signal import (
     EscalationSeverity,
     EscalationStatus,
     PatientEscalation,
+    PatientEscalationStatusEvent,
     PatientSignal,
     SignalType,
 )
@@ -39,6 +40,23 @@ class PatientEscalationNotFoundError(Exception):
 
 class EscalationTransitionError(Exception):
     """Raised when applying an invalid escalation state transition."""
+
+
+ALLOWED_ESCALATION_TRANSITIONS: dict[EscalationStatus, tuple[EscalationStatus, ...]] = {
+    EscalationStatus.OPEN: (
+        EscalationStatus.OPEN,
+        EscalationStatus.IN_PROGRESS,
+        EscalationStatus.RESOLVED,
+        EscalationStatus.CANCELED,
+    ),
+    EscalationStatus.IN_PROGRESS: (
+        EscalationStatus.IN_PROGRESS,
+        EscalationStatus.RESOLVED,
+        EscalationStatus.CANCELED,
+    ),
+    EscalationStatus.RESOLVED: (EscalationStatus.RESOLVED,),
+    EscalationStatus.CANCELED: (EscalationStatus.CANCELED,),
+}
 
 
 @dataclass(slots=True)
@@ -146,41 +164,61 @@ def get_escalation_by_id(
     return escalation
 
 
-def acknowledge_escalation(
+def transition_escalation_status(
     db: Session,
     *,
     escalation: PatientEscalation,
+    new_status: EscalationStatus,
+    note: str | None = None,
+    actor_user_id: UUID | None = None,
+    occurred_at: datetime | None = None,
 ) -> PatientEscalation:
-    if escalation.status == EscalationStatus.RESOLVED:
-        raise EscalationTransitionError("Resolved escalations cannot be acknowledged.")
+    if escalation.status == new_status:
+        if new_status in (EscalationStatus.RESOLVED, EscalationStatus.CANCELED):
+            raise EscalationTransitionError(
+                f"Escalation already {new_status.value}."
+            )
+        return escalation
 
-    if escalation.acknowledged_at is None:
-        escalation.acknowledged_at = datetime.now(timezone.utc)
-        escalation.status = EscalationStatus.ACKNOWLEDGED
-        db.add(escalation)
-        db.commit()
-        db.refresh(escalation)
+    allowed_targets = ALLOWED_ESCALATION_TRANSITIONS.get(escalation.status, ())
+    if new_status not in allowed_targets:
+        raise EscalationTransitionError(
+            f"Cannot transition escalation from {escalation.status.value} to {new_status.value}."
+        )
 
-    return escalation
+    timestamp = occurred_at or datetime.now(timezone.utc)
+    cleaned_note = _clean_optional(note)
 
+    if new_status == EscalationStatus.IN_PROGRESS and escalation.in_progress_at is None:
+        escalation.in_progress_at = timestamp
+    if new_status == EscalationStatus.RESOLVED:
+        escalation.resolved_at = timestamp
+        if cleaned_note is not None:
+            escalation.resolution_notes = cleaned_note
+    if new_status == EscalationStatus.CANCELED:
+        escalation.canceled_at = timestamp
+        if cleaned_note is not None:
+            escalation.cancellation_notes = cleaned_note
+    if new_status == EscalationStatus.OPEN:
+        escalation.in_progress_at = None
+        escalation.resolved_at = None
+        escalation.resolution_notes = None
+        escalation.canceled_at = None
+        escalation.cancellation_notes = None
 
-def resolve_escalation(
-    db: Session,
-    *,
-    escalation: PatientEscalation,
-    resolution_notes: str | None = None,
-) -> PatientEscalation:
-    if escalation.status == EscalationStatus.RESOLVED:
-        raise EscalationTransitionError("Escalation already resolved.")
+    escalation.status = new_status
 
-    escalation.status = EscalationStatus.RESOLVED
-    escalation.resolved_at = datetime.now(timezone.utc)
-    if resolution_notes is not None:
-        escalation.resolution_notes = _clean_optional(resolution_notes)
+    status_event = PatientEscalationStatusEvent(
+        organization_id=escalation.organization_id,
+        patient_id=escalation.patient_id,
+        escalation_id=escalation.id,
+        status=new_status,
+        occurred_at=timestamp,
+        note=cleaned_note,
+        actor_user_id=actor_user_id,
+    )
 
-    if escalation.acknowledged_at is None:
-        escalation.acknowledged_at = datetime.now(timezone.utc)
-
+    db.add(status_event)
     db.add(escalation)
     db.commit()
     db.refresh(escalation)
@@ -250,4 +288,3 @@ def _clean_optional(value: str | None) -> str | None:
         return None
     cleaned = value.strip()
     return cleaned or None
-

@@ -7,6 +7,7 @@ from app.models.patient_signal import (
     EscalationSeverity,
     EscalationStatus,
     PatientEscalation,
+    PatientEscalationStatusEvent,
     PatientSignal,
     SignalType,
 )
@@ -31,6 +32,7 @@ __all__ = [
     "PatientEnrollment",
     "PatientSignal",
     "PatientEscalation",
+    "PatientEscalationStatusEvent",
     "SignalType",
     "EscalationStatus",
     "EscalationSeverity",

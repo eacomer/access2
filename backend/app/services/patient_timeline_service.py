@@ -13,19 +13,26 @@ from app.models.care_update import CareUpdate
 from app.models.intervention_task import InterventionTask, InterventionTaskStatus
 from app.models.intervention_task_outcome import InterventionTaskOutcome
 from app.models.patient import Patient
-from app.models.patient_signal import EscalationStatus, PatientEscalation, PatientSignal
+from app.models.patient_signal import (
+    EscalationStatus,
+    PatientEscalation,
+    PatientEscalationStatusEvent,
+    PatientSignal,
+)
 from app.services.authz import ensure_tenant_scoped_resource
 
 TimelineItemPayload = Dict[str, Any]
 
 SOURCE_SIGNAL = "signal"
 SOURCE_ESCALATION = "escalation"
+SOURCE_ESCALATION_STATUS = "escalation_status_event"
 SOURCE_TASK = "intervention_task"
 SOURCE_TASK_OUTCOME = "intervention_task_outcome"
 SOURCE_CARE_UPDATE = "care_update"
 
 EVENT_TYPE_SIGNAL = "signal_recorded"
 EVENT_TYPE_ESCALATION = "escalation_triggered"
+EVENT_TYPE_ESCALATION_STATUS = "escalation_status_changed"
 EVENT_TYPE_TASK_CREATED = "intervention_task_created"
 EVENT_TYPE_TASK_OUTCOME = "intervention_task_outcome_logged"
 EVENT_TYPE_CARE_UPDATE = "care_update_logged"
@@ -34,6 +41,7 @@ ALL_SOURCE_KINDS = (
     SOURCE_SIGNAL,
     SOURCE_ESCALATION,
     SOURCE_TASK,
+    SOURCE_ESCALATION_STATUS,
     SOURCE_TASK_OUTCOME,
     SOURCE_CARE_UPDATE,
 )
@@ -42,6 +50,7 @@ ALL_EVENT_TYPES = (
     EVENT_TYPE_SIGNAL,
     EVENT_TYPE_ESCALATION,
     EVENT_TYPE_TASK_CREATED,
+    EVENT_TYPE_ESCALATION_STATUS,
     EVENT_TYPE_TASK_OUTCOME,
     EVENT_TYPE_CARE_UPDATE,
 )
@@ -60,7 +69,7 @@ OPEN_TASK_STATUS_VALUES: tuple[str, ...] = tuple(status.value for status in OPEN
 
 UNRESOLVED_ESCALATION_STATUSES: tuple[EscalationStatus, ...] = (
     EscalationStatus.OPEN,
-    EscalationStatus.ACKNOWLEDGED,
+    EscalationStatus.IN_PROGRESS,
 )
 UNRESOLVED_ESCALATION_STATUS_VALUES: tuple[str, ...] = tuple(
     status.value for status in UNRESOLVED_ESCALATION_STATUSES
@@ -258,12 +267,14 @@ def _collect_patient_events(*, db: Session, patient: Patient) -> PatientTimeline
     events: List[TimelineItemPayload] = []
     signals = list(_load_signals(db=db, patient=patient))
     escalations = list(_load_escalations(db=db, patient=patient))
+    status_events = list(_load_escalation_status_events(db=db, patient=patient))
     tasks = list(_load_tasks(db=db, patient=patient))
     task_outcomes = list(_load_task_outcomes(db=db, patient=patient))
     care_updates = list(_load_care_updates(db=db, patient=patient))
 
     events.extend(_normalize_signal(signal) for signal in signals)
     events.extend(_normalize_escalation(escalation) for escalation in escalations)
+    events.extend(_normalize_escalation_status_event(event) for event in status_events)
     events.extend(_normalize_task(task) for task in tasks)
     events.extend(_normalize_task_outcome(outcome) for outcome in task_outcomes)
     events.extend(_normalize_care_update(update) for update in care_updates)
@@ -491,6 +502,9 @@ def get_patient_timeline_event(
     elif source_kind == SOURCE_CARE_UPDATE:
         loader = _load_care_update_by_id
         normalizer = _normalize_care_update
+    elif source_kind == SOURCE_ESCALATION_STATUS:
+        loader = _load_escalation_status_event_by_id
+        normalizer = _normalize_escalation_status_event
     else:
         raise PatientTimelineEventNotFoundError()
 
@@ -509,6 +523,15 @@ def _load_signals(*, db: Session, patient: Patient) -> Iterable[PatientSignal]:
 
 def _load_escalations(*, db: Session, patient: Patient) -> Iterable[PatientEscalation]:
     stmt = select(PatientEscalation).where(PatientEscalation.patient_id == patient.id)
+    return db.execute(stmt).scalars().all()
+
+
+def _load_escalation_status_events(
+    *,
+    db: Session,
+    patient: Patient,
+) -> Iterable[PatientEscalationStatusEvent]:
+    stmt = select(PatientEscalationStatusEvent).where(PatientEscalationStatusEvent.patient_id == patient.id)
     return db.execute(stmt).scalars().all()
 
 
@@ -545,6 +568,13 @@ def _load_task_outcome_by_id(db: Session, source_id: UUID) -> InterventionTaskOu
 
 def _load_care_update_by_id(db: Session, source_id: UUID) -> CareUpdate | None:
     return db.get(CareUpdate, source_id)
+
+
+def _load_escalation_status_event_by_id(
+    db: Session,
+    source_id: UUID,
+) -> PatientEscalationStatusEvent | None:
+    return db.get(PatientEscalationStatusEvent, source_id)
 
 
 def _normalize_signal(signal: PatientSignal) -> TimelineItemPayload:
@@ -596,9 +626,11 @@ def _normalize_escalation(escalation: PatientEscalation) -> TimelineItemPayload:
         "status": escalation.status.value,
         "severity": escalation.severity.value,
         "triggered_at": _iso(escalation.triggered_at),
-        "acknowledged_at": _iso(escalation.acknowledged_at),
+        "in_progress_at": _iso(escalation.in_progress_at),
         "resolved_at": _iso(escalation.resolved_at),
         "resolution_notes": escalation.resolution_notes,
+        "canceled_at": _iso(escalation.canceled_at),
+        "cancellation_notes": escalation.cancellation_notes,
         "signal_id": str(escalation.signal_id) if escalation.signal_id else None,
     }
 
@@ -617,6 +649,36 @@ def _normalize_escalation(escalation: PatientEscalation) -> TimelineItemPayload:
         "authored_by_user_id": None,
         "actor_user_id": None,
         "related_escalation_id": escalation.id,
+        "related_task_id": None,
+        "related_outcome_id": None,
+        "metadata": metadata,
+    }
+
+
+def _normalize_escalation_status_event(
+    status_event: PatientEscalationStatusEvent,
+) -> TimelineItemPayload:
+    display_title = f"Escalation marked {status_event.status.value.replace('_', ' ')}"
+    metadata = {
+        "status": status_event.status.value,
+        "note": status_event.note,
+    }
+
+    return {
+        "event_id": _compose_event_id(SOURCE_ESCALATION_STATUS, status_event.id),
+        "event_type": EVENT_TYPE_ESCALATION_STATUS,
+        "occurred_at": status_event.occurred_at,
+        "patient_id": status_event.patient_id,
+        "organization_id": status_event.organization_id,
+        "source_id": status_event.id,
+        "source_kind": SOURCE_ESCALATION_STATUS,
+        "display_title": display_title,
+        "display_text": status_event.note,
+        "status": status_event.status.value,
+        "priority": None,
+        "authored_by_user_id": None,
+        "actor_user_id": status_event.actor_user_id,
+        "related_escalation_id": status_event.escalation_id,
         "related_task_id": None,
         "related_outcome_id": None,
         "metadata": metadata,

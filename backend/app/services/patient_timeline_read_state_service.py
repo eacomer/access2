@@ -22,12 +22,13 @@ from app.models.patient import Patient
 from app.models.care_update import CareUpdate
 from app.models.intervention_task import InterventionTask
 from app.models.intervention_task_outcome import InterventionTaskOutcome
-from app.models.patient_signal import PatientEscalation, PatientSignal
+from app.models.patient_signal import PatientEscalation, PatientEscalationStatusEvent, PatientSignal
 from app.models.patient_timeline_read_state import PatientTimelineReadState
 from app.services.authz import ensure_tenant_scoped_resource
 from app.services.patient_timeline_service import (
     EVENT_TYPE_CARE_UPDATE,
     EVENT_TYPE_ESCALATION,
+    EVENT_TYPE_ESCALATION_STATUS,
     EVENT_TYPE_SIGNAL,
     EVENT_TYPE_TASK_CREATED,
     EVENT_TYPE_TASK_OUTCOME,
@@ -875,6 +876,22 @@ def _build_filtered_events_statement(
         literal(None).label("related_task_status"),
     )
 
+    escalation_status_stmt = (
+        select(
+            PatientEscalationStatusEvent.patient_id.label("patient_id"),
+            PatientEscalationStatusEvent.organization_id.label("organization_id"),
+            PatientEscalationStatusEvent.occurred_at.label("occurred_at"),
+            func.concat(literal("escalation_status_event:"), cast(PatientEscalationStatusEvent.id, String)).label(
+                "event_id"
+            ),
+            literal(EVENT_TYPE_ESCALATION_STATUS).label("event_type"),
+            PatientEscalationStatusEvent.escalation_id.label("related_escalation_id"),
+            literal(None).label("related_task_id"),
+            cast(PatientEscalationStatusEvent.status, String).label("related_escalation_status"),
+            literal(None).label("related_task_status"),
+        )
+    )
+
     task_stmt = (
         select(
             InterventionTask.patient_id.label("patient_id"),
@@ -942,6 +959,7 @@ def _build_filtered_events_statement(
     timeline_union = union_all(
         signal_stmt,
         escalation_stmt,
+        escalation_status_stmt,
         task_stmt,
         outcome_stmt,
         care_update_stmt,

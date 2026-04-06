@@ -24,6 +24,7 @@ if TYPE_CHECKING:
     from app.models.organization import Organization
     from app.models.patient import Patient
     from app.models.patient_enrollment import PatientEnrollment
+    from app.models.user import User
 
 
 class SignalType(str, Enum):
@@ -36,8 +37,9 @@ class SignalType(str, Enum):
 
 class EscalationStatus(str, Enum):
     OPEN = "open"
-    ACKNOWLEDGED = "acknowledged"
+    IN_PROGRESS = "in_progress"
     RESOLVED = "resolved"
+    CANCELED = "canceled"
 
 
 class EscalationSeverity(str, Enum):
@@ -169,7 +171,8 @@ class PatientEscalation(IDTimestampMixin, Base):
         server_default=func.now(),
     )
 
-    acknowledged_at: Mapped[datetime | None] = mapped_column(
+    in_progress_at: Mapped[datetime | None] = mapped_column(
+        "in_progress_at",
         DateTime(timezone=True),
         nullable=True,
     )
@@ -184,6 +187,16 @@ class PatientEscalation(IDTimestampMixin, Base):
         nullable=True,
     )
 
+    canceled_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    cancellation_notes: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
     patient: Mapped["Patient"] = relationship("Patient")
     organization: Mapped["Organization"] = relationship("Organization")
     enrollment: Mapped["PatientEnrollment"] = relationship("PatientEnrollment")
@@ -192,3 +205,59 @@ class PatientEscalation(IDTimestampMixin, Base):
         back_populates="escalation",
         uselist=False,
     )
+    status_events: Mapped[list["PatientEscalationStatusEvent"]] = relationship(
+        "PatientEscalationStatusEvent",
+        back_populates="escalation",
+        order_by="PatientEscalationStatusEvent.occurred_at.desc()",
+    )
+
+
+class PatientEscalationStatusEvent(IDTimestampMixin, Base):
+    __tablename__ = "patient_escalation_status_events"
+
+    organization_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("organizations.id", ondelete="RESTRICT"),
+        nullable=False,
+        index=True,
+    )
+
+    patient_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("patients.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    escalation_id: Mapped[uuid.UUID] = mapped_column(
+        ForeignKey("patient_escalations.id", ondelete="CASCADE"),
+        nullable=False,
+        index=True,
+    )
+
+    status: Mapped[EscalationStatus] = mapped_column(
+        SAEnum(EscalationStatus, name="escalationstatus"),
+        nullable=False,
+    )
+
+    occurred_at: Mapped[datetime] = mapped_column(
+        DateTime(timezone=True),
+        nullable=False,
+        server_default=func.now(),
+    )
+
+    note: Mapped[str | None] = mapped_column(
+        Text,
+        nullable=True,
+    )
+
+    actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+        index=True,
+    )
+
+    patient: Mapped["Patient"] = relationship("Patient")
+    escalation: Mapped["PatientEscalation"] = relationship(
+        "PatientEscalation",
+        back_populates="status_events",
+    )
+    actor: Mapped["User"] = relationship("User")

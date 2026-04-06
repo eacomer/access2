@@ -15,11 +15,13 @@ ALLOWED_TIMELINE_SOURCE_KINDS = {
     "intervention_task",
     "intervention_task_outcome",
     "care_update",
+    "escalation_status_event",
 }
 
 ALLOWED_TIMELINE_EVENT_TYPES = {
     "signal_recorded",
     "escalation_triggered",
+    "escalation_status_changed",
     "intervention_task_created",
     "intervention_task_outcome_logged",
     "care_update_logged",

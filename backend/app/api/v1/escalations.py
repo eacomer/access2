@@ -7,14 +7,18 @@ from sqlalchemy.orm import Session
 
 from app.api.deps import get_db, get_request_context
 from app.core.context import RequestContext
-from app.schemas.signal import EscalationResolveRequest, PatientEscalationRead
+from app.models.patient_signal import EscalationStatus
+from app.schemas.signal import (
+    EscalationResolveRequest,
+    EscalationStatusUpdateRequest,
+    PatientEscalationRead,
+)
 from app.services.authz import OrganizationAccessError
 from app.services.patient_signal_service import (
     EscalationTransitionError,
     PatientEscalationNotFoundError,
-    acknowledge_escalation,
     get_escalation_by_id,
-    resolve_escalation,
+    transition_escalation_status,
 )
 
 router = APIRouter(prefix="/escalations", tags=["escalations"])
@@ -41,17 +45,12 @@ def acknowledge_escalation_endpoint(
     db: Session = Depends(get_db),
     context: RequestContext = Depends(get_request_context),
 ) -> PatientEscalationRead:
-    escalation = _get_escalation_or_error(db=db, context=context, escalation_id=escalation_id)
-
-    try:
-        updated = acknowledge_escalation(db=db, escalation=escalation)
-    except EscalationTransitionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        )
-
-    return updated
+    return _update_status_response(
+        db=db,
+        escalation_id=escalation_id,
+        context=context,
+        new_status=EscalationStatus.IN_PROGRESS,
+    )
 
 
 @router.post(
@@ -64,21 +63,32 @@ def resolve_escalation_endpoint(
     db: Session = Depends(get_db),
     context: RequestContext = Depends(get_request_context),
 ) -> PatientEscalationRead:
-    escalation = _get_escalation_or_error(db=db, context=context, escalation_id=escalation_id)
+    return _update_status_response(
+        db=db,
+        escalation_id=escalation_id,
+        context=context,
+        new_status=EscalationStatus.RESOLVED,
+        note=payload.resolution_notes,
+    )
 
-    try:
-        updated = resolve_escalation(
-            db=db,
-            escalation=escalation,
-            resolution_notes=payload.resolution_notes,
-        )
-    except EscalationTransitionError as exc:
-        raise HTTPException(
-            status_code=status.HTTP_409_CONFLICT,
-            detail=str(exc),
-        )
 
-    return updated
+@router.post(
+    "/{escalation_id}/status",
+    response_model=PatientEscalationRead,
+)
+def update_escalation_status_endpoint(
+    escalation_id: UUID,
+    payload: EscalationStatusUpdateRequest,
+    db: Session = Depends(get_db),
+    context: RequestContext = Depends(get_request_context),
+) -> PatientEscalationRead:
+    return _update_status_response(
+        db=db,
+        escalation_id=escalation_id,
+        context=context,
+        new_status=payload.status,
+        note=payload.note,
+    )
 
 
 def _get_escalation_or_error(
@@ -100,3 +110,29 @@ def _get_escalation_or_error(
             detail=str(exc),
         )
 
+
+def _update_status_response(
+    *,
+    db: Session,
+    escalation_id: UUID,
+    context: RequestContext,
+    new_status: EscalationStatus,
+    note: str | None = None,
+) -> PatientEscalationRead:
+    escalation = _get_escalation_or_error(db=db, context=context, escalation_id=escalation_id)
+
+    try:
+        updated = transition_escalation_status(
+            db=db,
+            escalation=escalation,
+            new_status=new_status,
+            note=note,
+            actor_user_id=context.user.id,
+        )
+    except EscalationTransitionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        )
+
+    return updated

@@ -191,8 +191,8 @@ def test_acknowledge_and_resolve_escalation_flow(
         headers=headers,
     )
     assert ack_resp.status_code == 200
-    assert ack_resp.json()["acknowledged_at"] is not None
-    assert ack_resp.json()["status"] == "acknowledged"
+    assert ack_resp.json()["in_progress_at"] is not None
+    assert ack_resp.json()["status"] == "in_progress"
 
     resolve_resp = client.post(
         f"/api/v1/escalations/{escalation_id}/resolve",
@@ -202,6 +202,7 @@ def test_acknowledge_and_resolve_escalation_flow(
     assert resolve_resp.status_code == 200
     assert resolve_resp.json()["status"] == "resolved"
     assert resolve_resp.json()["resolution_notes"] == "Reviewed by clinician"
+    assert resolve_resp.json()["resolved_at"] is not None
 
     repeat_resp = client.post(
         f"/api/v1/escalations/{escalation_id}/resolve",
@@ -243,3 +244,106 @@ def test_cross_tenant_signal_creation_blocked(
     )
     assert resp.status_code == 403
 
+
+def test_escalation_status_endpoint_allows_cancellation_with_note(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    organization = create_organization_record(db_session, slug="signal-status-cancel")
+    user = create_user_for_org(
+        db_session,
+        organization=organization,
+        email="status-cancel@example.com",
+        password="Secret123!",
+    )
+    headers = auth_headers(client, user.email, "Secret123!")
+    patient_id = create_patient_for_user(client, headers, first_name="StatusFlow")
+
+    create_resp = client.post(
+        f"/api/v1/patients/{patient_id}/signals",
+        json={"signal_type": "symptom_score", "signal_value_numeric": 10},
+        headers=headers,
+    )
+    escalation_id = create_resp.json()["escalation"]["id"]
+
+    cancel_resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/status",
+        json={"status": "canceled", "note": "Duplicate report"},
+        headers=headers,
+    )
+    assert cancel_resp.status_code == 200
+    payload = cancel_resp.json()
+    assert payload["status"] == "canceled"
+    assert payload["canceled_at"] is not None
+    assert payload["cancellation_notes"] == "Duplicate report"
+
+
+def test_escalation_status_endpoint_blocks_invalid_transition(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    organization = create_organization_record(db_session, slug="signal-status-invalid")
+    user = create_user_for_org(
+        db_session,
+        organization=organization,
+        email="status-invalid@example.com",
+        password="Secret123!",
+    )
+    headers = auth_headers(client, user.email, "Secret123!")
+    patient_id = create_patient_for_user(client, headers, first_name="InvalidStatus")
+
+    create_resp = client.post(
+        f"/api/v1/patients/{patient_id}/signals",
+        json={"signal_type": "symptom_score", "signal_value_numeric": 10},
+        headers=headers,
+    )
+    escalation_id = create_resp.json()["escalation"]["id"]
+
+    client.post(
+        f"/api/v1/escalations/{escalation_id}/status",
+        json={"status": "resolved", "note": "Handled"},
+        headers=headers,
+    )
+    revert_resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/status",
+        json={"status": "in_progress"},
+        headers=headers,
+    )
+    assert revert_resp.status_code == 409
+
+
+def test_escalation_status_endpoint_rejects_cross_tenant_updates(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    org_one = create_organization_record(db_session, slug="signal-status-tenant-a")
+    org_two = create_organization_record(db_session, slug="signal-status-tenant-b")
+    user_one = create_user_for_org(
+        db_session,
+        organization=org_one,
+        email="status-tenant-a@example.com",
+        password="Secret123!",
+    )
+    user_two = create_user_for_org(
+        db_session,
+        organization=org_two,
+        email="status-tenant-b@example.com",
+        password="Secret123!",
+    )
+    headers_one = auth_headers(client, user_one.email, "Secret123!")
+    headers_two = auth_headers(client, user_two.email, "Secret123!")
+    patient_id = create_patient_for_user(client, headers_one, first_name="TenantProtected")
+
+    create_resp = client.post(
+        f"/api/v1/patients/{patient_id}/signals",
+        json={"signal_type": "symptom_score", "signal_value_numeric": 10},
+        headers=headers_one,
+    )
+    escalation_id = create_resp.json()["escalation"]["id"]
+
+    resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/status",
+        json={"status": "in_progress"},
+        headers=headers_two,
+    )
+    assert resp.status_code == 403

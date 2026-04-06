@@ -51,9 +51,11 @@ class PatientEscalationRead(BaseModel):
     status: EscalationStatus
     severity: EscalationSeverity
     triggered_at: datetime
-    acknowledged_at: datetime | None
+    in_progress_at: datetime | None
     resolved_at: datetime | None
     resolution_notes: str | None
+    canceled_at: datetime | None
+    cancellation_notes: str | None
     created_at: datetime
     updated_at: datetime
 
@@ -68,3 +70,7 @@ class SignalCreateResponse(BaseModel):
 class EscalationResolveRequest(BaseModel):
     resolution_notes: str | None = Field(default=None, max_length=2000)
 
+
+class EscalationStatusUpdateRequest(BaseModel):
+    status: EscalationStatus
+    note: str | None = Field(default=None, max_length=2000)
