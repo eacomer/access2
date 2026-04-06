@@ -353,16 +353,23 @@ def list_patient_timeline_worklist_summaries(
     )
 
     items: list[dict] = []
+    skipped_context_patients = 0
     for row in page_rows:
         patient = patient_map.get(row["patient_id"])
         if patient is None:
             continue
-        events = get_sorted_patient_timeline_events(
-            db=db,
-            context=context,
-            patient=patient,
-            filters=scoped_filters,
-        )
+        if derived_patient_id is not None and patient.id != derived_patient_id:
+            continue
+        try:
+            events = get_sorted_patient_timeline_events(
+                db=db,
+                context=context,
+                patient=patient,
+                filters=scoped_filters,
+            )
+        except (PatientTimelineContextNotFoundError, PatientTimelineContextMismatchError):
+            skipped_context_patients += 1
+            continue
         payload = _build_inbox_summary_payload(
             patient=patient,
             events=list(events),
@@ -374,6 +381,9 @@ def list_patient_timeline_worklist_summaries(
                 "patient_display_name": f"{patient.first_name} {patient.last_name}",
             }
         )
+
+    if skipped_context_patients:
+        total = max(total - skipped_context_patients, len(items))
 
     return {"items": items, "total": total}
 

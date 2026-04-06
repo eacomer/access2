@@ -3090,3 +3090,97 @@ def test_patient_timeline_worklist_summary_filters_scope_to_owning_patient(
         "latest_event_occurred_at",
     ):
         assert row[field] == inbox[field]
+
+
+def test_patient_timeline_worklist_summary_related_escalation_multi_patient(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-related-escalation")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+
+    other_patient_id = create_patient_for_user(
+        client,
+        env["headers"],
+        first_name="worklist-related-escalation-other",
+    )
+    _create_care_update(client, env["headers"], other_patient_id, summary="other patient noise")
+
+    payload = _get_worklist_summary(
+        client,
+        env["headers"],
+        params={"related_escalation_id": escalation_id},
+    )
+    assert payload["total"] == 1
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["patient_id"] == env["patient_id"]
+
+
+def test_patient_timeline_worklist_summary_related_task_multi_patient(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-related-task")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    task_id = _create_task(client, env["headers"], escalation_id)
+
+    other_patient_id = create_patient_for_user(
+        client,
+        env["headers"],
+        first_name="worklist-related-task-other",
+    )
+    _create_care_update(client, env["headers"], other_patient_id, summary="other patient noise")
+
+    payload = _get_worklist_summary(
+        client,
+        env["headers"],
+        params={"related_task_id": task_id},
+    )
+    assert payload["total"] == 1
+    assert len(payload["items"]) == 1
+    assert payload["items"][0]["patient_id"] == env["patient_id"]
+
+
+def test_patient_timeline_worklist_summary_related_filter_pagination(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-related-page")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    task_id = _create_task(client, env["headers"], escalation_id)
+
+    # Introduce additional patients so that pagination would normally have to skip them
+    for idx in range(3):
+        extra_id = create_patient_for_user(
+            client,
+            env["headers"],
+            first_name=f"worklist-related-page-{idx}",
+        )
+        _create_care_update(client, env["headers"], extra_id, summary=f"extra-{idx}")
+
+    first_page = _get_worklist_summary(
+        client,
+        env["headers"],
+        params=[
+            ("related_task_id", task_id),
+            ("limit", 1),
+        ],
+    )
+    assert first_page["total"] == 1
+    assert len(first_page["items"]) == 1
+    assert first_page["items"][0]["patient_id"] == env["patient_id"]
+
+    second_page = _get_worklist_summary(
+        client,
+        env["headers"],
+        params=[
+            ("related_task_id", task_id),
+            ("limit", 1),
+            ("skip", 1),
+        ],
+    )
+    assert second_page["total"] == 1
+    assert second_page["items"] == []
