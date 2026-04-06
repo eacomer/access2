@@ -330,6 +330,18 @@ def list_patient_timeline_worklist_summaries(
     if effective_patient_ids is not None and len(effective_patient_ids) == 0:
         return {"items": [], "total": 0}
 
+    if derived_patient_id is not None:
+        return _build_single_patient_worklist_summary(
+            db=db,
+            context=context,
+            patient_id=derived_patient_id,
+            filters=scoped_filters,
+            has_unread_events=has_unread_events,
+            active_only=active_only,
+            skip=skip,
+            limit=limit,
+        )
+
     page_rows, total = _fetch_worklist_patient_rows(
         db=db,
         context=context,
@@ -386,6 +398,63 @@ def list_patient_timeline_worklist_summaries(
         total = max(total - skipped_context_patients, len(items))
 
     return {"items": items, "total": total}
+
+
+def _build_single_patient_worklist_summary(
+    *,
+    db: Session,
+    context: RequestContext,
+    patient_id: uuid.UUID,
+    filters: PatientTimelineFilters | None,
+    has_unread_events: bool | None,
+    active_only: bool,
+    skip: int,
+    limit: int,
+) -> dict:
+    patient = db.get(Patient, patient_id)
+    if patient is None:
+        raise PatientTimelineContextNotFoundError("Patient not found for this context.")
+    ensure_tenant_scoped_resource(context=context, resource=patient)
+    if active_only and not patient.is_active:
+        return {"items": [], "total": 0}
+
+    state = _load_read_state(
+        db=db,
+        organization_id=patient.organization_id,
+        patient_id=patient.id,
+        user_id=context.user.id,
+    )
+    events = get_sorted_patient_timeline_events(
+        db=db,
+        context=context,
+        patient=patient,
+        filters=filters,
+    )
+    payload = _build_inbox_summary_payload(
+        patient=patient,
+        events=list(events),
+        state=state,
+    )
+    if has_unread_events is not None and payload["has_unread_events"] is not has_unread_events:
+        return {"items": [], "total": 0}
+
+    total = 1
+    if skip >= total:
+        return {"items": [], "total": total}
+
+    bounded_limit = max(1, limit)
+    if bounded_limit <= 0:
+        return {"items": [], "total": total}
+
+    return {
+        "items": [
+            {
+                **payload,
+                "patient_display_name": f"{patient.first_name} {patient.last_name}",
+            }
+        ],
+        "total": total,
+    }
 
 
 def _load_read_state(

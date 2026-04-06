@@ -3095,6 +3095,7 @@ def test_patient_timeline_worklist_summary_filters_scope_to_owning_patient(
 def test_patient_timeline_worklist_summary_related_escalation_multi_patient(
     client: TestClient,
     db_session: Session,
+    monkeypatch,
 ) -> None:
     env = _bootstrap_patient_env(client, db_session, slug="worklist-related-escalation")
     signal_payload = _create_signal(client, env["headers"], env["patient_id"])
@@ -3106,6 +3107,15 @@ def test_patient_timeline_worklist_summary_related_escalation_multi_patient(
         first_name="worklist-related-escalation-other",
     )
     _create_care_update(client, env["headers"], other_patient_id, summary="other patient noise")
+
+    def _fail_fetch(*args, **kwargs):
+        raise AssertionError("worklist rows fetch should not run for derived filters")
+
+    monkeypatch.setattr(
+        read_state_service,
+        "_fetch_worklist_patient_rows",
+        _fail_fetch,
+    )
 
     payload = _get_worklist_summary(
         client,
@@ -3120,6 +3130,7 @@ def test_patient_timeline_worklist_summary_related_escalation_multi_patient(
 def test_patient_timeline_worklist_summary_related_task_multi_patient(
     client: TestClient,
     db_session: Session,
+    monkeypatch,
 ) -> None:
     env = _bootstrap_patient_env(client, db_session, slug="worklist-related-task")
     signal_payload = _create_signal(client, env["headers"], env["patient_id"])
@@ -3132,6 +3143,15 @@ def test_patient_timeline_worklist_summary_related_task_multi_patient(
         first_name="worklist-related-task-other",
     )
     _create_care_update(client, env["headers"], other_patient_id, summary="other patient noise")
+
+    def _fail_fetch(*args, **kwargs):
+        raise AssertionError("worklist rows fetch should not run for derived filters")
+
+    monkeypatch.setattr(
+        read_state_service,
+        "_fetch_worklist_patient_rows",
+        _fail_fetch,
+    )
 
     payload = _get_worklist_summary(
         client,
@@ -3146,6 +3166,7 @@ def test_patient_timeline_worklist_summary_related_task_multi_patient(
 def test_patient_timeline_worklist_summary_related_filter_pagination(
     client: TestClient,
     db_session: Session,
+    monkeypatch,
 ) -> None:
     env = _bootstrap_patient_env(client, db_session, slug="worklist-related-page")
     signal_payload = _create_signal(client, env["headers"], env["patient_id"])
@@ -3160,6 +3181,15 @@ def test_patient_timeline_worklist_summary_related_filter_pagination(
             first_name=f"worklist-related-page-{idx}",
         )
         _create_care_update(client, env["headers"], extra_id, summary=f"extra-{idx}")
+
+    def _fail_fetch(*args, **kwargs):
+        raise AssertionError("worklist rows fetch should not run for derived filters")
+
+    monkeypatch.setattr(
+        read_state_service,
+        "_fetch_worklist_patient_rows",
+        _fail_fetch,
+    )
 
     first_page = _get_worklist_summary(
         client,
@@ -3184,3 +3214,46 @@ def test_patient_timeline_worklist_summary_related_filter_pagination(
     )
     assert second_page["total"] == 1
     assert second_page["items"] == []
+
+
+def test_patient_timeline_worklist_summary_unfiltered_still_fetches_rows(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-unfiltered")
+    second_patient_id = create_patient_for_user(
+        client,
+        env["headers"],
+        first_name="worklist-unfiltered-second",
+    )
+    base_time = datetime.now(timezone.utc)
+    for idx, patient_id in enumerate((env["patient_id"], second_patient_id)):
+        _create_care_update(
+            client,
+            env["headers"],
+            patient_id,
+            summary=f"unfiltered-{idx}",
+            occurred_at=base_time - timedelta(minutes=idx),
+        )
+
+    original_fetch = read_state_service._fetch_worklist_patient_rows
+    call_count = 0
+
+    def _spy_fetch(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        return original_fetch(*args, **kwargs)
+
+    monkeypatch.setattr(
+        read_state_service,
+        "_fetch_worklist_patient_rows",
+        _spy_fetch,
+    )
+
+    payload = _get_worklist_summary(client, env["headers"])
+    assert payload["total"] == 2
+    ids = [item["patient_id"] for item in payload["items"]]
+    assert env["patient_id"] in ids
+    assert second_patient_id in ids
+    assert call_count == 1
