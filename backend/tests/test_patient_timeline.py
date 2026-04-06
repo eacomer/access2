@@ -2048,10 +2048,23 @@ def test_patient_timeline_worklist_summary_pagination_limits_processed_patients(
         call_count += 1
         return original(*args, **kwargs)
 
+    event_call_count = 0
+    original_event = read_state_service.get_patient_timeline_event
+
+    def _tracking_get_event(*args, **kwargs):
+        nonlocal event_call_count
+        event_call_count += 1
+        return original_event(*args, **kwargs)
+
     monkeypatch.setattr(
         read_state_service,
         "get_sorted_patient_timeline_events",
         _tracking_get_sorted,
+    )
+    monkeypatch.setattr(
+        read_state_service,
+        "get_patient_timeline_event",
+        _tracking_get_event,
     )
 
     payload = _get_worklist_summary(
@@ -2061,7 +2074,148 @@ def test_patient_timeline_worklist_summary_pagination_limits_processed_patients(
     )
     assert payload["total"] == len(extra_ids) + 1
     assert len(payload["items"]) == 1
-    assert call_count == 1
+    assert call_count == 0
+    assert 1 <= event_call_count <= 2
+
+
+def test_patient_timeline_worklist_summary_general_path_avoids_full_hydration(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-general-fastpath")
+    additional_ids = [
+        create_patient_for_user(client, env["headers"], first_name=f"worklist-general-fastpath-{idx}")
+        for idx in range(2)
+    ]
+    all_ids = [env["patient_id"], *additional_ids]
+    base_time = datetime.now(timezone.utc)
+    for offset, patient_id in enumerate(all_ids):
+        _create_care_update(
+            client,
+            env["headers"],
+            patient_id,
+            summary=f"fastpath-{patient_id}",
+            occurred_at=base_time - timedelta(minutes=offset),
+        )
+
+    def _fail_sorted(*args, **kwargs):
+        raise AssertionError("general worklist path should not hydrate full timelines")
+
+    original_get_event = read_state_service.get_patient_timeline_event
+    event_count = 0
+
+    def _tracking_get_event(*args, **kwargs):
+        nonlocal event_count
+        event_count += 1
+        return original_get_event(*args, **kwargs)
+
+    monkeypatch.setattr(
+        read_state_service,
+        "get_sorted_patient_timeline_events",
+        _fail_sorted,
+    )
+    monkeypatch.setattr(
+        read_state_service,
+        "get_patient_timeline_event",
+        _tracking_get_event,
+    )
+
+    payload = _get_worklist_summary(client, env["headers"])
+    assert payload["total"] >= len(all_ids)
+    assert event_count <= len(payload["items"]) * 2
+
+
+def test_patient_timeline_worklist_summary_general_path_respects_skip_window(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-general-skip")
+    additional_ids = [
+        create_patient_for_user(client, env["headers"], first_name=f"worklist-general-skip-{idx}")
+        for idx in range(3)
+    ]
+    base_time = datetime.now(timezone.utc)
+    for offset, patient_id in enumerate([env["patient_id"], *additional_ids]):
+        _create_care_update(
+            client,
+            env["headers"],
+            patient_id,
+            summary=f"skip-{patient_id}",
+            occurred_at=base_time - timedelta(minutes=offset),
+        )
+
+    def _fail_sorted(*args, **kwargs):  # pragma: no cover
+        raise AssertionError("later-page general path should not hydrate full timelines")
+
+    monkeypatch.setattr(
+        read_state_service,
+        "get_sorted_patient_timeline_events",
+        _fail_sorted,
+    )
+
+    original_get_event = read_state_service.get_patient_timeline_event
+    event_count = 0
+
+    def _tracking_get_event(*args, **kwargs):
+        nonlocal event_count
+        event_count += 1
+        return original_get_event(*args, **kwargs)
+
+    monkeypatch.setattr(
+        read_state_service,
+        "get_patient_timeline_event",
+        _tracking_get_event,
+    )
+
+    payload = _get_worklist_summary(
+        client,
+        env["headers"],
+        params={"skip": 2, "limit": 1},
+    )
+    assert len(payload["items"]) == 1
+    assert 1 <= event_count <= 2
+
+
+def test_patient_timeline_worklist_summary_filtered_path_still_materializes(
+    client: TestClient,
+    db_session: Session,
+    monkeypatch,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-filtered-full")
+    second_patient_id = create_patient_for_user(client, env["headers"], first_name="worklist-filtered-full")
+    base_time = datetime.now(timezone.utc)
+    for patient_id in (env["patient_id"], second_patient_id):
+        _create_care_update(
+            client,
+            env["headers"],
+            patient_id,
+            summary=f"filtered-{patient_id}",
+            occurred_at=base_time,
+        )
+
+    call_count = 0
+    original_sorted = read_state_service.get_sorted_patient_timeline_events
+
+    def _tracking_sorted(*args, **kwargs):
+        nonlocal call_count
+        call_count += 1
+        return original_sorted(*args, **kwargs)
+
+    monkeypatch.setattr(
+        read_state_service,
+        "get_sorted_patient_timeline_events",
+        _tracking_sorted,
+    )
+
+    payload = _get_worklist_summary(
+        client,
+        env["headers"],
+        params={"event_types": "care_update_logged"},
+    )
+    assert payload["items"]
+    assert call_count == len(payload["items"])
 
 
 def test_patient_timeline_worklist_summary_deterministic_tie_breaker(

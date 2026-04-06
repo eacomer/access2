@@ -34,6 +34,7 @@ from app.services.patient_timeline_service import (
     EVENT_TYPE_TASK_OUTCOME,
     OPEN_TASK_STATUS_VALUES,
     UNRESOLVED_ESCALATION_STATUS_VALUES,
+    PatientTimelineEventNotFoundError,
     PatientTimelineContextMismatchError,
     PatientTimelineContextNotFoundError,
     PatientTimelineFilters,
@@ -366,6 +367,7 @@ def list_patient_timeline_worklist_summaries(
 
     items: list[dict] = []
     skipped_context_patients = 0
+    use_row_summary = _filters_are_unset(scoped_filters)
     for row in page_rows:
         patient = patient_map.get(row["patient_id"])
         if patient is None:
@@ -373,20 +375,32 @@ def list_patient_timeline_worklist_summaries(
         if derived_patient_id is not None and patient.id != derived_patient_id:
             continue
         try:
-            events = get_sorted_patient_timeline_events(
-                db=db,
-                context=context,
-                patient=patient,
-                filters=scoped_filters,
-            )
-        except (PatientTimelineContextNotFoundError, PatientTimelineContextMismatchError):
+            if use_row_summary:
+                payload = _build_inbox_summary_payload_from_row(
+                    db=db,
+                    context=context,
+                    patient=patient,
+                    row=row,
+                )
+            else:
+                events = get_sorted_patient_timeline_events(
+                    db=db,
+                    context=context,
+                    patient=patient,
+                    filters=scoped_filters,
+                )
+                payload = _build_inbox_summary_payload(
+                    patient=patient,
+                    events=list(events),
+                    state=state_map.get(patient.id),
+                )
+        except (
+            PatientTimelineContextNotFoundError,
+            PatientTimelineContextMismatchError,
+            PatientTimelineEventNotFoundError,
+        ):
             skipped_context_patients += 1
             continue
-        payload = _build_inbox_summary_payload(
-            patient=patient,
-            events=list(events),
-            state=state_map.get(patient.id),
-        )
         items.append(
             {
                 **payload,
@@ -670,6 +684,81 @@ def _build_inbox_summary_payload(
     }
 
 
+def _build_inbox_summary_payload_from_row(
+    *,
+    db: Session,
+    context: RequestContext,
+    patient: Patient,
+    row: dict,
+) -> dict:
+    unread_count = int(row.get("unread_count") or 0)
+    total_events = int(row.get("total_events") or 0)
+    latest_event_id = row.get("latest_event_id")
+    latest_event_occurred_at = row.get("latest_event_occurred_at")
+    latest_event_payload: TimelineItemPayload | None = None
+
+    if latest_event_id:
+        latest_event_payload = get_patient_timeline_event(
+            db=db,
+            context=context,
+            patient=patient,
+            event_id=latest_event_id,
+        )
+
+    latest_event_id_value = latest_event_payload["event_id"] if latest_event_payload else latest_event_id
+    latest_event_occurred_at_value = (
+        latest_event_payload["occurred_at"] if latest_event_payload else latest_event_occurred_at
+    )
+    latest_event_type = latest_event_payload["event_type"] if latest_event_payload else None
+    latest_event_title = latest_event_payload["display_title"] if latest_event_payload else None
+
+    has_unread = unread_count > 0
+    latest_unread_event_id = latest_event_id_value if has_unread else None
+    latest_unread_event_type = latest_event_type if has_unread else None
+    latest_unread_event_occurred_at = latest_event_occurred_at_value if has_unread else None
+
+    oldest_unread_event_id_value = row.get("oldest_unread_event_id") if has_unread else None
+    oldest_unread_event_occurred_at_value = (
+        row.get("oldest_unread_event_occurred_at") if has_unread else None
+    )
+
+    if has_unread:
+        if unread_count <= 1:
+            oldest_unread_event_id_value = latest_event_id_value
+            oldest_unread_event_occurred_at_value = latest_event_occurred_at_value
+        elif oldest_unread_event_id_value:
+            normalized_oldest = _normalize_event_id_value(oldest_unread_event_id_value)
+            normalized_latest = _normalize_event_id_value(latest_event_id_value)
+            if normalized_oldest == normalized_latest:
+                oldest_unread_event_id_value = latest_event_id_value
+                oldest_unread_event_occurred_at_value = latest_event_occurred_at_value
+            else:
+                oldest_unread_event_payload = get_patient_timeline_event(
+                    db=db,
+                    context=context,
+                    patient=patient,
+                    event_id=oldest_unread_event_id_value,
+                )
+                oldest_unread_event_id_value = oldest_unread_event_payload["event_id"]
+                oldest_unread_event_occurred_at_value = oldest_unread_event_payload["occurred_at"]
+
+    return {
+        "patient_id": patient.id,
+        "has_unread_events": has_unread,
+        "unread_count": unread_count,
+        "total_events": total_events,
+        "latest_event_id": latest_event_id_value,
+        "latest_event_type": latest_event_type,
+        "latest_event_occurred_at": latest_event_occurred_at_value,
+        "latest_event_title": latest_event_title,
+        "latest_unread_event_id": latest_unread_event_id,
+        "latest_unread_event_type": latest_unread_event_type,
+        "latest_unread_event_occurred_at": latest_unread_event_occurred_at,
+        "oldest_unread_event_id": oldest_unread_event_id_value,
+        "oldest_unread_event_occurred_at": oldest_unread_event_occurred_at_value,
+    }
+
+
 def _ensure_event_visible_in_filters(
     *,
     db: Session,
@@ -720,6 +809,26 @@ def _normalize_sort_timestamp(value: datetime | None) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+def _filters_are_unset(filters: PatientTimelineFilters | None) -> bool:
+    if filters is None:
+        return True
+    return (
+        (not filters.event_types or len(filters.event_types) == 0)
+        and filters.occurred_after is None
+        and filters.occurred_before is None
+        and filters.related_escalation_id is None
+        and filters.related_task_id is None
+        and (not filters.task_statuses or len(filters.task_statuses) == 0)
+        and not filters.include_only_open_work
+    )
+
+
+def _normalize_event_id_value(value: str | None) -> str | None:
+    if value is None:
+        return None
+    return value.replace("-", "")
 def _resolve_patient_scope_from_filters(
     db: Session,
     *,
@@ -799,6 +908,7 @@ def _fetch_worklist_patient_rows(
             events_stmt.c.patient_id,
             events_stmt.c.occurred_at,
             events_stmt.c.event_id,
+            events_stmt.c.event_type,
             func.row_number()
             .over(
                 partition_by=events_stmt.c.patient_id,
@@ -808,6 +918,7 @@ def _fetch_worklist_patient_rows(
                 ),
             )
             .label("rank"),
+            func.replace(events_stmt.c.event_id, literal("-"), literal("")).label("normalized_event_id"),
         )
     ).cte("ranked_worklist_events")
 
@@ -816,9 +927,19 @@ def _fetch_worklist_patient_rows(
             ranked_events.c.patient_id,
             ranked_events.c.occurred_at.label("latest_event_occurred_at"),
             ranked_events.c.event_id.label("latest_event_id"),
+            ranked_events.c.event_type.label("latest_event_type"),
         )
         .where(ranked_events.c.rank == 1)
         .cte("latest_worklist_events")
+    )
+
+    event_totals = (
+        select(
+            ranked_events.c.patient_id,
+            func.count().label("total_events"),
+        )
+        .group_by(ranked_events.c.patient_id)
+        .cte("worklist_event_totals")
     )
 
     read_state_subq = (
@@ -834,14 +955,103 @@ def _fetch_worklist_patient_rows(
         .cte("worklist_read_states")
     )
 
+    ranked_with_read_state = (
+        select(
+            ranked_events.c.patient_id.label("r_patient_id"),
+            ranked_events.c.event_id.label("r_event_id"),
+            ranked_events.c.occurred_at.label("r_occurred_at"),
+            ranked_events.c.normalized_event_id.label("r_normalized_event_id"),
+            read_state_subq.c.rs_patient_id,
+            read_state_subq.c.last_read_event_id,
+            read_state_subq.c.last_read_occurred_at,
+            func.replace(read_state_subq.c.last_read_event_id, literal("-"), literal("")).label(
+                "normalized_last_read_event_id"
+            ),
+        )
+        .select_from(ranked_events)
+        .outerjoin(read_state_subq, ranked_events.c.patient_id == read_state_subq.c.rs_patient_id)
+    ).cte("worklist_ranked_with_read_state")
+
+    is_unread_condition = case(
+        (ranked_with_read_state.c.rs_patient_id.is_(None), literal(True)),
+        (ranked_with_read_state.c.last_read_event_id.is_(None), literal(True)),
+        (ranked_with_read_state.c.last_read_occurred_at.is_(None), literal(True)),
+        (ranked_with_read_state.c.r_occurred_at > ranked_with_read_state.c.last_read_occurred_at, literal(True)),
+        (ranked_with_read_state.c.r_occurred_at < ranked_with_read_state.c.last_read_occurred_at, literal(False)),
+        (
+            and_(
+                ranked_with_read_state.c.normalized_last_read_event_id.is_not(None),
+                ranked_with_read_state.c.r_normalized_event_id > ranked_with_read_state.c.normalized_last_read_event_id,
+            ),
+            literal(True),
+        ),
+        else_=literal(False),
+    )
+
+    unread_events = (
+        select(
+            ranked_with_read_state.c.r_patient_id.label("patient_id"),
+            ranked_with_read_state.c.r_event_id.label("event_id"),
+            ranked_with_read_state.c.r_occurred_at.label("occurred_at"),
+            func.row_number()
+            .over(
+                partition_by=ranked_with_read_state.c.r_patient_id,
+                order_by=(
+                    ranked_with_read_state.c.r_occurred_at.desc(),
+                    ranked_with_read_state.c.r_event_id.desc(),
+                ),
+            )
+            .label("unread_order"),
+        )
+        .where(is_unread_condition.is_(True))
+    ).cte("worklist_unread_events")
+
+    unread_counts = (
+        select(
+            unread_events.c.patient_id,
+            func.count().label("unread_count"),
+        )
+        .group_by(unread_events.c.patient_id)
+        .cte("worklist_unread_counts")
+    )
+
+    oldest_unread_ranked = (
+        select(
+            unread_events.c.patient_id,
+            unread_events.c.event_id,
+            unread_events.c.occurred_at,
+            func.row_number()
+            .over(
+                partition_by=unread_events.c.patient_id,
+                order_by=unread_events.c.unread_order.desc(),
+            )
+            .label("oldest_rank"),
+        )
+    ).cte("oldest_unread_ranked")
+
+    oldest_unread_events = (
+        select(
+            oldest_unread_ranked.c.patient_id,
+            oldest_unread_ranked.c.event_id.label("oldest_unread_event_id"),
+            oldest_unread_ranked.c.occurred_at.label("oldest_unread_event_occurred_at"),
+        )
+        .where(oldest_unread_ranked.c.oldest_rank == 1)
+        .cte("oldest_unread_events")
+    )
+
     join_stmt = (
         select(
             patient_cte.c.patient_id,
             patient_cte.c.patient_created_at,
             latest_events.c.latest_event_id,
             latest_events.c.latest_event_occurred_at,
+            latest_events.c.latest_event_type,
+            event_totals.c.total_events,
             read_state_subq.c.last_read_event_id,
             read_state_subq.c.last_read_occurred_at,
+            unread_counts.c.unread_count,
+            oldest_unread_events.c.oldest_unread_event_id,
+            oldest_unread_events.c.oldest_unread_event_occurred_at,
         )
         .select_from(patient_cte)
         .outerjoin(
@@ -849,8 +1059,20 @@ def _fetch_worklist_patient_rows(
             patient_cte.c.patient_id == latest_events.c.patient_id,
         )
         .outerjoin(
+            event_totals,
+            patient_cte.c.patient_id == event_totals.c.patient_id,
+        )
+        .outerjoin(
             read_state_subq,
             patient_cte.c.patient_id == read_state_subq.c.rs_patient_id,
+        )
+        .outerjoin(
+            unread_counts,
+            patient_cte.c.patient_id == unread_counts.c.patient_id,
+        )
+        .outerjoin(
+            oldest_unread_events,
+            patient_cte.c.patient_id == oldest_unread_events.c.patient_id,
         )
     )
 
@@ -861,7 +1083,10 @@ def _fetch_worklist_patient_rows(
     last_read_id = join_subq.c.last_read_event_id
     normalized_last_read_id = func.replace(last_read_id, literal("-"), literal(""))
 
+    unread_count_coalesced = func.coalesce(join_subq.c.unread_count, literal(0))
+
     has_unread_expr = case(
+        (unread_count_coalesced > 0, literal(True)),
         (latest_ts.is_(None), literal(False)),
         (
             or_(last_read_id.is_(None), last_read_ts.is_(None)),
@@ -878,6 +1103,11 @@ def _fetch_worklist_patient_rows(
         join_subq.c.patient_created_at,
         join_subq.c.latest_event_id,
         join_subq.c.latest_event_occurred_at,
+        join_subq.c.latest_event_type,
+        func.coalesce(join_subq.c.total_events, literal(0)).label("total_events"),
+        unread_count_coalesced.label("unread_count"),
+        join_subq.c.oldest_unread_event_id,
+        join_subq.c.oldest_unread_event_occurred_at,
         has_unread_expr,
     ).subquery()
 
