@@ -1,4 +1,5 @@
 from app.models.base import Base
+from app.models.care_update import CareUpdate, CareUpdateType
 from app.models.organization import Organization
 from app.models.patient import Patient
 from app.models.patient_enrollment import PatientEnrollment
@@ -14,10 +15,17 @@ from app.models.intervention_task import (
     InterventionTaskPriority,
     InterventionTaskStatus,
 )
+from app.models.intervention_task_outcome import (
+    InterventionTaskOutcome,
+    InterventionTaskOutcomeStatus,
+)
+from app.models.patient_timeline_read_state import PatientTimelineReadState
 from app.models.user import User
 
 __all__ = [
     "Base",
+    "CareUpdate",
+    "CareUpdateType",
     "Organization",
     "Patient",
     "PatientEnrollment",
@@ -30,4 +38,7 @@ __all__ = [
     "InterventionTask",
     "InterventionTaskStatus",
     "InterventionTaskPriority",
+    "InterventionTaskOutcome",
+    "InterventionTaskOutcomeStatus",
+    "PatientTimelineReadState",
 ]

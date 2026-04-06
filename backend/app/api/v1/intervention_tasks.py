@@ -14,6 +14,10 @@ from app.schemas.task import (
     InterventionTaskCreate,
     InterventionTaskRead,
 )
+from app.schemas.task_outcome import (
+    InterventionTaskOutcomeCreate,
+    InterventionTaskOutcomeRead,
+)
 from app.services.authz import OrganizationAccessError
 from app.services.intervention_task_service import (
     InterventionTaskNotFoundError,
@@ -27,6 +31,15 @@ from app.services.intervention_task_service import (
     list_tasks_for_escalation,
     list_tasks_for_patient,
     start_task,
+)
+from app.services.intervention_task_outcome_service import (
+    TaskOutcomeExistsError,
+    TaskOutcomeNotFoundError,
+    TaskOutcomeValidationError,
+    complete_task_with_outcome,
+    get_outcome_for_task,
+    list_task_outcomes_for_escalation,
+    list_task_outcomes_for_patient,
 )
 from app.services.patient_service import PatientNotFoundError, get_patient_by_id
 from app.services.patient_signal_service import (
@@ -82,6 +95,20 @@ def list_tasks_for_patient_endpoint(
 
 
 @router.get(
+    "/patients/{patient_id}/task-outcomes",
+    response_model=List[InterventionTaskOutcomeRead],
+)
+def list_task_outcomes_for_patient_endpoint(
+    patient_id: UUID,
+    db: Session = Depends(get_db),
+    context: RequestContext = Depends(get_request_context),
+) -> List[InterventionTaskOutcomeRead]:
+    patient = _get_patient_or_error(db=db, context=context, patient_id=patient_id)
+    outcomes = list_task_outcomes_for_patient(db=db, context=context, patient=patient)
+    return outcomes
+
+
+@router.get(
     "/escalations/{escalation_id}/tasks",
     response_model=List[InterventionTaskRead],
 )
@@ -93,6 +120,20 @@ def list_tasks_for_escalation_endpoint(
     escalation = _get_escalation_or_error(db=db, context=context, escalation_id=escalation_id)
     tasks = list_tasks_for_escalation(db=db, context=context, escalation=escalation)
     return tasks
+
+
+@router.get(
+    "/escalations/{escalation_id}/task-outcomes",
+    response_model=List[InterventionTaskOutcomeRead],
+)
+def list_task_outcomes_for_escalation_endpoint(
+    escalation_id: UUID,
+    db: Session = Depends(get_db),
+    context: RequestContext = Depends(get_request_context),
+) -> List[InterventionTaskOutcomeRead]:
+    escalation = _get_escalation_or_error(db=db, context=context, escalation_id=escalation_id)
+    outcomes = list_task_outcomes_for_escalation(db=db, context=context, escalation=escalation)
+    return outcomes
 
 
 @router.get(
@@ -189,6 +230,63 @@ def complete_task_endpoint(
 
 
 @router.post(
+    "/intervention-tasks/{task_id}/complete-with-outcome",
+    response_model=InterventionTaskOutcomeRead,
+    status_code=status.HTTP_201_CREATED,
+)
+def complete_task_with_outcome_endpoint(
+    task_id: UUID,
+    payload: InterventionTaskOutcomeCreate,
+    db: Session = Depends(get_db),
+    context: RequestContext = Depends(get_request_context),
+) -> InterventionTaskOutcomeRead:
+    task = _get_task_or_error(db=db, context=context, task_id=task_id)
+    try:
+        outcome = complete_task_with_outcome(
+            db=db,
+            context=context,
+            task=task,
+            payload=payload,
+        )
+    except TaskOutcomeExistsError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        )
+    except TaskOutcomeValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        )
+    except TaskStateError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        )
+
+    return outcome
+
+
+@router.get(
+    "/intervention-tasks/{task_id}/outcome",
+    response_model=InterventionTaskOutcomeRead,
+)
+def get_task_outcome_endpoint(
+    task_id: UUID,
+    db: Session = Depends(get_db),
+    context: RequestContext = Depends(get_request_context),
+) -> InterventionTaskOutcomeRead:
+    task = _get_task_or_error(db=db, context=context, task_id=task_id)
+    try:
+        return get_outcome_for_task(db=db, context=context, task=task)
+    except TaskOutcomeNotFoundError:
+        raise HTTPException(
+            status_code=status.HTTP_404_NOT_FOUND,
+            detail="Task outcome not found.",
+        )
+
+
+@router.post(
     "/tasks/{task_id}/cancel",
     response_model=InterventionTaskRead,
 )
@@ -268,4 +366,3 @@ def _get_task_or_error(
             status_code=status.HTTP_403_FORBIDDEN,
             detail=str(exc),
         )
-

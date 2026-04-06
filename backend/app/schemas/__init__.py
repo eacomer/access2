@@ -18,6 +18,25 @@ from app.schemas.task import (
     InterventionTaskCreate,
     InterventionTaskRead,
 )
+from app.schemas.task_outcome import (
+    InterventionTaskOutcomeCreate,
+    InterventionTaskOutcomeRead,
+)
+from app.schemas.patient_timeline import (
+    PatientTimelineFilterSnapshotResponse,
+    PatientTimelineInboxSummaryResponse,
+    PatientTimelineWorklistSummaryItem,
+    PatientTimelineWorklistSummaryResponse,
+    PatientTimelineDetailResponse,
+    PatientTimelineFilterParams,
+    PatientTimelineItem,
+    PatientTimelineListResponse,
+    PatientTimelineReadStateResponse,
+    PatientTimelineReadStateUpdateRequest,
+    PatientTimelineSinceResponse,
+    PatientTimelineSummaryResponse,
+    PatientTimelineWorkflowSummaryResponse,
+)
 from app.schemas.user import UserAdminUpdate, UserCreate, UserInDB, UserRead
 
 __all__ = [
@@ -42,4 +61,19 @@ __all__ = [
     "InterventionTaskRead",
     "InterventionTaskAssignRequest",
     "InterventionTaskCompleteRequest",
+    "InterventionTaskOutcomeCreate",
+    "InterventionTaskOutcomeRead",
+    "PatientTimelineItem",
+    "PatientTimelineListResponse",
+    "PatientTimelineSinceResponse",
+    "PatientTimelineDetailResponse",
+    "PatientTimelineFilterParams",
+    "PatientTimelineSummaryResponse",
+    "PatientTimelineReadStateResponse",
+    "PatientTimelineReadStateUpdateRequest",
+    "PatientTimelineWorkflowSummaryResponse",
+    "PatientTimelineFilterSnapshotResponse",
+    "PatientTimelineInboxSummaryResponse",
+    "PatientTimelineWorklistSummaryItem",
+    "PatientTimelineWorklistSummaryResponse",
 ]

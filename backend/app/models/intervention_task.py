@@ -16,6 +16,7 @@ if TYPE_CHECKING:
     from app.models.patient_enrollment import PatientEnrollment
     from app.models.patient_signal import PatientEscalation
     from app.models.user import User
+    from app.models.intervention_task_outcome import InterventionTaskOutcome
 
 
 class InterventionTaskStatus(str, Enum):
@@ -128,4 +129,9 @@ class InterventionTask(IDTimestampMixin, Base):
     completed_by_user: Mapped["User | None"] = relationship(
         "User",
         foreign_keys=[completed_by_user_id],
+    )
+    outcome: Mapped["InterventionTaskOutcome | None"] = relationship(
+        "InterventionTaskOutcome",
+        back_populates="task",
+        uselist=False,
     )

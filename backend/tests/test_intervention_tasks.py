@@ -64,6 +64,28 @@ def _create_escalation(client: TestClient, headers: dict[str, str], patient_id: 
     return payload["escalation"]["id"]
 
 
+def _complete_task_with_outcome(
+    client: TestClient,
+    headers: dict[str, str],
+    task_id: str,
+    *,
+    summary: str = "Patient reached",
+    outcome_status: str = "successful",
+):
+    return client.post(
+        f"/api/v1/intervention-tasks/{task_id}/complete-with-outcome",
+        json={
+            "completion_summary": summary,
+            "intervention_type": "phone_call",
+            "outcome_status": outcome_status,
+            "patient_response": "Acknowledged plan",
+            "follow_up_required": True,
+            "follow_up_notes": "Schedule check-in",
+        },
+        headers=headers,
+    )
+
+
 def test_create_and_list_tasks(client: TestClient, db_session: Session) -> None:
     env = _bootstrap_task(client, db_session, slug="task-list")
     headers = env["headers"]
@@ -212,3 +234,138 @@ def test_cancel_task_flow(
         headers=env["headers"],
     )
     assert repeat_cancel.status_code == 409
+
+
+def test_complete_task_with_outcome_records_evidence(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_task(client, db_session, slug="task-outcome")
+
+    resp = _complete_task_with_outcome(
+        client,
+        env["headers"],
+        env["task"]["id"],
+        summary="Documented escalation response",
+    )
+    assert resp.status_code == 201
+    outcome = resp.json()
+    assert outcome["intervention_task_id"] == env["task"]["id"]
+    assert outcome["outcome_status"] == "successful"
+    assert outcome["follow_up_required"] is True
+
+    task_detail = client.get(
+        f"/api/v1/tasks/{env['task']['id']}",
+        headers=env["headers"],
+    )
+    assert task_detail.status_code == 200
+    assert task_detail.json()["status"] == "completed"
+
+    fetch = client.get(
+        f"/api/v1/intervention-tasks/{env['task']['id']}/outcome",
+        headers=env["headers"],
+    )
+    assert fetch.status_code == 200
+    assert fetch.json()["id"] == outcome["id"]
+
+
+def test_duplicate_task_outcome_rejected(client: TestClient, db_session: Session) -> None:
+    env = _bootstrap_task(client, db_session, slug="task-outcome-dup")
+    first = _complete_task_with_outcome(client, env["headers"], env["task"]["id"])
+    assert first.status_code == 201
+
+    duplicate = _complete_task_with_outcome(client, env["headers"], env["task"]["id"])
+    assert duplicate.status_code == 409
+
+
+def test_task_outcome_cross_tenant_denied(client: TestClient, db_session: Session) -> None:
+    env = _bootstrap_task(client, db_session, slug="task-outcome-scope")
+    resp = _complete_task_with_outcome(client, env["headers"], env["task"]["id"])
+    assert resp.status_code == 201
+
+    other_org = create_organization_record(db_session, slug="task-outcome-scope-other")
+    other_user = create_user_for_org(
+        db_session,
+        organization=other_org,
+        email="scope-outcome@example.com",
+        password="Secret123!",
+    )
+    other_headers = auth_headers(client, other_user.email, "Secret123!")
+
+    denied = client.get(
+        f"/api/v1/patients/{env['patient_id']}/task-outcomes",
+        headers=other_headers,
+    )
+    assert denied.status_code == 403
+
+
+def test_list_task_outcomes_for_patient(client: TestClient, db_session: Session) -> None:
+    env = _bootstrap_task(client, db_session, slug="task-outcome-patient")
+    resp = _complete_task_with_outcome(client, env["headers"], env["task"]["id"])
+    assert resp.status_code == 201
+
+    listing = client.get(
+        f"/api/v1/patients/{env['patient_id']}/task-outcomes",
+        headers=env["headers"],
+    )
+    assert listing.status_code == 200
+    payload = listing.json()
+    assert len(payload) == 1
+    assert payload[0]["intervention_task_id"] == env["task"]["id"]
+
+
+def test_list_task_outcomes_for_escalation(client: TestClient, db_session: Session) -> None:
+    env = _bootstrap_task(client, db_session, slug="task-outcome-escalation")
+    resp = _complete_task_with_outcome(client, env["headers"], env["task"]["id"], outcome_status="deferred")
+    assert resp.status_code == 201
+
+    listing = client.get(
+        f"/api/v1/escalations/{env['escalation_id']}/task-outcomes",
+        headers=env["headers"],
+    )
+    assert listing.status_code == 200
+    payload = listing.json()
+    assert len(payload) == 1
+    assert payload[0]["outcome_status"] == "deferred"
+
+
+def test_outcome_completion_rejected_for_terminal_task(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_task(client, db_session, slug="task-outcome-terminal")
+
+    complete_resp = client.post(
+        f"/api/v1/tasks/{env['task']['id']}/complete",
+        json={"completion_note": "Finished elsewhere"},
+        headers=env["headers"],
+    )
+    assert complete_resp.status_code == 200
+
+    term_attempt = _complete_task_with_outcome(client, env["headers"], env["task"]["id"])
+    assert term_attempt.status_code == 409
+
+    env_cancel = _bootstrap_task(client, db_session, slug="task-outcome-cancelled")
+    cancel_resp = client.post(
+        f"/api/v1/tasks/{env_cancel['task']['id']}/cancel",
+        headers=env_cancel["headers"],
+    )
+    assert cancel_resp.status_code == 200
+
+    cancel_attempt = _complete_task_with_outcome(
+        client,
+        env_cancel["headers"],
+        env_cancel["task"]["id"],
+    )
+    assert cancel_attempt.status_code == 409
+
+
+def test_completion_summary_required(client: TestClient, db_session: Session) -> None:
+    env = _bootstrap_task(client, db_session, slug="task-outcome-validation")
+    resp = _complete_task_with_outcome(
+        client,
+        env["headers"],
+        env["task"]["id"],
+        summary="   ",
+    )
+    assert resp.status_code == 422
