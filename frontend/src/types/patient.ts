@@ -1,3 +1,7 @@
+export type EscalationStatus = "open" | "in_progress" | "resolved" | "canceled";
+
+export type InterventionTaskPriority = "low" | "medium" | "high" | "urgent";
+
 export interface PatientTimelineWorklistSummaryItem {
   patient_id: string;
   patient_display_name: string;
@@ -63,7 +67,7 @@ export interface PatientEscalationEvidence {
   highest_open_escalation_priority: string | null;
   next_open_escalation_sla_due_at: string | null;
   latest_open_escalation_id: string | null;
-  latest_open_escalation_status: string | null;
+  latest_open_escalation_status: EscalationStatus | null;
   latest_open_escalation_created_at: string | null;
   latest_escalation_event_id: string | null;
   latest_escalation_event_type: string | null;
@@ -73,4 +77,52 @@ export interface PatientEscalationEvidence {
 export interface PatientTimelineDetailResponse {
   item: PatientTimelineItem;
   escalation_evidence: PatientEscalationEvidence | null;
+}
+
+export interface PatientEscalation {
+  id: string;
+  organization_id: string;
+  patient_id: string;
+  enrollment_id: string | null;
+  signal_id: string | null;
+  escalation_type: string;
+  status: EscalationStatus;
+  severity: string;
+  triggered_at: string;
+  in_progress_at: string | null;
+  resolved_at: string | null;
+  resolution_notes: string | null;
+  canceled_at: string | null;
+  cancellation_notes: string | null;
+  sla_due_at: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InterventionTask {
+  id: string;
+  organization_id: string;
+  patient_id: string;
+  enrollment_id: string | null;
+  escalation_id: string;
+  assigned_user_id: string | null;
+  created_by_user_id: string;
+  title: string;
+  description: string | null;
+  status: string;
+  priority: InterventionTaskPriority;
+  due_at: string | null;
+  completed_at: string | null;
+  completed_by_user_id: string | null;
+  completion_note: string | null;
+  created_at: string;
+  updated_at: string;
+}
+
+export interface InterventionTaskCreateRequest {
+  title: string;
+  description?: string | null;
+  priority?: InterventionTaskPriority;
+  due_at?: string | null;
+  assigned_user_id?: string | null;
 }
