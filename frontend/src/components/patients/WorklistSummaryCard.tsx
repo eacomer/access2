@@ -15,6 +15,8 @@ type Props = {
   queueQueryString?: string | null;
 };
 
+type EmphasisTone = "info" | "warning" | "alert";
+
 const getBadge = (summary: PatientTimelineWorklistSummaryItem) => {
   if (summary.overdue_escalation_count > 0) {
     return { label: `${summary.overdue_escalation_count} overdue`, variant: "badge--critical" };
@@ -68,7 +70,13 @@ const buildDetailLink = (
   };
 };
 
-const buildAttentionSummary = (summary: PatientTimelineWorklistSummaryItem) => {
+type AttentionSummary = {
+  primary: string;
+  detail: string;
+  tone?: EmphasisTone;
+};
+
+const buildAttentionSummary = (summary: PatientTimelineWorklistSummaryItem): AttentionSummary => {
   const {
     overdue_escalation_count,
     at_risk_escalation_count,
@@ -82,24 +90,29 @@ const buildAttentionSummary = (summary: PatientTimelineWorklistSummaryItem) => {
   } = summary;
 
   let primary = "Review patient timeline";
+  let tone: EmphasisTone | undefined;
 
   if (overdue_escalation_count > 0) {
     primary =
       overdue_escalation_count === 1
         ? "Escalation SLA is overdue"
         : `${overdue_escalation_count} escalations overdue`;
+    tone = "alert";
   } else if (at_risk_escalation_count > 0) {
     primary =
       at_risk_escalation_count === 1
         ? "Escalation SLA at risk"
         : `${at_risk_escalation_count} escalations at risk`;
+    tone = "warning";
   } else if (open_escalation_count > 0) {
     primary =
       open_escalation_count === 1
         ? "Active escalation requires attention"
         : `${open_escalation_count} open escalations`;
+    tone = "info";
   } else if (has_unread_events && unread_count > 0) {
     primary = `${unread_count} new timeline ${unread_count === 1 ? "event" : "events"}`;
+    tone = "info";
   }
 
   if (highest_escalation_priority) {
@@ -120,6 +133,7 @@ const buildAttentionSummary = (summary: PatientTimelineWorklistSummaryItem) => {
   return {
     primary,
     detail: detailParts.join(" • "),
+    tone,
   };
 };
 
@@ -127,7 +141,48 @@ type AttentionChip = {
   id: string;
   label: string;
   value: string;
-  tone?: "info" | "warning" | "alert";
+  tone?: EmphasisTone;
+};
+
+type ActionCue = {
+  label: string;
+  helper: string;
+  tone?: EmphasisTone;
+};
+
+const buildActionCue = (summary: PatientTimelineWorklistSummaryItem): ActionCue | null => {
+  if (summary.overdue_escalation_count > 0) {
+    return {
+      label: "Immediate follow-up",
+      helper: "Resolve overdue escalations first",
+      tone: "alert",
+    };
+  }
+  if (summary.at_risk_escalation_count > 0) {
+    return {
+      label: "Monitor SLA risk",
+      helper: "Escalations are approaching SLA breach",
+      tone: "warning",
+    };
+  }
+  if (summary.open_escalation_count > 0) {
+    return {
+      label: "Active work open",
+      helper: "Queue includes open escalations",
+      tone: "info",
+    };
+  }
+  if (summary.has_unread_events && summary.unread_count > 0) {
+    return {
+      label: "Review new activity",
+      helper: "Unread timeline updates available",
+      tone: "info",
+    };
+  }
+  return {
+    label: "No pending action",
+    helper: "Queue context preserved for reference",
+  };
 };
 
 const buildAttentionChips = (summary: PatientTimelineWorklistSummaryItem): AttentionChip[] => {
@@ -238,9 +293,14 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
   const attention = buildAttentionSummary(summary);
   const attentionChips = buildAttentionChips(summary);
   const recency = buildRecencyContext(summary);
+  const actionCue = buildActionCue(summary);
   const latestEventSummary = summary.latest_event_occurred_at
     ? `${formatRelativeTimeCompact(summary.latest_event_occurred_at)} · ${formatDateTime(summary.latest_event_occurred_at)}`
     : "n/a";
+  const latestEventHeadline =
+    summary.latest_event_title ??
+    (summary.latest_event_type ? formatEventType(summary.latest_event_type) : "No recent timeline activity");
+  const attentionDetail = attention.detail.length ? attention.detail : "No additional evidence captured.";
 
   const workflowBadges: Array<{ id: string; content: string; variant?: string }> = [];
   if (summary.highest_escalation_priority) {
@@ -267,114 +327,157 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
   return (
     <Link
       href={detailLink.href}
-      className="card card-link"
+      className="card card-link worklist-card worklist-card--triage"
       aria-label={`${detailLink.helper} for ${summary.patient_display_name}`}
     >
-      <header className="worklist-card-head">
-        <div>
-          <p className="eyebrow">Patient</p>
+      <header className="worklist-card-headline">
+        <div className="worklist-card-identity">
+          <p className="eyebrow">Patient queue</p>
           <p className="card-title">{summary.patient_display_name}</p>
           <p className="card-id">{summary.patient_id}</p>
         </div>
-        <span className={`badge ${badge.variant}`}>{badge.label}</span>
+        <div className="worklist-card-status">
+          <span className={`badge ${badge.variant}`}>{badge.label}</span>
+          {workflowBadges.length ? (
+            <div className="worklist-headline-cues">
+              {workflowBadges.slice(0, 2).map((item) => (
+                <span key={item.id} className={`badge${item.variant ? ` ${item.variant}` : ""}`}>
+                  {item.content}
+                </span>
+              ))}
+            </div>
+          ) : null}
+        </div>
       </header>
 
-      <section className="worklist-card-section">
-        <p className="worklist-context-label">Attention focus</p>
-        <p className="worklist-card-primary">{attention.primary}</p>
-        {attention.detail ? (
-          <p className="worklist-attention-detail">{attention.detail}</p>
-        ) : null}
-        {attentionChips.length ? (
-          <div className="worklist-attention-chips">
-            {attentionChips.map((chip) => (
-              <div
-                key={chip.id}
-                className={`worklist-attention-chip${
-                  chip.tone ? ` worklist-attention-chip--${chip.tone}` : ""
-                }`}
-              >
-                <span className="worklist-attention-chip-label">{chip.label}</span>
-                <span className="worklist-attention-chip-value">{chip.value}</span>
-              </div>
-            ))}
-          </div>
-        ) : null}
-      </section>
+      <div className="worklist-card-topline" aria-label="Queue scan line">
+        <div className="worklist-topline-item">
+          <span className="worklist-topline-label">Reason</span>
+          <span
+            className={`worklist-topline-value${
+              attention.tone ? ` worklist-topline-value--${attention.tone}` : ""
+            }`}
+          >
+            {attention.primary}
+          </span>
+        </div>
+        <div className="worklist-topline-item">
+          <span className="worklist-topline-label">Action</span>
+          <span
+            className={`worklist-action-pill${
+              actionCue?.tone ? ` worklist-action-pill--${actionCue.tone}` : ""
+            }`}
+          >
+            {actionCue?.label ?? "Standing by"}
+          </span>
+        </div>
+        <div className="worklist-topline-item">
+          <span className="worklist-topline-label">Latest</span>
+          <span
+            className={`worklist-topline-value${
+              recency?.tone ? ` worklist-topline-value--freshness-${recency.tone}` : ""
+            }`}
+          >
+            {recency?.relative ?? "No updates recorded"}
+          </span>
+          <span className="worklist-topline-helper">
+            {recency?.timestamp ?? "No timeline evidence yet"}
+          </span>
+        </div>
+      </div>
 
-      {recency ? (
-        <section className="worklist-card-section">
-          <p className="worklist-context-label">Latest activity</p>
-          <div className="worklist-recency">
-            <div className="worklist-recency-meta">
-              <span className="worklist-recency-label">Last update</span>
-              <span className="worklist-recency-value">{recency.timestamp}</span>
-              {recency.relative ? (
-                <span
-                  className={`worklist-recency-pill${
-                    recency.tone ? ` worklist-recency-pill--${recency.tone}` : ""
+      <div className="worklist-triage-grid">
+        <div className="worklist-triage-block">
+          <p className="worklist-triage-label">Queue detail</p>
+          <p className="worklist-triage-value">{attentionDetail}</p>
+          {attentionChips.length ? (
+            <div className="worklist-attention-chips">
+              {attentionChips.map((chip) => (
+                <div
+                  key={chip.id}
+                  className={`worklist-attention-chip${
+                    chip.tone ? ` worklist-attention-chip--${chip.tone}` : ""
                   }`}
                 >
-                  {recency.relative}
-                </span>
-              ) : null}
+                  <span className="worklist-attention-chip-label">{chip.label}</span>
+                  <span className="worklist-attention-chip-value">{chip.value}</span>
+                </div>
+              ))}
             </div>
-            {recency.chips.length ? (
-              <div className="worklist-attention-chips worklist-recency-chips">
-                {recency.chips.map((chip) => (
-                  <div
-                    key={chip.id}
-                    className={`worklist-attention-chip${
-                      chip.tone ? ` worklist-attention-chip--${chip.tone}` : ""
-                    }`}
-                  >
-                    <span className="worklist-attention-chip-label">{chip.label}</span>
-                    <span className="worklist-attention-chip-value">{chip.value}</span>
-                  </div>
-                ))}
-              </div>
-            ) : null}
-          </div>
-          <p className="worklist-card-note">{`Latest event: ${latestEventSummary}`}</p>
-        </section>
-      ) : null}
-
-      <section className="worklist-card-section">
-        <p className="worklist-context-label">Escalation counts</p>
-        <div className="count-row">
-          <div className="count-block">
-            <span className="count-value">{summary.open_escalation_count}</span>
-            <span className="count-label">Open escalations</span>
-          </div>
-          <div className="count-block">
-            <span className="count-value">{summary.overdue_escalation_count}</span>
-            <span className="count-label">Overdue</span>
-          </div>
-          <div className="count-block">
-            <span className="count-value">{summary.at_risk_escalation_count}</span>
-            <span className="count-label">At risk</span>
-          </div>
+          ) : (
+            <p className="worklist-triage-detail">No supporting evidence captured.</p>
+          )}
         </div>
-      </section>
 
-      {workflowBadges.length ? (
-        <section className="worklist-card-section">
-          <p className="worklist-context-label">Workflow cues</p>
-          <div className="meta-row">
-            {workflowBadges.map((item) => (
-              <span key={item.id} className={`badge${item.variant ? ` ${item.variant}` : ""}`}>
-                {item.content}
-              </span>
-            ))}
+        <div className="worklist-triage-block">
+          <p className="worklist-triage-label">Latest activity</p>
+          <p className="worklist-activity-main">{latestEventHeadline}</p>
+          {recency ? (
+            <>
+              <p className="worklist-activity-meta">
+                {recency.relative ? `${recency.relative} · ` : ""}
+                {recency.timestamp}
+              </p>
+              {recency.chips.length ? (
+                <div className="worklist-attention-chips worklist-recency-chips">
+                  {recency.chips.map((chip) => (
+                    <div
+                      key={chip.id}
+                      className={`worklist-attention-chip${
+                        chip.tone ? ` worklist-attention-chip--${chip.tone}` : ""
+                      }`}
+                    >
+                      <span className="worklist-attention-chip-label">{chip.label}</span>
+                      <span className="worklist-attention-chip-value">{chip.value}</span>
+                    </div>
+                  ))}
+                </div>
+              ) : null}
+            </>
+          ) : (
+            <p className="worklist-triage-detail">No timeline evidence recorded.</p>
+          )}
+          <p className="worklist-card-note">{`Latest event: ${latestEventSummary}`}</p>
+        </div>
+
+        <div className="worklist-triage-block worklist-triage-block--metrics">
+          <p className="worklist-triage-label">Escalation pulse</p>
+          <div className="worklist-metric-row">
+            <div className="worklist-metric">
+              <span className="worklist-metric-value">{summary.open_escalation_count}</span>
+              <span className="worklist-metric-label">Open</span>
+            </div>
+            <div className="worklist-metric">
+              <span className="worklist-metric-value">{summary.overdue_escalation_count}</span>
+              <span className="worklist-metric-label">Overdue</span>
+            </div>
+            <div className="worklist-metric">
+              <span className="worklist-metric-value">{summary.at_risk_escalation_count}</span>
+              <span className="worklist-metric-label">At risk</span>
+            </div>
           </div>
-        </section>
-      ) : null}
+          {workflowBadges.length ? (
+            <div className="worklist-metric-badges">
+              {workflowBadges.map((item) => (
+                <span key={item.id} className={`badge${item.variant ? ` ${item.variant}` : ""}`}>
+                  {item.content}
+                </span>
+              ))}
+            </div>
+          ) : (
+            <p className="worklist-triage-detail">No workflow cues surfaced.</p>
+          )}
+        </div>
+      </div>
 
       <section className="worklist-card-section worklist-card-action">
         <div className="worklist-card-action-main">
           <div>
             <p className="worklist-context-label">Drill-through</p>
             <p className="worklist-card-action-text">{detailLink.helper}</p>
+            <p className="worklist-card-note">
+              {actionCue?.helper ?? "Review patient timeline context"}
+            </p>
           </div>
           <span className="worklist-card-action-arrow" aria-hidden="true">
             →

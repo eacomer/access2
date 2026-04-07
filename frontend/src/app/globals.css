@@ -266,6 +266,168 @@ main.page {
   gap: 0.75rem;
 }
 
+.worklist-card-headline {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.worklist-card-identity {
+  display: flex;
+  flex-direction: column;
+  gap: 0.25rem;
+}
+
+.worklist-card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  flex-wrap: wrap;
+}
+
+.worklist-headline-cue {
+  border-radius: 9999px;
+  border: 1px solid #cbd5f5;
+  padding: 0.1rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: #312e81;
+  background: #eef2ff;
+}
+
+.worklist-headline-cue--info {
+  border-color: #c7d2fe;
+  background: #e0e7ff;
+  color: #3730a3;
+}
+
+.worklist-headline-cue--warning {
+  border-color: #fde68a;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.worklist-headline-cue--alert {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
+.worklist-card-status {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: 0.35rem;
+}
+
+.worklist-headline-cues {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.3rem;
+  justify-content: flex-end;
+}
+
+.worklist-card-topline {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  padding: 0.6rem 0.85rem;
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  background: #f8fafc;
+}
+
+.worklist-topline-item {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  min-width: 160px;
+  flex: 1 1 160px;
+}
+
+.worklist-topline-label {
+  margin: 0;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.worklist-topline-value {
+  font-size: 0.85rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.worklist-topline-value--info {
+  color: #1d4ed8;
+}
+
+.worklist-topline-value--warning {
+  color: #b45309;
+}
+
+.worklist-topline-value--alert {
+  color: #b91c1c;
+}
+
+.worklist-topline-value--freshness-fresh {
+  color: #15803d;
+}
+
+.worklist-topline-value--freshness-recent {
+  color: #b45309;
+}
+
+.worklist-topline-value--freshness-stale {
+  color: #475569;
+}
+
+.worklist-topline-helper {
+  font-size: 0.75rem;
+  color: #64748b;
+}
+
+.worklist-card--triage {
+  gap: 1rem;
+}
+
+.worklist-action-pill {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.3rem;
+  border-radius: 9999px;
+  border: 1px solid #cbd5f5;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #f8fafc;
+  color: #0f172a;
+}
+
+.worklist-action-pill--info {
+  border-color: #c7d2fe;
+  background: #eef2ff;
+  color: #3730a3;
+}
+
+.worklist-action-pill--warning {
+  border-color: #fde68a;
+  background: #fef3c7;
+  color: #92400e;
+}
+
+.worklist-action-pill--alert {
+  border-color: #fecaca;
+  background: #fee2e2;
+  color: #991b1b;
+}
+
 .worklist-card-section {
   display: flex;
   flex-direction: column;
@@ -369,6 +531,92 @@ main.page {
 
 .worklist-attention-chip-value {
   font-weight: 600;
+}
+
+.worklist-triage-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.worklist-triage-block {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem 0.9rem;
+  background: #f8fafc;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  min-height: 0;
+}
+
+.worklist-triage-block--metrics {
+  background: #fff;
+}
+
+.worklist-triage-label {
+  margin: 0;
+  text-transform: uppercase;
+  font-size: 0.65rem;
+  letter-spacing: 0.08em;
+  color: #94a3b8;
+  font-weight: 600;
+}
+
+.worklist-triage-value {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.worklist-triage-detail {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.worklist-activity-main {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.worklist-activity-meta {
+  margin: 0;
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.worklist-metric-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+.worklist-metric {
+  min-width: 90px;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1rem;
+}
+
+.worklist-metric-value {
+  font-size: 1.3rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.worklist-metric-label {
+  font-size: 0.75rem;
+  color: #475569;
+}
+
+.worklist-metric-badges {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.35rem;
 }
 
 .worklist-recency {
