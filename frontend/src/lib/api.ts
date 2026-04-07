@@ -5,6 +5,7 @@ import type {
   PatientTimelineDetailResponse,
   PatientTimelineListResponse,
   PatientTimelineWorklistSummaryResponse,
+  PatientTimelineFilters,
   EscalationStatus,
   InterventionTask,
   InterventionTaskCreateRequest,
@@ -88,14 +89,46 @@ export async function fetchWorklistSummary(
 
 export async function fetchPatientTimeline(
   patientId: string,
-  options: { limit?: number; cursorOccurredAt?: string; cursorEventId?: string } = {},
+  options: {
+    limit?: number;
+    cursorOccurredAt?: string;
+    cursorEventId?: string;
+    filters?: PatientTimelineFilters;
+  } = {},
 ): Promise<PatientTimelineListResponse> {
+  const query: Record<string, QueryValue> = {
+    limit: options.limit,
+    cursor_occurred_at: options.cursorOccurredAt,
+    cursor_event_id: options.cursorEventId,
+  };
+
+  if (options.filters) {
+    const { filters } = options;
+    if (filters.event_types?.length) {
+      query.event_types = filters.event_types;
+    }
+    if (filters.occurred_after) {
+      query.occurred_after = filters.occurred_after;
+    }
+    if (filters.occurred_before) {
+      query.occurred_before = filters.occurred_before;
+    }
+    if (filters.related_escalation_id) {
+      query.related_escalation_id = filters.related_escalation_id;
+    }
+    if (filters.related_task_id) {
+      query.related_task_id = filters.related_task_id;
+    }
+    if (filters.task_statuses?.length) {
+      query.task_statuses = filters.task_statuses;
+    }
+    if (filters.include_only_open_work) {
+      query.include_only_open_work = filters.include_only_open_work;
+    }
+  }
+
   return apiFetch<PatientTimelineListResponse>(`/patients/${patientId}/timeline`, {
-    query: {
-      limit: options.limit,
-      cursor_occurred_at: options.cursorOccurredAt,
-      cursor_event_id: options.cursorEventId,
-    },
+    query,
   });
 }
 

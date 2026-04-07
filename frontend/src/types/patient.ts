@@ -59,6 +59,16 @@ export interface PatientTimelineListResponse {
   has_more: boolean;
 }
 
+export interface PatientTimelineFilters {
+  event_types?: string[];
+  occurred_after?: string | null;
+  occurred_before?: string | null;
+  related_escalation_id?: string | null;
+  related_task_id?: string | null;
+  task_statuses?: string[];
+  include_only_open_work?: boolean;
+}
+
 export interface PatientEscalationEvidence {
   has_open_escalation: boolean;
   open_escalation_count: number;
