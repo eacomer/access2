@@ -1,7 +1,9 @@
-import { formatDateTime, formatEventType } from "../../lib/format";
+import { formatDateTime, formatEventType, formatRelativeTimeCompact } from "../../lib/format";
 import STATUS_LABELS from "../../lib/statusLabels";
 import type {
+  EscalationStatus,
   PatientEscalationEvidence,
+  PatientTimelineItem,
   PatientTimelineWorklistSummaryItem,
 } from "../../types/patient";
 
@@ -18,11 +20,24 @@ type MetadataItem = {
   value: string;
 };
 
+type InsightCard = {
+  id: string;
+  label: string;
+  value: string;
+  detail?: string;
+  tone?: "info" | "warning" | "alert";
+};
+
 type Props = {
   patientName: string;
   patientId: string;
   summary: PatientTimelineWorklistSummaryItem | null;
   evidence: PatientEscalationEvidence | null;
+  queueViewName?: string;
+  queueFilterSummary?: string | null;
+  hasQueueReturnContext?: boolean;
+  latestEvent: PatientTimelineItem | null;
+  activeEscalationStatus?: EscalationStatus | null;
 };
 
 const pluralize = (count: number, singular: string, plural?: string) => {
@@ -154,10 +169,154 @@ const buildChips = (
   return prioritized.slice(0, 4);
 };
 
-export default function PatientWorkflowHeader({ patientName, patientId, summary, evidence }: Props) {
+const buildQueueInsight = (
+  queueViewName?: string,
+  queueFilterSummary?: string | null,
+  hasQueueReturnContext?: boolean,
+): InsightCard | null => {
+  if (!queueViewName && !queueFilterSummary && !hasQueueReturnContext) {
+    return null;
+  }
+  const label = hasQueueReturnContext ? "Queue return" : "Queue mode";
+  const value = queueViewName
+    ? hasQueueReturnContext
+      ? `Back to ${queueViewName}`
+      : queueViewName
+    : "Patient queue";
+  let detail: string | undefined;
+  if (queueFilterSummary && queueFilterSummary.length > 0) {
+    detail = hasQueueReturnContext
+      ? `Filters preserved · ${queueFilterSummary}`
+      : queueFilterSummary;
+  } else if (hasQueueReturnContext) {
+    detail = "Return context preserved";
+  } else if (queueViewName) {
+    detail = "Direct view";
+  }
+  return {
+    id: "queue-context",
+    label,
+    value,
+    detail,
+    tone: hasQueueReturnContext ? "info" : undefined,
+  };
+};
+
+const buildEscalationInsight = (
+  summary: PatientTimelineWorklistSummaryItem | null,
+  evidence: PatientEscalationEvidence | null,
+  activeEscalationStatus?: EscalationStatus | null,
+): InsightCard | null => {
+  const overdue = evidence?.overdue_escalation_count ?? summary?.overdue_escalation_count ?? 0;
+  const atRisk = evidence?.at_risk_escalation_count ?? summary?.at_risk_escalation_count ?? 0;
+  const open = evidence?.open_escalation_count ?? summary?.open_escalation_count ?? 0;
+  const status = humanizeStatus(activeEscalationStatus ?? evidence?.latest_open_escalation_status);
+  const slaDue =
+    evidence?.next_open_escalation_sla_due_at ?? summary?.next_escalation_sla_due_at ?? null;
+
+  let tone: InsightCard["tone"];
+  let value = "All clear";
+  if (overdue > 0) {
+    tone = "alert";
+    value = pluralize(overdue, "overdue escalation");
+  } else if (atRisk > 0) {
+    tone = "warning";
+    value = pluralize(atRisk, "at-risk escalation");
+  } else if (open > 0) {
+    tone = "info";
+    value = pluralize(open, "open escalation");
+  } else if (status) {
+    value = `Escalation ${status.toLowerCase()}`;
+  }
+
+  const detail = slaDue ? `Next SLA ${formatRelativeTimeCompact(slaDue)}` : status ?? undefined;
+  return {
+    id: "escalation",
+    label: "Escalation evidence",
+    value,
+    detail,
+    tone,
+  };
+};
+
+const buildWorkInsight = (
+  summary: PatientTimelineWorklistSummaryItem | null,
+  latestEvent: PatientTimelineItem | null,
+): InsightCard | null => {
+  const unread = summary?.has_unread_events ? summary.unread_count : 0;
+  const latestUnreadAt = summary?.latest_unread_event_occurred_at;
+  if (latestEvent?.related_task_id) {
+    const detailParts = [
+      formatEventType(latestEvent.event_type),
+      formatRelativeTimeCompact(latestEvent.occurred_at),
+    ]
+      .filter(Boolean)
+      .join(" · ");
+    return {
+      id: "active-task",
+      label: "Active work",
+      value: "Task in progress",
+      detail: detailParts,
+      tone: "info",
+    };
+  }
+  if (unread > 0) {
+    return {
+      id: "unread-work",
+      label: "Active work",
+      value: `${unread} unread update${unread === 1 ? "" : "s"}`,
+      detail: latestUnreadAt ? `${formatRelativeTimeCompact(latestUnreadAt)} newest` : undefined,
+      tone: "info",
+    };
+  }
+  return {
+    id: "active-work",
+    label: "Active work",
+    value: "All caught up",
+    detail: "No pending tasks or unread updates",
+  };
+};
+
+const buildInsightCards = (
+  summary: PatientTimelineWorklistSummaryItem | null,
+  evidence: PatientEscalationEvidence | null,
+  queueViewName?: string,
+  queueFilterSummary?: string | null,
+  hasQueueReturnContext?: boolean,
+  latestEvent: PatientTimelineItem | null,
+  activeEscalationStatus?: EscalationStatus | null,
+): InsightCard[] => {
+  const cards = [
+    buildQueueInsight(queueViewName, queueFilterSummary, hasQueueReturnContext),
+    buildEscalationInsight(summary, evidence, activeEscalationStatus),
+    buildWorkInsight(summary, latestEvent),
+  ].filter((card): card is InsightCard => Boolean(card));
+  return cards;
+};
+
+export default function PatientWorkflowHeader({
+  patientName,
+  patientId,
+  summary,
+  evidence,
+  queueViewName,
+  queueFilterSummary,
+  hasQueueReturnContext,
+  latestEvent,
+  activeEscalationStatus,
+}: Props) {
   const subtitle = buildSubtitle(summary, evidence);
   const metadata = buildMetadata(patientId, summary);
   const chips = buildChips(summary, evidence);
+  const insightCards = buildInsightCards(
+    summary,
+    evidence,
+    queueViewName,
+    queueFilterSummary,
+    hasQueueReturnContext,
+    latestEvent,
+    activeEscalationStatus,
+  );
 
   return (
     <section className="page-header patient-workflow-header">
@@ -166,6 +325,24 @@ export default function PatientWorkflowHeader({ patientName, patientId, summary,
         <h1>{patientName}</h1>
         <p className="patient-workflow-header-subtitle">{subtitle}</p>
       </div>
+      {insightCards.length ? (
+        <div className="patient-workflow-insights">
+          {insightCards.map((card) => (
+            <div
+              key={card.id}
+              className={`patient-workflow-insight${
+                card.tone ? ` patient-workflow-insight--${card.tone}` : ""
+              }`}
+            >
+              <p className="patient-workflow-insight-label">{card.label}</p>
+              <p className="patient-workflow-insight-value">{card.value}</p>
+              {card.detail ? (
+                <p className="patient-workflow-insight-detail">{card.detail}</p>
+              ) : null}
+            </div>
+          ))}
+        </div>
+      ) : null}
       {metadata.length ? (
         <dl className="patient-workflow-meta">
           {metadata.map((item) => (

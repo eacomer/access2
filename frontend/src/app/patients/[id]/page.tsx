@@ -108,6 +108,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   const queueReturnLabel = queueReturnQuery
     ? `← Return to ${queueViewName.toLowerCase()}`
     : "← Back to worklist";
+  const hasQueueReturnContext = Boolean(queueReturnQuery);
   const requestedEventParam = resolvedSearchParams?.eventId;
   const requestedEventId = getFirstParam(requestedEventParam);
   const eventTypeFilters = normalizeArrayParam(resolvedSearchParams?.event_types);
@@ -378,12 +379,20 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
       <Link href={queueReturnHref} className="back-link">
         {queueReturnLabel}
       </Link>
-      <PatientWorkflowHeader
-        patientName={patientName}
-        patientId={patientId}
-        summary={worklistSummary}
-        evidence={escalationEvidence}
-      />
+      <div className="patient-workflow-overview">
+        <PatientWorkflowHeader
+          patientName={patientName}
+          patientId={patientId}
+          summary={worklistSummary}
+          evidence={escalationEvidence}
+          queueViewName={queueViewName}
+          queueFilterSummary={queueFilterSummary}
+          hasQueueReturnContext={hasQueueReturnContext}
+          latestEvent={latestTimelineEvent}
+          activeEscalationStatus={escalationStatus}
+        />
+        <PatientRecentActivityStrip latestEvent={latestTimelineEvent} summary={worklistSummary} />
+      </div>
       <PatientEvidenceSummary evidence={escalationEvidence} summary={worklistSummary} />
       <EscalationEvidenceCard evidence={escalationEvidence} />
       <section className="section-card">
@@ -430,7 +439,6 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
           primary={timelinePrimarySummary}
           detail={timelineDetailSummary}
         />
-        <PatientRecentActivityStrip latestEvent={latestTimelineEvent} summary={worklistSummary} />
         <TimelinePaginationControls
           patientId={patientId}
           total={timeline.total}

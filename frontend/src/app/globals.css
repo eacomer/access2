@@ -72,6 +72,56 @@ main.page {
   font-size: 0.95rem;
 }
 
+.patient-workflow-insights {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.75rem;
+  margin-top: 1rem;
+}
+
+.patient-workflow-insight {
+  border: 1px solid #e2e8f0;
+  border-radius: 12px;
+  padding: 0.75rem 1rem;
+  background: #f8fafc;
+}
+
+.patient-workflow-insight-label {
+  margin: 0 0 0.25rem;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  color: #475569;
+  letter-spacing: 0.08em;
+}
+
+.patient-workflow-insight-value {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+  color: #0f172a;
+}
+
+.patient-workflow-insight-detail {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.patient-workflow-insight--info {
+  border-color: #bfdbfe;
+  background: #dbeafe;
+}
+
+.patient-workflow-insight--warning {
+  border-color: #fcd34d;
+  background: #fef3c7;
+}
+
+.patient-workflow-insight--alert {
+  border-color: #fecaca;
+  background: #fee2e2;
+}
+
 .patient-workflow-meta {
   display: flex;
   flex-wrap: wrap;
@@ -142,6 +192,13 @@ main.page {
 
 .patient-workflow-chip-value {
   font-weight: 600;
+}
+
+.patient-workflow-overview {
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  margin-bottom: 1.5rem;
 }
 
 .eyebrow {
