@@ -21,6 +21,7 @@ class PatientSignalCreate(BaseModel):
     unit: str | None = Field(default=None, max_length=32)
     recorded_at: datetime | None = None
     notes: str | None = Field(default=None, max_length=2000)
+    escalation_sla_due_at: datetime | None = None
 
 
 class PatientSignalRead(BaseModel):
@@ -56,6 +57,7 @@ class PatientEscalationRead(BaseModel):
     resolution_notes: str | None
     canceled_at: datetime | None
     cancellation_notes: str | None
+    sla_due_at: datetime | None
     created_at: datetime
     updated_at: datetime
 
@@ -74,3 +76,7 @@ class EscalationResolveRequest(BaseModel):
 class EscalationStatusUpdateRequest(BaseModel):
     status: EscalationStatus
     note: str | None = Field(default=None, max_length=2000)
+
+
+class EscalationSLAUpdateRequest(BaseModel):
+    sla_due_at: datetime | None = None

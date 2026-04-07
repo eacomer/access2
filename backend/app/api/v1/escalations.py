@@ -10,6 +10,7 @@ from app.core.context import RequestContext
 from app.models.patient_signal import EscalationStatus
 from app.schemas.signal import (
     EscalationResolveRequest,
+    EscalationSLAUpdateRequest,
     EscalationStatusUpdateRequest,
     PatientEscalationRead,
 )
@@ -19,6 +20,7 @@ from app.services.patient_signal_service import (
     PatientEscalationNotFoundError,
     get_escalation_by_id,
     transition_escalation_status,
+    update_escalation_sla_due_at,
 )
 
 router = APIRouter(prefix="/escalations", tags=["escalations"])
@@ -89,6 +91,25 @@ def update_escalation_status_endpoint(
         new_status=payload.status,
         note=payload.note,
     )
+
+
+@router.post(
+    "/{escalation_id}/sla",
+    response_model=PatientEscalationRead,
+)
+def update_escalation_sla_endpoint(
+    escalation_id: UUID,
+    payload: EscalationSLAUpdateRequest,
+    db: Session = Depends(get_db),
+    context: RequestContext = Depends(get_request_context),
+) -> PatientEscalationRead:
+    escalation = _get_escalation_or_error(db=db, context=context, escalation_id=escalation_id)
+    updated = update_escalation_sla_due_at(
+        db=db,
+        escalation=escalation,
+        sla_due_at=payload.sla_due_at,
+    )
+    return updated
 
 
 def _get_escalation_or_error(

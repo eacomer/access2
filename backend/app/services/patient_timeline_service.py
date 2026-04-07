@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 from dataclasses import dataclass
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, Iterable, List, Tuple
 from uuid import UUID
 
@@ -14,6 +14,7 @@ from app.models.intervention_task import InterventionTask, InterventionTaskStatu
 from app.models.intervention_task_outcome import InterventionTaskOutcome
 from app.models.patient import Patient
 from app.models.patient_signal import (
+    EscalationSeverity,
     EscalationStatus,
     PatientEscalation,
     PatientEscalationStatusEvent,
@@ -26,6 +27,8 @@ TimelineItemPayload = Dict[str, Any]
 SOURCE_SIGNAL = "signal"
 SOURCE_ESCALATION = "escalation"
 SOURCE_ESCALATION_STATUS = "escalation_status_event"
+SOURCE_ESCALATION_SLA_AT_RISK = "escalation_sla_at_risk"
+SOURCE_ESCALATION_SLA_OVERDUE = "escalation_sla_overdue"
 SOURCE_TASK = "intervention_task"
 SOURCE_TASK_OUTCOME = "intervention_task_outcome"
 SOURCE_CARE_UPDATE = "care_update"
@@ -35,6 +38,8 @@ SOURCE_TASK_DUE_OVERDUE = "intervention_task_overdue"
 EVENT_TYPE_SIGNAL = "signal_recorded"
 EVENT_TYPE_ESCALATION = "escalation_triggered"
 EVENT_TYPE_ESCALATION_STATUS = "escalation_status_changed"
+EVENT_TYPE_ESCALATION_SLA_AT_RISK = "escalation_sla_at_risk"
+EVENT_TYPE_ESCALATION_SLA_OVERDUE = "escalation_sla_overdue"
 EVENT_TYPE_TASK_CREATED = "intervention_task_created"
 EVENT_TYPE_TASK_OUTCOME = "intervention_task_outcome_logged"
 EVENT_TYPE_CARE_UPDATE = "care_update_logged"
@@ -50,6 +55,8 @@ ALL_SOURCE_KINDS = (
     SOURCE_CARE_UPDATE,
     SOURCE_TASK_DUE_UPCOMING,
     SOURCE_TASK_DUE_OVERDUE,
+    SOURCE_ESCALATION_SLA_AT_RISK,
+    SOURCE_ESCALATION_SLA_OVERDUE,
 )
 
 ALL_EVENT_TYPES = (
@@ -61,6 +68,15 @@ ALL_EVENT_TYPES = (
     EVENT_TYPE_CARE_UPDATE,
     EVENT_TYPE_TASK_DUE_UPCOMING,
     EVENT_TYPE_TASK_DUE_OVERDUE,
+    EVENT_TYPE_ESCALATION_SLA_AT_RISK,
+    EVENT_TYPE_ESCALATION_SLA_OVERDUE,
+)
+
+ESCALATION_EVIDENCE_EVENT_TYPES = (
+    EVENT_TYPE_ESCALATION,
+    EVENT_TYPE_ESCALATION_STATUS,
+    EVENT_TYPE_ESCALATION_SLA_AT_RISK,
+    EVENT_TYPE_ESCALATION_SLA_OVERDUE,
 )
 
 TASK_RELATED_EVENT_TYPES = (
@@ -83,6 +99,15 @@ TERMINAL_TASK_STATUSES: tuple[InterventionTaskStatus, ...] = (
 TASK_DUE_STATE_UPCOMING = "due_upcoming"
 TASK_DUE_STATE_OVERDUE = "overdue"
 
+ESCALATION_SLA_STATE_AT_RISK = "sla_at_risk"
+ESCALATION_SLA_STATE_OVERDUE = "sla_overdue"
+ESCALATION_SLA_AT_RISK_THRESHOLD = timedelta(hours=24)
+ESCALATION_SEVERITY_PRIORITY = {
+    EscalationSeverity.LOW: 0,
+    EscalationSeverity.MEDIUM: 1,
+    EscalationSeverity.HIGH: 2,
+}
+
 UNRESOLVED_ESCALATION_STATUSES: tuple[EscalationStatus, ...] = (
     EscalationStatus.OPEN,
     EscalationStatus.IN_PROGRESS,
@@ -103,6 +128,58 @@ class PatientTimelineDataset:
 class PatientTimelineContext:
     escalation: PatientEscalation | None = None
     task: InterventionTask | None = None
+
+
+@dataclass(frozen=True)
+class EscalationWorklistSummary:
+    open_escalation_count: int = 0
+    overdue_escalation_count: int = 0
+    at_risk_escalation_count: int = 0
+    highest_escalation_priority: str | None = None
+    next_escalation_sla_due_at: datetime | None = None
+    latest_open_escalation_id: UUID | None = None
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "open_escalation_count": self.open_escalation_count,
+            "overdue_escalation_count": self.overdue_escalation_count,
+            "at_risk_escalation_count": self.at_risk_escalation_count,
+            "highest_escalation_priority": self.highest_escalation_priority,
+            "next_escalation_sla_due_at": self.next_escalation_sla_due_at,
+            "latest_open_escalation_id": self.latest_open_escalation_id,
+        }
+
+
+@dataclass(frozen=True)
+class EscalationEvidence:
+    has_open_escalation: bool = False
+    open_escalation_count: int = 0
+    overdue_escalation_count: int = 0
+    at_risk_escalation_count: int = 0
+    highest_open_escalation_priority: str | None = None
+    next_open_escalation_sla_due_at: datetime | None = None
+    latest_open_escalation_id: UUID | None = None
+    latest_open_escalation_status: str | None = None
+    latest_open_escalation_created_at: datetime | None = None
+    latest_escalation_event_id: str | None = None
+    latest_escalation_event_type: str | None = None
+    latest_escalation_event_occurred_at: datetime | None = None
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "has_open_escalation": self.has_open_escalation,
+            "open_escalation_count": self.open_escalation_count,
+            "overdue_escalation_count": self.overdue_escalation_count,
+            "at_risk_escalation_count": self.at_risk_escalation_count,
+            "highest_open_escalation_priority": self.highest_open_escalation_priority,
+            "next_open_escalation_sla_due_at": self.next_open_escalation_sla_due_at,
+            "latest_open_escalation_id": self.latest_open_escalation_id,
+            "latest_open_escalation_status": self.latest_open_escalation_status,
+            "latest_open_escalation_created_at": self.latest_open_escalation_created_at,
+            "latest_escalation_event_id": self.latest_escalation_event_id,
+            "latest_escalation_event_type": self.latest_escalation_event_type,
+            "latest_escalation_event_occurred_at": self.latest_escalation_event_occurred_at,
+        }
 
 
 @dataclass(frozen=True)
@@ -281,7 +358,8 @@ def validate_patient_timeline_filters(
 
 def _collect_patient_events(*, db: Session, patient: Patient) -> PatientTimelineDataset:
     events: List[TimelineItemPayload] = []
-    reference_time = get_due_state_reference_time()
+    task_reference_time = get_due_state_reference_time()
+    sla_reference_time = get_escalation_sla_reference_time()
     signals = list(_load_signals(db=db, patient=patient))
     escalations = list(_load_escalations(db=db, patient=patient))
     status_events = list(_load_escalation_status_events(db=db, patient=patient))
@@ -295,7 +373,8 @@ def _collect_patient_events(*, db: Session, patient: Patient) -> PatientTimeline
     events.extend(_normalize_task(task) for task in tasks)
     events.extend(_normalize_task_outcome(outcome) for outcome in task_outcomes)
     events.extend(_normalize_care_update(update) for update in care_updates)
-    events.extend(_derive_task_due_events(tasks, reference_time=reference_time))
+    events.extend(_derive_task_due_events(tasks, reference_time=task_reference_time))
+    events.extend(_derive_escalation_sla_events(escalations, reference_time=sla_reference_time))
 
     task_status_index = {task.id: task.status.value for task in tasks}
     escalation_status_index = {escalation.id: escalation.status.value for escalation in escalations}
@@ -517,6 +596,21 @@ def get_patient_timeline_event(
         if current_state != expected_state:
             raise PatientTimelineEventNotFoundError()
         return _normalize_task_due_state(task, due_state=expected_state)
+    if source_kind in (SOURCE_ESCALATION_SLA_AT_RISK, SOURCE_ESCALATION_SLA_OVERDUE):
+        escalation = _load_escalation_by_id(db, source_uuid)
+        if escalation is None or escalation.patient_id != patient.id:
+            raise PatientTimelineEventNotFoundError()
+        ensure_tenant_scoped_resource(context=context, resource=escalation)
+        reference_time = get_escalation_sla_reference_time()
+        expected_state = (
+            ESCALATION_SLA_STATE_AT_RISK
+            if source_kind == SOURCE_ESCALATION_SLA_AT_RISK
+            else ESCALATION_SLA_STATE_OVERDUE
+        )
+        current_state = _escalation_sla_state(escalation, reference_time=reference_time)
+        if current_state != expected_state:
+            raise PatientTimelineEventNotFoundError()
+        return _normalize_escalation_sla_state(escalation, sla_state=expected_state)
 
     loader: Callable[[Session, UUID], Any]
     normalizer: Callable[[Any], TimelineItemPayload]
@@ -666,6 +760,7 @@ def _normalize_escalation(escalation: PatientEscalation) -> TimelineItemPayload:
         "canceled_at": _iso(escalation.canceled_at),
         "cancellation_notes": escalation.cancellation_notes,
         "signal_id": str(escalation.signal_id) if escalation.signal_id else None,
+        "sla_due_at": _iso(escalation.sla_due_at),
     }
 
     return {
@@ -764,6 +859,20 @@ def _derive_task_due_events(
     return derived
 
 
+def _derive_escalation_sla_events(
+    escalations: Iterable[PatientEscalation],
+    *,
+    reference_time: datetime,
+) -> List[TimelineItemPayload]:
+    derived: List[TimelineItemPayload] = []
+    for escalation in escalations:
+        sla_state = _escalation_sla_state(escalation, reference_time=reference_time)
+        if sla_state is None:
+            continue
+        derived.append(_normalize_escalation_sla_state(escalation, sla_state=sla_state))
+    return derived
+
+
 def _task_due_state(task: InterventionTask, *, reference_time: datetime) -> str | None:
     if task.due_at is None:
         return None
@@ -774,6 +883,27 @@ def _task_due_state(task: InterventionTask, *, reference_time: datetime) -> str 
     if normalized_due_at < normalized_reference:
         return TASK_DUE_STATE_OVERDUE
     return TASK_DUE_STATE_UPCOMING
+
+
+def _escalation_sla_state(
+    escalation: PatientEscalation,
+    *,
+    reference_time: datetime,
+) -> str | None:
+    if escalation.sla_due_at is None:
+        return None
+    if escalation.status not in UNRESOLVED_ESCALATION_STATUSES:
+        return None
+
+    normalized_due_at = _normalize_datetime(escalation.sla_due_at)
+    normalized_reference = _normalize_datetime(reference_time)
+    if normalized_due_at < normalized_reference:
+        return ESCALATION_SLA_STATE_OVERDUE
+
+    risk_cutoff = normalized_reference + ESCALATION_SLA_AT_RISK_THRESHOLD
+    if normalized_reference <= normalized_due_at <= risk_cutoff:
+        return ESCALATION_SLA_STATE_AT_RISK
+    return None
 
 
 def _normalize_task_due_state(task: InterventionTask, *, due_state: str) -> TimelineItemPayload:
@@ -818,6 +948,55 @@ def _normalize_task_due_state(task: InterventionTask, *, due_state: str) -> Time
         "actor_user_id": task.assigned_user_id,
         "related_escalation_id": task.escalation_id,
         "related_task_id": task.id,
+        "related_outcome_id": None,
+        "metadata": metadata,
+    }
+
+
+def _normalize_escalation_sla_state(
+    escalation: PatientEscalation,
+    *,
+    sla_state: str,
+) -> TimelineItemPayload:
+    if escalation.sla_due_at is None:
+        raise PatientTimelineEventNotFoundError()
+
+    if sla_state == ESCALATION_SLA_STATE_OVERDUE:
+        source_kind = SOURCE_ESCALATION_SLA_OVERDUE
+        event_type = EVENT_TYPE_ESCALATION_SLA_OVERDUE
+        title = "Escalation SLA overdue"
+    elif sla_state == ESCALATION_SLA_STATE_AT_RISK:
+        source_kind = SOURCE_ESCALATION_SLA_AT_RISK
+        event_type = EVENT_TYPE_ESCALATION_SLA_AT_RISK
+        title = "Escalation SLA at risk"
+    else:
+        raise PatientTimelineEventNotFoundError()
+
+    metadata = {
+        "sla_state": sla_state,
+        "sla_due_at": _iso(escalation.sla_due_at),
+        "escalation_status": escalation.status.value,
+        "severity": escalation.severity.value,
+    }
+
+    display_text = f"SLA target at {escalation.sla_due_at.isoformat()}"
+
+    return {
+        "event_id": _compose_event_id(source_kind, escalation.id),
+        "event_type": event_type,
+        "occurred_at": escalation.sla_due_at,
+        "patient_id": escalation.patient_id,
+        "organization_id": escalation.organization_id,
+        "source_id": escalation.id,
+        "source_kind": source_kind,
+        "display_title": title,
+        "display_text": display_text,
+        "status": escalation.status.value,
+        "priority": escalation.severity.value,
+        "authored_by_user_id": None,
+        "actor_user_id": None,
+        "related_escalation_id": escalation.id,
+        "related_task_id": None,
         "related_outcome_id": None,
         "metadata": metadata,
     }
@@ -880,6 +1059,121 @@ def _normalize_care_update(update: CareUpdate) -> TimelineItemPayload:
     }
 
 
+def build_escalation_worklist_summary(
+    escalations: Iterable[PatientEscalation],
+    *,
+    reference_time: datetime | None = None,
+) -> EscalationWorklistSummary:
+    reference = reference_time or get_escalation_sla_reference_time()
+    open_escalations: list[PatientEscalation] = [
+        escalation
+        for escalation in escalations
+        if escalation.status in UNRESOLVED_ESCALATION_STATUSES
+    ]
+    if not open_escalations:
+        return EscalationWorklistSummary()
+
+    overdue_count = 0
+    at_risk_count = 0
+    next_sla_due_at: datetime | None = None
+    next_sla_due_at_normalized: datetime | None = None
+
+    for escalation in open_escalations:
+        sla_state = _escalation_sla_state(escalation, reference_time=reference)
+        if sla_state == ESCALATION_SLA_STATE_OVERDUE:
+            overdue_count += 1
+        elif sla_state == ESCALATION_SLA_STATE_AT_RISK:
+            at_risk_count += 1
+
+        if escalation.sla_due_at is None:
+            continue
+        normalized_due = _normalize_datetime(escalation.sla_due_at)
+        if next_sla_due_at_normalized is None or normalized_due < next_sla_due_at_normalized:
+            next_sla_due_at_normalized = normalized_due
+            next_sla_due_at = escalation.sla_due_at
+
+    highest_priority_escalation = max(
+        open_escalations,
+        key=lambda escalation: ESCALATION_SEVERITY_PRIORITY.get(escalation.severity, -1),
+    )
+    latest_open_escalation = max(
+        open_escalations,
+        key=lambda escalation: (_normalize_datetime(escalation.triggered_at), str(escalation.id)),
+    )
+
+    return EscalationWorklistSummary(
+        open_escalation_count=len(open_escalations),
+        overdue_escalation_count=overdue_count,
+        at_risk_escalation_count=at_risk_count,
+        highest_escalation_priority=highest_priority_escalation.severity.value
+        if highest_priority_escalation.severity
+        else None,
+        next_escalation_sla_due_at=next_sla_due_at,
+        latest_open_escalation_id=latest_open_escalation.id,
+    )
+
+
+def build_patient_escalation_evidence(
+    db: Session,
+    *,
+    context: RequestContext,
+    patient: Patient,
+    reference_time: datetime | None = None,
+) -> EscalationEvidence:
+    ensure_tenant_scoped_resource(context=context, resource=patient)
+    escalations = list(_load_escalations(db=db, patient=patient))
+    summary = build_escalation_worklist_summary(
+        escalations,
+        reference_time=reference_time,
+    )
+
+    open_escalations = [
+        escalation
+        for escalation in escalations
+        if escalation.status in UNRESOLVED_ESCALATION_STATUSES
+    ]
+    latest_open_escalation = (
+        max(
+            open_escalations,
+            key=lambda escalation: (_normalize_datetime(escalation.triggered_at), str(escalation.id)),
+        )
+        if open_escalations
+        else None
+    )
+
+    latest_event: TimelineItemPayload | None = None
+    if open_escalations:
+        open_ids = {escalation.id for escalation in open_escalations}
+        dataset = _collect_patient_events(db=db, patient=patient)
+        relevant_events = [
+            event
+            for event in dataset.events
+            if event.get("related_escalation_id") in open_ids
+            and event["event_type"] in ESCALATION_EVIDENCE_EVENT_TYPES
+        ]
+        if relevant_events:
+            latest_event = max(relevant_events, key=_timeline_sort_key)
+
+    return EscalationEvidence(
+        has_open_escalation=summary.open_escalation_count > 0,
+        open_escalation_count=summary.open_escalation_count,
+        overdue_escalation_count=summary.overdue_escalation_count,
+        at_risk_escalation_count=summary.at_risk_escalation_count,
+        highest_open_escalation_priority=summary.highest_escalation_priority,
+        next_open_escalation_sla_due_at=summary.next_escalation_sla_due_at,
+        latest_open_escalation_id=summary.latest_open_escalation_id,
+        latest_open_escalation_status=latest_open_escalation.status.value
+        if latest_open_escalation
+        else None,
+        latest_open_escalation_created_at=latest_open_escalation.triggered_at
+        if latest_open_escalation
+        else None,
+        latest_escalation_event_id=latest_event["event_id"] if latest_event else None,
+        latest_escalation_event_type=latest_event["event_type"] if latest_event else None,
+        latest_escalation_event_occurred_at=latest_event["occurred_at"] if latest_event else None,
+    )
+
+
 def _timeline_sort_key(item: TimelineItemPayload) -> Tuple[datetime, str]:
     return (
         _normalize_datetime(item["occurred_at"]),
@@ -935,4 +1229,9 @@ def _iso(value: datetime | None) -> str | None:
 
 def get_due_state_reference_time() -> datetime:
     """Central hook for computing the reference time used in due-state calculations."""
+    return datetime.now(timezone.utc)
+
+
+def get_escalation_sla_reference_time() -> datetime:
+    """Central hook for computing the reference time used in escalation SLA calculations."""
     return datetime.now(timezone.utc)

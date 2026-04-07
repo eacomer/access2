@@ -29,6 +29,7 @@ from app.services.patient_timeline_service import (
     PatientTimelineContextMismatchError,
     PatientTimelineContextNotFoundError,
     PatientTimelineEventNotFoundError,
+    build_patient_escalation_evidence,
     get_patient_timeline_event,
     list_patient_timeline_events,
     list_patient_timeline_events_since,
@@ -510,7 +511,16 @@ def get_patient_timeline_event_endpoint(
             detail="Timeline event not found.",
         )
 
-    return PatientTimelineDetailResponse(item=item)
+    evidence = build_patient_escalation_evidence(
+        db=db,
+        context=context,
+        patient=patient,
+    )
+
+    return PatientTimelineDetailResponse(
+        item=item,
+        escalation_evidence=evidence.as_dict(),
+    )
 
 
 def _get_patient_or_error(

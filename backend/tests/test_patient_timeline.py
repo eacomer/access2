@@ -44,13 +44,19 @@ def _create_signal(
     patient_id: str,
     *,
     recorded_at: datetime | None = None,
+    escalation_sla_due_at: datetime | None = None,
+    signal_type: str = "symptom_score",
+    signal_value_numeric: float | None = 9.5,
 ) -> dict:
     payload: dict[str, object] = {
-        "signal_type": "symptom_score",
-        "signal_value_numeric": 9.5,
+        "signal_type": signal_type,
     }
+    if signal_value_numeric is not None:
+        payload["signal_value_numeric"] = signal_value_numeric
     if recorded_at is not None:
         payload["recorded_at"] = recorded_at.isoformat()
+    if escalation_sla_due_at is not None:
+        payload["escalation_sla_due_at"] = escalation_sla_due_at.isoformat()
     resp = client.post(
         f"/api/v1/patients/{patient_id}/signals",
         json=payload,
@@ -193,6 +199,52 @@ def _get_worklist_summary(
     )
     assert resp.status_code == expect_status
     return resp.json()
+
+
+def _find_worklist_item(payload: dict, patient_id: str) -> dict:
+    return next(item for item in payload["items"] if item["patient_id"] == patient_id)
+
+
+def _get_timeline_detail_payload(
+    client: TestClient,
+    headers: dict[str, str],
+    patient_id: str,
+    event_id: str | None = None,
+) -> dict:
+    target_event_id = event_id
+    if target_event_id is None:
+        listing = client.get(
+            f"/api/v1/patients/{patient_id}/timeline",
+            headers=headers,
+        )
+        assert listing.status_code == 200
+        items = listing.json()["items"]
+        assert items, "expected at least one timeline event"
+        target_event_id = items[0]["event_id"]
+
+    resp = client.get(
+        f"/api/v1/patients/{patient_id}/timeline/{target_event_id}",
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    return resp.json()
+
+
+def _get_escalation_evidence(
+    client: TestClient,
+    headers: dict[str, str],
+    patient_id: str,
+    event_id: str | None = None,
+) -> dict:
+    payload = _get_timeline_detail_payload(
+        client,
+        headers,
+        patient_id,
+        event_id=event_id,
+    )
+    evidence = payload.get("escalation_evidence")
+    assert evidence is not None
+    return evidence
 
 
 def _bootstrap_user_without_patient(
@@ -567,6 +619,247 @@ def test_patient_timeline_detail_lookup(
     assert payload["event_id"] == event_id
     assert payload["source_kind"] == "signal"
     assert payload["event_type"] == "signal_recorded"
+
+
+def test_patient_timeline_detail_escalation_evidence_absent_without_escalations(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-evidence-none")
+    _create_care_update(client, env["headers"], env["patient_id"], summary="No escalations note")
+
+    evidence = _get_escalation_evidence(client, env["headers"], env["patient_id"])
+    assert evidence["has_open_escalation"] is False
+    assert evidence["open_escalation_count"] == 0
+    assert evidence["overdue_escalation_count"] == 0
+    assert evidence["at_risk_escalation_count"] == 0
+    assert evidence["highest_open_escalation_priority"] is None
+    assert evidence["next_open_escalation_sla_due_at"] is None
+    assert evidence["latest_open_escalation_id"] is None
+    assert evidence["latest_open_escalation_status"] is None
+    assert evidence["latest_escalation_event_id"] is None
+
+
+def test_patient_timeline_detail_escalation_evidence_single_open_without_sla(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-evidence-single")
+    signal_payload = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        escalation_sla_due_at=None,
+    )
+    escalation = signal_payload["escalation"]
+
+    evidence = _get_escalation_evidence(client, env["headers"], env["patient_id"])
+    assert evidence["has_open_escalation"] is True
+    assert evidence["open_escalation_count"] == 1
+    assert evidence["overdue_escalation_count"] == 0
+    assert evidence["at_risk_escalation_count"] == 0
+    assert evidence["next_open_escalation_sla_due_at"] is None
+    assert evidence["latest_open_escalation_id"] == escalation["id"]
+    assert evidence["latest_open_escalation_status"] == escalation["status"]
+    assert evidence["latest_escalation_event_type"] == "escalation_triggered"
+
+
+def test_patient_timeline_detail_escalation_evidence_future_sla_steady(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-evidence-future-sla")
+    due_at = datetime.now(timezone.utc) + timedelta(hours=30)
+    signal_payload = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        escalation_sla_due_at=due_at,
+    )
+
+    evidence = _get_escalation_evidence(client, env["headers"], env["patient_id"])
+    assert evidence["has_open_escalation"] is True
+    assert evidence["open_escalation_count"] == 1
+    assert evidence["overdue_escalation_count"] == 0
+    assert evidence["at_risk_escalation_count"] == 0
+    assert (
+        _parse_occurred_at(evidence["next_open_escalation_sla_due_at"])
+        == _parse_occurred_at(signal_payload["escalation"]["sla_due_at"])
+    )
+
+
+def test_patient_timeline_detail_escalation_evidence_counts_at_risk_and_overdue(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-evidence-sla-states")
+    now = datetime.now(timezone.utc)
+    overdue_due = now - timedelta(hours=2)
+    at_risk_due = now + timedelta(hours=3)
+
+    overdue = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=now - timedelta(hours=4),
+        escalation_sla_due_at=overdue_due,
+    )["escalation"]
+    _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=now - timedelta(hours=1),
+        escalation_sla_due_at=at_risk_due,
+        signal_type="missed_check_in",
+        signal_value_numeric=None,
+    )
+
+    evidence = _get_escalation_evidence(client, env["headers"], env["patient_id"])
+    assert evidence["has_open_escalation"] is True
+    assert evidence["open_escalation_count"] == 2
+    assert evidence["overdue_escalation_count"] == 1
+    assert evidence["at_risk_escalation_count"] == 1
+    assert evidence["highest_open_escalation_priority"] == overdue["severity"]
+    assert (
+        _parse_occurred_at(evidence["next_open_escalation_sla_due_at"])
+        == _parse_occurred_at(overdue["sla_due_at"])
+    )
+
+
+def test_patient_timeline_detail_escalation_evidence_handles_mixed_priorities(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-evidence-priority")
+    _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        signal_type="missed_check_in",
+        signal_value_numeric=None,
+    )
+    high = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        signal_type="symptom_score",
+        signal_value_numeric=10,
+    )["escalation"]
+
+    evidence = _get_escalation_evidence(client, env["headers"], env["patient_id"])
+    assert evidence["open_escalation_count"] == 2
+    assert evidence["highest_open_escalation_priority"] == high["severity"]
+
+
+def test_patient_timeline_detail_escalation_evidence_latest_open_selection_is_deterministic(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-evidence-latest-open")
+    base_time = datetime.now(timezone.utc)
+    first = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=base_time - timedelta(hours=2),
+    )["escalation"]
+    second = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=base_time - timedelta(hours=1),
+        signal_value_numeric=10.5,
+    )["escalation"]
+
+    evidence = _get_escalation_evidence(client, env["headers"], env["patient_id"])
+    assert evidence["latest_open_escalation_id"] == second["id"]
+    assert evidence["latest_open_escalation_id"] != first["id"]
+
+
+def test_patient_timeline_detail_escalation_evidence_tracks_status_events(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-evidence-status")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+
+    _update_escalation_status(
+        client,
+        env["headers"],
+        escalation_id,
+        status="in_progress",
+        note="acknowledged",
+    )
+
+    evidence = _get_escalation_evidence(client, env["headers"], env["patient_id"])
+    assert evidence["latest_open_escalation_status"] == "in_progress"
+    assert evidence["latest_escalation_event_type"] == "escalation_status_changed"
+    assert evidence["latest_escalation_event_id"].startswith("escalation_status_event:")
+
+
+def test_patient_timeline_detail_escalation_evidence_uses_derived_sla_events(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-evidence-sla-event")
+    due_at = datetime.now(timezone.utc) + timedelta(hours=3)
+    signal_payload = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        escalation_sla_due_at=due_at,
+    )
+    escalation = signal_payload["escalation"]
+
+    evidence = _get_escalation_evidence(client, env["headers"], env["patient_id"])
+    assert evidence["latest_escalation_event_type"] == "escalation_sla_at_risk"
+    assert evidence["latest_escalation_event_id"].startswith("escalation_sla_at_risk:")
+    assert (
+        _parse_occurred_at(evidence["latest_escalation_event_occurred_at"])
+        == _parse_occurred_at(escalation["sla_due_at"])
+    )
+
+
+def test_patient_timeline_detail_escalation_evidence_excludes_resolved_escalations(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-evidence-resolved")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+
+    resolve_resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/resolve",
+        json={"resolution_notes": "handled"},
+        headers=env["headers"],
+    )
+    assert resolve_resp.status_code == 200
+
+    evidence = _get_escalation_evidence(client, env["headers"], env["patient_id"])
+    assert evidence["has_open_escalation"] is False
+    assert evidence["open_escalation_count"] == 0
+    assert evidence["latest_open_escalation_id"] is None
+    assert evidence["latest_escalation_event_id"] is None
+
+
+def test_patient_timeline_detail_escalation_evidence_is_patient_scoped(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-evidence-scope")
+    other_patient_id = create_patient_for_user(
+        client,
+        env["headers"],
+        first_name="timeline-evidence-other",
+    )
+    _create_signal(client, env["headers"], env["patient_id"])
+    _create_care_update(client, env["headers"], other_patient_id, summary="other patient update")
+
+    evidence = _get_escalation_evidence(client, env["headers"], other_patient_id)
+    assert evidence["has_open_escalation"] is False
+    assert evidence["open_escalation_count"] == 0
+    assert evidence["latest_open_escalation_id"] is None
 
 
 def test_patient_timeline_since_returns_only_newer_items(
@@ -1950,6 +2243,152 @@ def test_patient_timeline_worklist_summary_includes_patients_without_events(
     assert second_patient_id in summary_map
     assert summary_map[env["patient_id"]]["total_events"] == 0
     assert summary_map[second_patient_id]["total_events"] == 0
+
+
+def test_patient_timeline_worklist_summary_escalations_absent_when_none_exist(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-no-escalations")
+    payload = _get_worklist_summary(client, env["headers"])
+    row = _find_worklist_item(payload, env["patient_id"])
+
+    assert row["open_escalation_count"] == 0
+    assert row["overdue_escalation_count"] == 0
+    assert row["at_risk_escalation_count"] == 0
+    assert row["highest_escalation_priority"] is None
+    assert row["next_escalation_sla_due_at"] is None
+    assert row["latest_open_escalation_id"] is None
+
+
+def test_patient_timeline_worklist_summary_single_open_escalation_without_sla(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-one-escalation")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"], escalation_sla_due_at=None)
+    escalation = signal_payload["escalation"]
+
+    payload = _get_worklist_summary(client, env["headers"])
+    row = _find_worklist_item(payload, env["patient_id"])
+
+    assert row["open_escalation_count"] == 1
+    assert row["overdue_escalation_count"] == 0
+    assert row["at_risk_escalation_count"] == 0
+    assert row["highest_escalation_priority"] == escalation["severity"]
+    assert row["next_escalation_sla_due_at"] is None
+    assert row["latest_open_escalation_id"] == escalation["id"]
+
+
+def test_patient_timeline_worklist_summary_classifies_sla_states_and_priority(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-escalation-states")
+    now = datetime.now(timezone.utc)
+
+    overdue = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=now - timedelta(hours=3),
+        escalation_sla_due_at=now - timedelta(minutes=30),
+    )["escalation"]
+    at_risk = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=now - timedelta(hours=2),
+        escalation_sla_due_at=now + timedelta(hours=2),
+        signal_type="missed_check_in",
+        signal_value_numeric=None,
+    )["escalation"]
+    future = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=now - timedelta(hours=1),
+        escalation_sla_due_at=now + timedelta(hours=30),
+    )["escalation"]
+    latest = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=now,
+        escalation_sla_due_at=None,
+    )["escalation"]
+
+    payload = _get_worklist_summary(client, env["headers"])
+    row = _find_worklist_item(payload, env["patient_id"])
+
+    assert row["open_escalation_count"] == 4
+    assert row["overdue_escalation_count"] == 1
+    assert row["at_risk_escalation_count"] == 1
+    assert row["latest_open_escalation_id"] == latest["id"]
+    assert row["highest_escalation_priority"] == overdue["severity"]
+    assert _parse_occurred_at(row["next_escalation_sla_due_at"]) == _parse_occurred_at(overdue["sla_due_at"])
+    assert _parse_occurred_at(future["sla_due_at"]) > _parse_occurred_at(row["next_escalation_sla_due_at"])
+    assert at_risk["id"] != latest["id"]
+
+
+def test_patient_timeline_worklist_summary_excludes_closed_escalations(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-closed-escalations")
+    open_escalation = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        escalation_sla_due_at=datetime.now(timezone.utc) + timedelta(hours=1),
+    )["escalation"]
+    closed_escalation = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=datetime.now(timezone.utc) + timedelta(minutes=1),
+        escalation_sla_due_at=datetime.now(timezone.utc) + timedelta(hours=2),
+    )["escalation"]
+    _update_escalation_status(
+        client,
+        env["headers"],
+        closed_escalation["id"],
+        status="resolved",
+    )
+
+    payload = _get_worklist_summary(client, env["headers"])
+    row = _find_worklist_item(payload, env["patient_id"])
+
+    assert row["open_escalation_count"] == 1
+    assert row["overdue_escalation_count"] == 0
+    assert row["latest_open_escalation_id"] == open_escalation["id"]
+    assert _parse_occurred_at(row["next_escalation_sla_due_at"]) == _parse_occurred_at(
+        open_escalation["sla_due_at"]
+    )
+
+
+def test_patient_timeline_worklist_summary_escalation_fields_multi_patient_scope(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-multi-escalation")
+    second_patient_id = create_patient_for_user(client, env["headers"], first_name="worklist-multi-second")
+    _create_signal(client, env["headers"], env["patient_id"], escalation_sla_due_at=None)
+    _create_signal(
+        client,
+        env["headers"],
+        second_patient_id,
+        escalation_sla_due_at=datetime.now(timezone.utc) + timedelta(hours=3),
+    )
+
+    payload = _get_worklist_summary(client, env["headers"])
+    first_row = _find_worklist_item(payload, env["patient_id"])
+    second_row = _find_worklist_item(payload, second_patient_id)
+
+    assert first_row["open_escalation_count"] == 1
+    assert second_row["open_escalation_count"] == 1
+    assert first_row["next_escalation_sla_due_at"] is None
+    assert second_row["next_escalation_sla_due_at"] is not None
 
 
 def test_patient_timeline_worklist_summary_default_sorting_prioritizes_unread(
@@ -3539,3 +3978,122 @@ def test_patient_timeline_worklist_summary_surfaces_due_events(
     row = payload["items"][0]
     assert row["latest_event_type"] == "intervention_task_due_upcoming"
     assert row["latest_event_occurred_at"] == due_at.replace(tzinfo=None).isoformat()
+
+
+def test_patient_timeline_includes_escalation_sla_at_risk_event(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-sla-at-risk")
+    sla_due_at = datetime.now(timezone.utc) + timedelta(hours=6)
+    signal_payload = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        escalation_sla_due_at=sla_due_at,
+    )
+    escalation_id = signal_payload["escalation"]["id"]
+
+    resp = client.get(
+        f"/api/v1/patients/{env['patient_id']}/timeline",
+        headers=env["headers"],
+    )
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    sla_events = [
+        item
+        for item in items
+        if item["event_type"] == "escalation_sla_at_risk" and item["related_escalation_id"] == escalation_id
+    ]
+    assert sla_events
+    event = sla_events[0]
+    assert event["occurred_at"] == sla_due_at.replace(tzinfo=None).isoformat()
+    assert event["metadata"]["sla_state"] == "sla_at_risk"
+
+
+def test_patient_timeline_includes_escalation_sla_overdue_event(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-sla-overdue")
+    sla_due_at = datetime.now(timezone.utc) - timedelta(hours=2)
+    signal_payload = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        escalation_sla_due_at=sla_due_at,
+    )
+    escalation_id = signal_payload["escalation"]["id"]
+
+    resp = client.get(
+        f"/api/v1/patients/{env['patient_id']}/timeline",
+        headers=env["headers"],
+    )
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    sla_events = [
+        item
+        for item in items
+        if item["event_type"] == "escalation_sla_overdue" and item["related_escalation_id"] == escalation_id
+    ]
+    assert sla_events
+    event = sla_events[0]
+    assert event["occurred_at"] == sla_due_at.replace(tzinfo=None).isoformat()
+    assert event["metadata"]["sla_state"] == "sla_overdue"
+
+
+def test_patient_timeline_escalation_sla_events_skip_resolved(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-sla-resolved")
+    sla_due_at = datetime.now(timezone.utc) + timedelta(hours=3)
+    signal_payload = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        escalation_sla_due_at=sla_due_at,
+    )
+    escalation_id = signal_payload["escalation"]["id"]
+    resolve_resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/resolve",
+        json={"resolution_notes": "Handled"},
+        headers=env["headers"],
+    )
+    assert resolve_resp.status_code == 200
+
+    resp = client.get(
+        f"/api/v1/patients/{env['patient_id']}/timeline",
+        headers=env["headers"],
+    )
+    assert resp.status_code == 200
+    items = resp.json()["items"]
+    assert not any(
+        item["event_type"].startswith("escalation_sla_") and item["related_escalation_id"] == escalation_id
+        for item in items
+    )
+
+
+def test_patient_timeline_worklist_summary_surfaces_escalation_sla_events(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-sla-worklist")
+    sla_due_at = datetime.now(timezone.utc) + timedelta(hours=5)
+    _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        escalation_sla_due_at=sla_due_at,
+    )
+
+    payload = _get_worklist_summary(
+        client,
+        env["headers"],
+        params=[("patient_ids", env["patient_id"])],
+    )
+    assert payload["total"] == 1
+    assert len(payload["items"]) == 1
+    row = payload["items"][0]
+    assert row["latest_event_type"] == "escalation_sla_at_risk"
+    assert row["latest_event_occurred_at"] == sla_due_at.replace(tzinfo=None).isoformat()

@@ -1,0 +1,283 @@
+:root {
+  color-scheme: light;
+  font-family: "Inter", "Segoe UI", system-ui, -apple-system, BlinkMacSystemFont, sans-serif;
+  background-color: #f6f7fb;
+  color: #0f172a;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  background: #f6f7fb;
+  color: #0f172a;
+  min-height: 100vh;
+}
+
+a {
+  color: inherit;
+}
+
+main.page {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 2rem 1.5rem 3rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1.5rem;
+}
+
+.page-header {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+}
+
+.page-header h1 {
+  margin: 0;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.page-header p {
+  margin: 0;
+  color: #475569;
+}
+
+.eyebrow {
+  text-transform: uppercase;
+  font-size: 0.75rem;
+  letter-spacing: 0.08em;
+  color: #64748b;
+}
+
+.lede {
+  color: #475569;
+  font-size: 0.95rem;
+}
+
+.worklist-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+  gap: 1rem;
+}
+
+.card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.25rem;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+  transition: border-color 0.15s ease, transform 0.15s ease;
+}
+
+.card-link {
+  text-decoration: none;
+  color: inherit;
+}
+
+.card-link:hover {
+  border-color: #94a3b8;
+  transform: translateY(-1px);
+}
+
+.card-title {
+  margin: 0;
+  font-size: 1rem;
+  font-weight: 600;
+}
+
+.card-subtitle {
+  margin: 0;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.badge {
+  border-radius: 9999px;
+  padding: 0.15rem 0.6rem;
+  font-size: 0.75rem;
+  font-weight: 600;
+  background: #e2e8f0;
+  color: #0f172a;
+}
+
+.badge--critical {
+  background: #fee2e2;
+  color: #b91c1c;
+}
+
+.badge--warning {
+  background: #fff4d5;
+  color: #92400e;
+}
+
+.badge--info {
+  background: #dbeafe;
+  color: #1d4ed8;
+}
+
+.badge--positive {
+  background: #dcfce7;
+  color: #166534;
+}
+
+.count-row {
+  display: flex;
+  gap: 1rem;
+  flex-wrap: wrap;
+}
+
+.count-block {
+  flex: 1 1 120px;
+  min-width: 120px;
+}
+
+.count-value {
+  display: block;
+  font-size: 1.5rem;
+  font-weight: 600;
+}
+
+.count-label {
+  font-size: 0.8rem;
+  color: #475569;
+}
+
+.meta-row,
+.footer-row {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+  align-items: center;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.footer-row {
+  justify-content: space-between;
+}
+
+.section-card {
+  background: #fff;
+  border: 1px solid #e2e8f0;
+  border-radius: 16px;
+  padding: 1.5rem;
+  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.08);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 0.75rem;
+  margin-bottom: 1rem;
+}
+
+.section-title {
+  margin: 0;
+  font-size: 1.1rem;
+  font-weight: 600;
+}
+
+.section-subtitle {
+  margin: 0.15rem 0 0;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.evidence-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+  gap: 1rem;
+  margin-bottom: 1rem;
+}
+
+.definition-list {
+  margin: 0;
+  padding: 0;
+  list-style: none;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+  gap: 0.75rem;
+}
+
+.definition-item dt {
+  margin: 0;
+  font-weight: 600;
+  font-size: 0.85rem;
+  color: #0f172a;
+}
+
+.definition-item dd {
+  margin: 0.25rem 0 0;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.empty-state {
+  margin: 0;
+  font-size: 0.95rem;
+  color: #475569;
+}
+
+.timeline-list {
+  list-style: none;
+  padding: 0;
+  margin: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 0.5rem;
+}
+
+.timeline-row {
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  padding: 0.9rem 1rem;
+  display: flex;
+  justify-content: space-between;
+  gap: 0.75rem;
+  text-decoration: none;
+  color: inherit;
+  background: #fff;
+  transition: border-color 0.15s ease, box-shadow 0.15s ease;
+}
+
+.timeline-row:hover {
+  border-color: #94a3b8;
+}
+
+.timeline-row.selected {
+  border-color: #2563eb;
+  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
+}
+
+.timeline-row h4 {
+  margin: 0;
+  font-size: 0.95rem;
+  font-weight: 600;
+}
+
+.timeline-row p {
+  margin: 0.25rem 0 0;
+  font-size: 0.85rem;
+  color: #475569;
+}
+
+.timeline-meta {
+  font-size: 0.8rem;
+  color: #475569;
+  min-width: 140px;
+  text-align: right;
+}
+
+.back-link {
+  text-decoration: none;
+  font-size: 0.9rem;
+  color: #2563eb;
+}

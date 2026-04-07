@@ -106,6 +106,9 @@ def create_patient_signal(
 
     escalation = _maybe_create_escalation(db=db, signal=signal)
 
+    if escalation and payload.escalation_sla_due_at:
+        escalation.sla_due_at = payload.escalation_sla_due_at
+
     db.commit()
     db.refresh(signal)
     if escalation:
@@ -219,6 +222,19 @@ def transition_escalation_status(
     )
 
     db.add(status_event)
+    db.add(escalation)
+    db.commit()
+    db.refresh(escalation)
+    return escalation
+
+
+def update_escalation_sla_due_at(
+    db: Session,
+    *,
+    escalation: PatientEscalation,
+    sla_due_at: datetime | None,
+) -> PatientEscalation:
+    escalation.sla_due_at = sla_due_at
     db.add(escalation)
     db.commit()
     db.refresh(escalation)

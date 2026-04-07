@@ -73,8 +73,24 @@ class PatientTimelineSinceResponse(BaseModel):
     newest_occurred_at: datetime | None = None
 
 
+class PatientEscalationEvidence(BaseModel):
+    has_open_escalation: bool
+    open_escalation_count: int = Field(default=0, ge=0)
+    overdue_escalation_count: int = Field(default=0, ge=0)
+    at_risk_escalation_count: int = Field(default=0, ge=0)
+    highest_open_escalation_priority: str | None = None
+    next_open_escalation_sla_due_at: datetime | None = None
+    latest_open_escalation_id: UUID | None = None
+    latest_open_escalation_status: str | None = None
+    latest_open_escalation_created_at: datetime | None = None
+    latest_escalation_event_id: str | None = None
+    latest_escalation_event_type: str | None = None
+    latest_escalation_event_occurred_at: datetime | None = None
+
+
 class PatientTimelineDetailResponse(BaseModel):
     item: PatientTimelineItem
+    escalation_evidence: PatientEscalationEvidence | None = None
 
 
 class PatientTimelineFilterParams(BaseModel):
@@ -229,6 +245,12 @@ class PatientTimelineWorklistSummaryItem(BaseModel):
     latest_unread_event_occurred_at: datetime | None = None
     oldest_unread_event_id: str | None = None
     oldest_unread_event_occurred_at: datetime | None = None
+    open_escalation_count: int = Field(default=0, ge=0)
+    overdue_escalation_count: int = Field(default=0, ge=0)
+    at_risk_escalation_count: int = Field(default=0, ge=0)
+    highest_escalation_priority: str | None = None
+    next_escalation_sla_due_at: datetime | None = None
+    latest_open_escalation_id: UUID | None = None
 
 
 class PatientTimelineWorklistSummaryResponse(BaseModel):

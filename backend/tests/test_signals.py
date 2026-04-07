@@ -347,3 +347,51 @@ def test_escalation_status_endpoint_rejects_cross_tenant_updates(
         headers=headers_two,
     )
     assert resp.status_code == 403
+
+
+def test_escalation_sla_due_at_can_be_set_and_updated(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    organization = create_organization_record(db_session, slug="signal-escalation-sla")
+    user = create_user_for_org(
+        db_session,
+        organization=organization,
+        email="signal-sla@example.com",
+        password="Secret123!",
+    )
+    headers = auth_headers(client, user.email, "Secret123!")
+    patient_id = create_patient_for_user(client, headers, first_name="SlaSignal")
+
+    initial_due = "2026-04-08T12:00:00Z"
+    create_resp = client.post(
+        f"/api/v1/patients/{patient_id}/signals",
+        json={
+            "signal_type": "symptom_score",
+            "signal_value_numeric": 11,
+            "escalation_sla_due_at": initial_due,
+        },
+        headers=headers,
+    )
+    assert create_resp.status_code == 201
+    escalation = create_resp.json()["escalation"]
+    assert escalation is not None
+    escalation_id = escalation["id"]
+    assert escalation["sla_due_at"] == initial_due.replace("Z", "")
+
+    updated_due = "2026-04-09T15:00:00Z"
+    update_resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/sla",
+        json={"sla_due_at": updated_due},
+        headers=headers,
+    )
+    assert update_resp.status_code == 200
+    assert update_resp.json()["sla_due_at"] == updated_due.replace("Z", "")
+
+    clear_resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/sla",
+        json={"sla_due_at": None},
+        headers=headers,
+    )
+    assert clear_resp.status_code == 200
+    assert clear_resp.json()["sla_due_at"] is None
