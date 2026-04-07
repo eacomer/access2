@@ -1,9 +1,13 @@
 import { cookies } from "next/headers";
 
 import type {
+  PatientEscalation,
   PatientTimelineDetailResponse,
   PatientTimelineListResponse,
   PatientTimelineWorklistSummaryResponse,
+  EscalationStatus,
+  InterventionTask,
+  InterventionTaskCreateRequest,
 } from "../types/patient";
 
 const DEFAULT_API_BASE_URL = "http://localhost:8000/api/v1";
@@ -100,4 +104,61 @@ export async function fetchPatientTimelineEvent(
   eventId: string,
 ): Promise<PatientTimelineDetailResponse> {
   return apiFetch<PatientTimelineDetailResponse>(`/patients/${patientId}/timeline/${eventId}`);
+}
+
+export async function fetchEscalation(escalationId: string): Promise<PatientEscalation> {
+  return apiFetch<PatientEscalation>(`/escalations/${escalationId}`);
+}
+
+export async function acknowledgeEscalation(escalationId: string): Promise<PatientEscalation> {
+  return apiFetch<PatientEscalation>(`/escalations/${escalationId}/acknowledge`, {
+    init: {
+      method: "POST",
+    },
+  });
+}
+
+export async function updateEscalationStatus(
+  escalationId: string,
+  payload: { status: EscalationStatus; note?: string | null },
+): Promise<PatientEscalation> {
+  return apiFetch<PatientEscalation>(`/escalations/${escalationId}/status`, {
+    init: {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  });
+}
+
+export async function resolveEscalation(
+  escalationId: string,
+  payload: { resolution_notes?: string | null } = {},
+): Promise<PatientEscalation> {
+  return apiFetch<PatientEscalation>(`/escalations/${escalationId}/resolve`, {
+    init: {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  });
+}
+
+export async function createInterventionTask(
+  escalationId: string,
+  payload: InterventionTaskCreateRequest,
+): Promise<InterventionTask> {
+  return apiFetch<InterventionTask>(`/escalations/${escalationId}/tasks`, {
+    init: {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+  });
 }
