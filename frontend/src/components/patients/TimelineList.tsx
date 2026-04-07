@@ -22,6 +22,15 @@ type MetadataEntry = {
 
 const MAX_METADATA_ENTRIES = 4;
 
+type EventCategory =
+  | { id: "escalation"; label: string; tone?: "info" | "warning" | "alert" }
+  | { id: "task"; label: string; tone?: "info" | "warning" | "alert" }
+  | { id: "care"; label: string }
+  | { id: "signal"; label: string }
+  | { id: "general"; label: string };
+
+type StatusTone = "info" | "warning" | "alert" | "positive";
+
 const asTrimmedString = (value: unknown): string | null => {
   if (typeof value !== "string") {
     return null;
@@ -177,6 +186,7 @@ const buildEventSummary = (event: PatientTimelineItem): string | null => {
   return (
     metaString(metadata, "note") ??
     metaString(metadata, "description") ??
+    metaString(metadata, "reason") ??
     metaString(metadata, "completion_summary") ??
     metaString(metadata, "details") ??
     null
@@ -194,6 +204,62 @@ const getDayKey = (value?: string | null): string => {
   const month = String(date.getMonth() + 1).padStart(2, "0");
   const day = String(date.getDate()).padStart(2, "0");
   return `${date.getFullYear()}-${month}-${day}`;
+};
+
+const getEventCategory = (eventType: string): EventCategory => {
+  if (eventType.startsWith("escalation_")) {
+    if (eventType.includes("overdue")) {
+      return { id: "escalation", label: "Escalation SLA", tone: "alert" };
+    }
+    if (eventType.includes("sla_at_risk")) {
+      return { id: "escalation", label: "Escalation SLA", tone: "warning" };
+    }
+    return { id: "escalation", label: "Escalation workflow", tone: "info" };
+  }
+  if (eventType.startsWith("intervention_task")) {
+    if (eventType.includes("overdue")) {
+      return { id: "task", label: "Task overdue", tone: "alert" };
+    }
+    if (eventType.includes("due_upcoming")) {
+      return { id: "task", label: "Task due soon", tone: "warning" };
+    }
+    return { id: "task", label: "Task workflow", tone: "info" };
+  }
+  if (eventType.startsWith("care_update")) {
+    return { id: "care", label: "Care update" };
+  }
+  if (eventType.startsWith("signal_")) {
+    return { id: "signal", label: "Signal evidence" };
+  }
+  return { id: "general", label: "Workflow evidence" };
+};
+
+const STATUS_FIELD_LABELS = new Set([
+  "Status",
+  "New status",
+  "Priority",
+  "Severity",
+  "SLA due",
+  "Due at",
+  "Due state",
+  "Escalation status",
+]);
+
+const inferStatusTone = (label: string, value: string): StatusTone | undefined => {
+  const text = `${label} ${value}`.toLowerCase();
+  if (text.includes("overdue") || text.includes("violation") || text.includes("critical")) {
+    return "alert";
+  }
+  if (text.includes("risk") || text.includes("due soon") || text.includes("high")) {
+    return "warning";
+  }
+  if (text.includes("resolved") || text.includes("completed") || text.includes("clear")) {
+    return "positive";
+  }
+  if (text.includes("open") || text.includes("in progress") || text.includes("acknowledged")) {
+    return "info";
+  }
+  return undefined;
 };
 
 export default function TimelineList({
@@ -268,26 +334,50 @@ export default function TimelineList({
         ? `/patients/${patientId}?${hrefQuery}`
         : `/patients/${patientId}?eventId=${encodeURIComponent(event.event_id)}`;
     const metadataEntries = buildMetadataEntries(event);
+    const statusEntries: MetadataEntry[] = [];
+    const detailEntries: MetadataEntry[] = [];
+    metadataEntries.forEach((entry) => {
+      if (STATUS_FIELD_LABELS.has(entry.label)) {
+        statusEntries.push(entry);
+      } else {
+        detailEntries.push(entry);
+      }
+    });
     const summary = buildEventSummary(event);
     const rowBaseId = `timeline-${event.event_id}`;
     const titleId = `${rowBaseId}-title`;
     const timestampId = `${rowBaseId}-timestamp`;
     const subtitleId = summary ? `${rowBaseId}-subtitle` : undefined;
-    const metadataId = metadataEntries.length ? `${rowBaseId}-meta` : undefined;
+    const metadataId = detailEntries.length ? `${rowBaseId}-meta` : undefined;
+    const statuslineId = statusEntries.length ? `${rowBaseId}-statusline` : undefined;
+    const contextId = `${rowBaseId}-context`;
     const describedBy: string[] = [];
     if (subtitleId) {
       describedBy.push(subtitleId);
     }
+    if (statuslineId) {
+      describedBy.push(statuslineId);
+    }
     if (metadataId) {
       describedBy.push(metadataId);
     }
+    describedBy.push(contextId);
     const describedByAttr = describedBy.length ? describedBy.join(" ") : undefined;
+    const category = getEventCategory(event.event_type);
+    const rowClassNames = [
+      "timeline-row",
+      `timeline-row--${category.id}`,
+      category.tone ? `timeline-row--${category.tone}` : null,
+      isSelected ? "selected" : null,
+    ]
+      .filter(Boolean)
+      .join(" ");
 
     renderedEvents.push(
       <li key={event.event_id}>
         <Link
           href={href}
-          className={`timeline-row${isSelected ? " selected" : ""}`}
+          className={rowClassNames}
           id={rowBaseId}
           aria-current={isSelected ? "true" : undefined}
           aria-labelledby={titleId}
@@ -295,7 +385,14 @@ export default function TimelineList({
           aria-controls="timeline-event-detail"
         >
           <div className="timeline-row-head">
-            <span className="timeline-event-type">{formatEventType(event.event_type)}</span>
+            <span
+              className={`timeline-event-type-chip timeline-event-type-chip--${category.id}${
+                category.tone ? ` timeline-event-type-chip--${category.tone}` : ""
+              }`}
+            >
+              {formatEventType(event.event_type)}
+            </span>
+            <span className="timeline-event-category">{category.label}</span>
           </div>
           <div className="timeline-row-body">
             <TimelineRowSummary
@@ -304,11 +401,30 @@ export default function TimelineList({
               titleId={titleId}
               subtitleId={subtitleId}
               timestampId={timestampId}
+              contextId={contextId}
             />
-            <TimelineEventBadges event={event} />
-            {metadataEntries.length ? (
+            <div className="timeline-row-evidence-context">
+              {statusEntries.length ? (
+                <div className="timeline-row-statusline" id={statuslineId}>
+                  {statusEntries.map((entry) => {
+                    const tone = inferStatusTone(entry.label, entry.value);
+                    return (
+                      <span
+                        key={`${event.event_id}-${entry.label}`}
+                        className={`timeline-status-chip${tone ? ` timeline-status-chip--${tone}` : ""}`}
+                      >
+                        <span className="timeline-status-chip-label">{entry.label}</span>
+                        <span className="timeline-status-chip-value">{entry.value}</span>
+                      </span>
+                    );
+                  })}
+                </div>
+              ) : null}
+              <TimelineEventBadges event={event} />
+            </div>
+            {detailEntries.length ? (
               <dl className="timeline-row-meta" id={metadataId}>
-                {metadataEntries.map((entry) => (
+                {detailEntries.map((entry) => (
                   <div className="timeline-row-meta-item" key={`${event.event_id}-${entry.label}`}>
                     <dt>{entry.label}</dt>
                     <dd>{entry.value}</dd>
