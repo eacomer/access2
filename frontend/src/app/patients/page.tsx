@@ -1,28 +1,285 @@
+import TimelineAppliedFilters from "../../components/patients/TimelineAppliedFilters";
+import WorklistHeader from "../../components/patients/WorklistHeader";
+import WorklistControls from "../../components/patients/WorklistControls";
+import WorklistEmptyState from "../../components/patients/WorklistEmptyState";
+import WorklistStateSummary from "../../components/patients/WorklistStateSummary";
 import WorklistSummaryCard from "../../components/patients/WorklistSummaryCard";
+import WorklistHighlights from "../../components/patients/WorklistHighlights";
+import WorklistPaginationControls from "../../components/patients/WorklistPaginationControls";
 import { fetchWorklistSummary } from "../../lib/api";
+import { pluralize } from "../../lib/format";
+import { FILTER_LABELS } from "../../lib/statusLabels";
 
 export const dynamic = "force-dynamic";
 
-export default async function PatientsPage() {
-  const worklist = await fetchWorklistSummary({ limit: 25, activeOnly: true });
+type PageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const normalizeArrayParam = (value?: string | string[]): string[] => {
+  if (!value) {
+    return [];
+  }
+  const arrayValue = Array.isArray(value) ? value : [value];
+  return arrayValue
+    .flatMap((entry) => entry.split(","))
+    .map((entry) => entry.trim())
+    .filter((entry) => entry.length > 0);
+};
+
+const getFirstParam = (value?: string | string[]): string | undefined => {
+  if (!value) {
+    return undefined;
+  }
+  return Array.isArray(value) ? value[0] : value;
+};
+
+const parseBooleanParam = (value?: string | string[], defaultValue = false): boolean => {
+  const raw = getFirstParam(value);
+  if (raw === undefined) {
+    return defaultValue;
+  }
+  const normalized = raw.toLowerCase();
+  return normalized === "1" || normalized === "true" || normalized === "yes" || normalized === "on";
+};
+
+const createSearchParams = (
+  source: Record<string, string | string[] | undefined>,
+  omitKeys: string[] = [],
+): URLSearchParams => {
+  const params = new URLSearchParams();
+  for (const [key, rawValue] of Object.entries(source)) {
+    if (omitKeys.includes(key) || rawValue === undefined) {
+      continue;
+    }
+    const values = Array.isArray(rawValue) ? rawValue : [rawValue];
+    values.forEach((entry) => {
+      if (entry !== undefined) {
+        params.append(key, entry);
+      }
+    });
+  }
+  return params;
+};
+
+const removeParamValue = (params: URLSearchParams, key: string, value?: string | null) => {
+  if (value === undefined || value === null) {
+    params.delete(key);
+    return;
+  }
+  const remaining = params.getAll(key).filter((entry) => entry !== value);
+  params.delete(key);
+  remaining.forEach((entry) => params.append(key, entry));
+};
+
+const toHref = (params: URLSearchParams) => {
+  const query = params.toString();
+  return query ? `/patients?${query}` : "/patients";
+};
+
+export default async function PatientsPage({ searchParams }: PageProps) {
+  const resolvedSearchParams =
+    (searchParams ? await searchParams : {}) as Record<string, string | string[] | undefined>;
+
+  const queueParams = createSearchParams(resolvedSearchParams);
+  const queueQueryString = queueParams.toString();
+
+  const hasUnreadOnly = parseBooleanParam(resolvedSearchParams.has_unread_events, false);
+  const activeOnly = parseBooleanParam(resolvedSearchParams.active_only, true);
+  const patientIds = normalizeArrayParam(resolvedSearchParams.patient_ids);
+  const limitParam = getFirstParam(resolvedSearchParams.limit);
+  const skipParam = getFirstParam(resolvedSearchParams.skip);
+  const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : NaN;
+  const pageSize = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 1), 100) : 25;
+  const parsedSkip = skipParam ? Number.parseInt(skipParam, 10) : NaN;
+  const skip = Number.isFinite(parsedSkip) && parsedSkip > 0 ? parsedSkip : 0;
+
+  const hasActiveFilters = hasUnreadOnly || patientIds.length > 0 || activeOnly === false;
+
+  const buildFilterHref = (removals: Array<{ key: string; value?: string | null }>) => {
+    const params = createSearchParams(resolvedSearchParams);
+    removals.forEach((removal) => removeParamValue(params, removal.key, removal.value));
+    params.delete("skip");
+    return toHref(params);
+  };
+
+  const buildPatientFilterHref = (patientIdToRemove: string) => {
+    const params = createSearchParams(resolvedSearchParams, ["patient_ids"]);
+    patientIds
+      .filter((patientId) => patientId !== patientIdToRemove)
+      .forEach((patientId) => params.append("patient_ids", patientId));
+    params.delete("skip");
+    return toHref(params);
+  };
+
+  const clearFiltersHref = hasActiveFilters
+    ? (() => {
+        const params = createSearchParams(resolvedSearchParams, [
+          "has_unread_events",
+          "patient_ids",
+          "active_only",
+        ]);
+        params.delete("skip");
+        return toHref(params);
+      })()
+    : null;
+
+  const preservedParams: Record<string, string | string[]> = {};
+  if (limitParam && !Number.isNaN(parsedLimit) && parsedLimit !== 25) {
+    preservedParams.limit = limitParam;
+  }
+
+  const worklist = await fetchWorklistSummary({
+    limit: pageSize,
+    skip,
+    activeOnly,
+    ...(patientIds.length ? { patientIds } : {}),
+    ...(hasUnreadOnly ? { hasUnreadEvents: true } : {}),
+  });
+
+  const visibleCount = worklist.items.length;
+  const totalCount = worklist.total;
+  const viewDescriptor = activeOnly ? "Standard queue view" : "All patients view";
+  const filterDescriptors: string[] = [viewDescriptor];
+
+  if (hasUnreadOnly) {
+    filterDescriptors.push(FILTER_LABELS.unreadOnly);
+  }
+  if (patientIds.length === 1) {
+    filterDescriptors.push(`Patient ${patientIds[0]}`);
+  } else if (patientIds.length > 1) {
+    filterDescriptors.push(`${patientIds.length} patients selected`);
+  }
+
+  const detailParts = [filterDescriptors.join(" • "), `${totalCount} total recorded`];
+  if (!hasActiveFilters && totalCount <= 3) {
+    detailParts.push("Queue is currently quiet");
+  }
+
+  const statePrimary = `Showing ${pluralize(visibleCount, "patient")}${
+    totalCount > visibleCount || pageSize !== 25 ? ` (limit ${pageSize})` : ""
+  }`;
+  const stateDetail = detailParts.filter(Boolean).join(" • ");
+
+  const headerTitle = "Patient queue";
+  const headerSubtitle = hasActiveFilters ? "Filtered queue view" : "Standard queue view";
+  const headerDescription = hasActiveFilters
+    ? "You are viewing a narrowed queue slice. Filters and chips show what is in effect."
+    : "Escalation-aware queue showing patients who currently need intervention work.";
+  const headerChips: Array<{ id: string; label: string }> = [];
+  headerChips.push({
+    id: "scope-mode",
+    label: activeOnly ? "Standard queue view" : "All patients view",
+  });
+  if (hasUnreadOnly) {
+    headerChips.push({ id: "scope-unread", label: FILTER_LABELS.unreadOnly });
+  }
+  if (patientIds.length === 1) {
+    headerChips.push({ id: "scope-single", label: `Patient ${patientIds[0]}` });
+  } else if (patientIds.length > 1) {
+    headerChips.push({ id: "scope-multi", label: `${patientIds.length} patients selected` });
+  }
+
+  const resultsHelper = visibleCount
+    ? "Cards below mirror the queue slice above."
+    : hasActiveFilters
+      ? "No patients match the current filters."
+      : "Queue is quiet right now.";
 
   return (
     <main className="page">
-      <section className="page-header">
-        <p className="eyebrow">Patient queue</p>
-        <h1>Worklist</h1>
-        <p className="lede">Escalation-aware cues that show who needs attention and why.</p>
+      <WorklistHeader
+        title={headerTitle}
+        subtitle={headerSubtitle}
+        description={headerDescription}
+        chips={headerChips}
+      />
+      <WorklistControls
+        activeOnly={activeOnly}
+        hasUnreadOnly={hasUnreadOnly}
+        patientIdsText={patientIds.join(", ")}
+        preservedParams={preservedParams}
+      />
+      <section className="worklist-context" aria-label="Queue review">
+        <WorklistStateSummary
+          primary={statePrimary}
+          detail={stateDetail}
+          helper="Totals, filters, and window controls reflect this queue slice."
+        />
+        {hasActiveFilters ? (
+          <TimelineAppliedFilters
+            chips={[
+              ...(hasUnreadOnly
+                ? [
+                    {
+                      id: "unread-only",
+                      label: FILTER_LABELS.unreadOnly,
+                      href: buildFilterHref([{ key: "has_unread_events" }]),
+                    },
+                  ]
+                : []),
+              ...(!activeOnly
+                ? [
+                    {
+                      id: "queue-mode",
+                      label: "All patients view",
+                      href: buildFilterHref([{ key: "active_only" }]),
+                    },
+                  ]
+                : []),
+              ...patientIds.map((patientId) => ({
+                id: `patient:${patientId}`,
+                label: `Patient ${patientId}`,
+                href: buildPatientFilterHref(patientId),
+              })),
+            ]}
+            clearHref={clearFiltersHref}
+          />
+        ) : null}
+        {visibleCount > 0 ? (
+          <>
+            <WorklistHighlights
+              items={worklist.items}
+              helper="Counts reflect patients currently visible."
+            />
+            <WorklistPaginationControls
+              total={totalCount}
+              visibleCount={visibleCount}
+              limit={pageSize}
+              skip={skip}
+              searchParams={resolvedSearchParams}
+            />
+          </>
+        ) : null}
       </section>
-      {worklist.items.length === 0 ? (
-        <section className="section-card">
-          <p className="empty-state">No patients currently require attention.</p>
+      {visibleCount === 0 ? (
+        <section className="worklist-results" aria-label="Patient queue review">
+          <div className="worklist-results-head">
+            <p className="worklist-context-label">Patient review</p>
+            <p className="worklist-context-helper">
+              Queue view: {activeOnly ? "Standard" : "All patients"} · {resultsHelper}
+            </p>
+          </div>
+          <WorklistEmptyState hasFilters={hasActiveFilters} clearHref={clearFiltersHref} />
         </section>
       ) : (
-        <div className="worklist-grid">
-          {worklist.items.map((item) => (
-            <WorklistSummaryCard key={item.patient_id} summary={item} />
-          ))}
-        </div>
+        <section className="worklist-results" aria-label="Patient queue review">
+          <div className="worklist-results-head">
+            <p className="worklist-context-label">Patient review</p>
+            <p className="worklist-context-helper">
+              Queue view: {activeOnly ? "Standard" : "All patients"} · {resultsHelper}
+            </p>
+          </div>
+          <div className="worklist-grid" role="list">
+            {worklist.items.map((item) => (
+              <WorklistSummaryCard
+                key={item.patient_id}
+                summary={item}
+                queueQueryString={queueQueryString}
+              />
+            ))}
+          </div>
+        </section>
       )}
     </main>
   );
