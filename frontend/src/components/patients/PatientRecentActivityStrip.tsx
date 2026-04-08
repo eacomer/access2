@@ -2,6 +2,7 @@ import { formatDateTime, formatEventType, formatRelativeTimeCompact } from "../.
 import STATUS_LABELS from "../../lib/statusLabels";
 import type {
   PatientTimelineItem,
+  PatientInterventionTaskSummary,
   PatientTimelineWorklistSummaryItem,
 } from "../../types/patient";
 
@@ -35,6 +36,34 @@ const buildLastEventCue = (
       ? `${formatRelativeTimeCompact(occurredAt)} · ${formatDateTime(occurredAt)}`
       : undefined,
   };
+};
+
+const buildTaskCue = (taskSummary: PatientInterventionTaskSummary | null): Cue | null => {
+  if (!taskSummary) {
+    return null;
+  }
+  if (taskSummary.overdue_task_count > 0) {
+    return {
+      id: "tasks-overdue",
+      label: "Tasks",
+      value: `${taskSummary.overdue_task_count} overdue`,
+      tone: "alert",
+    };
+  }
+  if (taskSummary.open_task_count > 0) {
+    const latestTaskTimestamp =
+      taskSummary.latest_active_task_due_at ?? taskSummary.latest_active_task_created_at ?? null;
+    return {
+      id: "tasks-open",
+      label: "Tasks",
+      value: `${taskSummary.open_task_count} open`,
+      tone: taskSummary.open_task_count > 3 ? "info" : undefined,
+      detail: latestTaskTimestamp
+        ? `Latest ${formatRelativeTimeCompact(latestTaskTimestamp)}`
+        : undefined,
+    };
+  }
+  return null;
 };
 
 const buildUnreadCue = (summary: PatientTimelineWorklistSummaryItem | null): Cue | null => {
@@ -88,6 +117,10 @@ const buildEscalationCue = (summary: PatientTimelineWorklistSummaryItem | null):
 
 export default function PatientRecentActivityStrip({ latestEvent, summary }: Props) {
   const cues: Cue[] = [];
+  const taskCue = buildTaskCue(summary?.task_summary ?? null);
+  if (taskCue) {
+    cues.push(taskCue);
+  }
   const lastEventCue = buildLastEventCue(latestEvent, summary);
   if (lastEventCue) {
     cues.push(lastEventCue);

@@ -2,6 +2,18 @@ export type EscalationStatus = "open" | "in_progress" | "resolved" | "canceled";
 
 export type InterventionTaskPriority = "low" | "medium" | "high" | "urgent";
 
+export interface PatientInterventionTaskSummary {
+  open_task_count: number;
+  in_progress_task_count: number;
+  overdue_task_count: number;
+  latest_active_task_id: string | null;
+  latest_active_task_title: string | null;
+  latest_active_task_status: string | null;
+  latest_active_task_priority: InterventionTaskPriority | null;
+  latest_active_task_due_at: string | null;
+  latest_active_task_created_at: string | null;
+}
+
 export interface PatientTimelineWorklistSummaryItem {
   patient_id: string;
   patient_display_name: string;
@@ -23,6 +35,7 @@ export interface PatientTimelineWorklistSummaryItem {
   highest_escalation_priority: string | null;
   next_escalation_sla_due_at: string | null;
   latest_open_escalation_id: string | null;
+  task_summary?: PatientInterventionTaskSummary | null;
 }
 
 export interface PatientTimelineWorklistSummaryResponse {
@@ -87,6 +100,7 @@ export interface PatientEscalationEvidence {
 export interface PatientTimelineDetailResponse {
   item: PatientTimelineItem;
   escalation_evidence: PatientEscalationEvidence | null;
+  task_summary?: PatientInterventionTaskSummary | null;
 }
 
 export interface PatientEscalation {

@@ -185,6 +185,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
     null;
   const activeEscalationId = escalationIdFromDetail ?? escalationIdFromEvidence ?? null;
   const escalationEvidence = detail?.escalation_evidence ?? null;
+  const taskSummary = detail?.task_summary ?? worklistSummary?.task_summary ?? null;
 
   let activeEscalation: PatientEscalation | null = null;
   if (activeEscalationId) {
@@ -385,6 +386,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
           patientId={patientId}
           summary={worklistSummary}
           evidence={escalationEvidence}
+          taskSummary={taskSummary}
           queueViewName={queueViewName}
           queueFilterSummary={queueFilterSummary}
           hasQueueReturnContext={hasQueueReturnContext}

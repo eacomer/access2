@@ -4,6 +4,7 @@ import type {
   EscalationStatus,
   PatientEscalationEvidence,
   PatientTimelineItem,
+  PatientInterventionTaskSummary,
   PatientTimelineWorklistSummaryItem,
 } from "../../types/patient";
 
@@ -33,6 +34,7 @@ type Props = {
   patientId: string;
   summary: PatientTimelineWorklistSummaryItem | null;
   evidence: PatientEscalationEvidence | null;
+  taskSummary?: PatientInterventionTaskSummary | null;
   queueViewName?: string;
   queueFilterSummary?: string | null;
   hasQueueReturnContext?: boolean;
@@ -62,8 +64,19 @@ const humanizeStatus = (value?: string | null) => {
 const buildSubtitle = (
   summary: PatientTimelineWorklistSummaryItem | null,
   evidence: PatientEscalationEvidence | null,
+  taskSummary: PatientInterventionTaskSummary | null,
 ): string => {
   const parts: string[] = [];
+  if (taskSummary?.overdue_task_count) {
+    parts.push(pluralize(taskSummary.overdue_task_count, "overdue task"));
+  } else if (taskSummary?.open_task_count) {
+    parts.push(pluralize(taskSummary.open_task_count, "open task"));
+  }
+  if (taskSummary?.in_progress_task_count) {
+    parts.push(
+      pluralize(taskSummary.in_progress_task_count, "task in progress", "tasks in progress"),
+    );
+  }
   if (summary?.total_events) {
     parts.push(pluralize(summary.total_events, "recorded event"));
   }
@@ -86,6 +99,7 @@ const buildSubtitle = (
 const buildMetadata = (
   patientId: string,
   summary: PatientTimelineWorklistSummaryItem | null,
+  taskSummary: PatientInterventionTaskSummary | null,
 ): MetadataItem[] => {
   const items: MetadataItem[] = [
     {
@@ -94,6 +108,21 @@ const buildMetadata = (
       value: patientId,
     },
   ];
+  if (taskSummary?.open_task_count || taskSummary?.overdue_task_count) {
+    const overdueLabel =
+      taskSummary.overdue_task_count && taskSummary.overdue_task_count > 0
+        ? `${taskSummary.overdue_task_count} overdue`
+        : null;
+    const openLabel =
+      taskSummary.open_task_count && taskSummary.open_task_count > 0
+        ? `${taskSummary.open_task_count} open`
+        : null;
+    items.push({
+      id: "tasks-count",
+      label: "Task load",
+      value: [overdueLabel, openLabel].filter(Boolean).join(" • ") || "No active tasks",
+    });
+  }
 
   if (summary?.latest_event_type) {
     items.push({
@@ -111,14 +140,52 @@ const buildMetadata = (
     });
   }
 
+  if (taskSummary?.latest_active_task_title) {
+    items.push({
+      id: "latest-task-title",
+      label: "Active task",
+      value: taskSummary.latest_active_task_title,
+    });
+  }
+  if (taskSummary?.latest_active_task_due_at) {
+    items.push({
+      id: "latest-task-due",
+      label: "Task due",
+      value: `${formatRelativeTimeCompact(taskSummary.latest_active_task_due_at)} · ${formatDateTime(taskSummary.latest_active_task_due_at)}`,
+    });
+  } else if (taskSummary?.latest_active_task_created_at) {
+    items.push({
+      id: "latest-task-recorded",
+      label: "Task recorded",
+      value: `${formatRelativeTimeCompact(taskSummary.latest_active_task_created_at)} · ${formatDateTime(taskSummary.latest_active_task_created_at)}`,
+    });
+  }
+
   return items;
 };
 
 const buildChips = (
   summary: PatientTimelineWorklistSummaryItem | null,
   evidence: PatientEscalationEvidence | null,
+  taskSummary: PatientInterventionTaskSummary | null,
 ): HeaderChip[] => {
   const chips: HeaderChip[] = [];
+
+  if (taskSummary?.overdue_task_count && taskSummary.overdue_task_count > 0) {
+    chips.push({
+      id: "tasks-overdue",
+      label: "Tasks overdue",
+      value: String(taskSummary.overdue_task_count),
+      tone: "alert",
+    });
+  } else if (taskSummary?.open_task_count && taskSummary.open_task_count > 0) {
+    chips.push({
+      id: "tasks-open",
+      label: "Open tasks",
+      value: String(taskSummary.open_task_count),
+      tone: taskSummary.open_task_count > 3 ? "info" : undefined,
+    });
+  }
 
   if (summary?.has_unread_events && summary.unread_count > 0) {
     chips.push({
@@ -241,8 +308,56 @@ const buildEscalationInsight = (
 
 const buildWorkInsight = (
   summary: PatientTimelineWorklistSummaryItem | null,
+  taskSummary: PatientInterventionTaskSummary | null,
   latestEvent: PatientTimelineItem | null,
 ): InsightCard | null => {
+  if (taskSummary) {
+    const overdueTasks = taskSummary.overdue_task_count;
+    const inProgress = taskSummary.in_progress_task_count;
+    const openTasks = taskSummary.open_task_count;
+    const latestTitle = taskSummary.latest_active_task_title;
+    const timingDetail =
+      taskSummary.latest_active_task_due_at ??
+      taskSummary.latest_active_task_created_at ??
+      latestEvent?.occurred_at ??
+      null;
+    const detailParts = [];
+    if (latestTitle) {
+      detailParts.push(latestTitle);
+    }
+    if (timingDetail) {
+      detailParts.push(formatRelativeTimeCompact(timingDetail));
+    }
+    const detail = detailParts.join(" · ") || undefined;
+
+    if (overdueTasks && overdueTasks > 0) {
+      return {
+        id: "tasks-overdue",
+        label: "Active work",
+        value: `${pluralize(overdueTasks, "task")} overdue`,
+        detail,
+        tone: "alert",
+      };
+    }
+    if (inProgress && inProgress > 0) {
+      return {
+        id: "tasks-progress",
+        label: "Active work",
+        value: pluralize(inProgress, "task in progress", "tasks in progress"),
+        detail,
+        tone: "info",
+      };
+    }
+    if (openTasks && openTasks > 0) {
+      return {
+        id: "tasks-open",
+        label: "Active work",
+        value: pluralize(openTasks, "open task"),
+        detail,
+      };
+    }
+  }
+
   const unread = summary?.has_unread_events ? summary.unread_count : 0;
   const latestUnreadAt = summary?.latest_unread_event_occurred_at;
   if (latestEvent?.related_task_id) {
@@ -280,6 +395,7 @@ const buildWorkInsight = (
 const buildInsightCards = (
   summary: PatientTimelineWorklistSummaryItem | null,
   evidence: PatientEscalationEvidence | null,
+  taskSummary: PatientInterventionTaskSummary | null,
   queueViewName?: string,
   queueFilterSummary?: string | null,
   hasQueueReturnContext?: boolean,
@@ -289,7 +405,7 @@ const buildInsightCards = (
   const cards = [
     buildQueueInsight(queueViewName, queueFilterSummary, hasQueueReturnContext),
     buildEscalationInsight(summary, evidence, activeEscalationStatus),
-    buildWorkInsight(summary, latestEvent),
+    buildWorkInsight(summary, taskSummary, latestEvent),
   ].filter((card): card is InsightCard => Boolean(card));
   return cards;
 };
@@ -299,18 +415,21 @@ export default function PatientWorkflowHeader({
   patientId,
   summary,
   evidence,
+  taskSummary: explicitTaskSummary,
   queueViewName,
   queueFilterSummary,
   hasQueueReturnContext,
   latestEvent,
   activeEscalationStatus,
 }: Props) {
-  const subtitle = buildSubtitle(summary, evidence);
-  const metadata = buildMetadata(patientId, summary);
-  const chips = buildChips(summary, evidence);
+  const resolvedTaskSummary = explicitTaskSummary ?? summary?.task_summary ?? null;
+  const subtitle = buildSubtitle(summary, evidence, resolvedTaskSummary);
+  const metadata = buildMetadata(patientId, summary, resolvedTaskSummary);
+  const chips = buildChips(summary, evidence, resolvedTaskSummary);
   const insightCards = buildInsightCards(
     summary,
     evidence,
+    resolvedTaskSummary,
     queueViewName,
     queueFilterSummary,
     hasQueueReturnContext,

@@ -6,9 +6,13 @@ import {
   formatEventType,
   formatPriority,
   formatRelativeTimeCompact,
+  pluralize,
 } from "../../lib/format";
 import STATUS_LABELS from "../../lib/statusLabels";
-import type { PatientTimelineWorklistSummaryItem } from "../../types/patient";
+import type {
+  PatientInterventionTaskSummary,
+  PatientTimelineWorklistSummaryItem,
+} from "../../types/patient";
 
 type Props = {
   summary: PatientTimelineWorklistSummaryItem;
@@ -17,7 +21,27 @@ type Props = {
 
 type EmphasisTone = "info" | "warning" | "alert";
 
-const getBadge = (summary: PatientTimelineWorklistSummaryItem) => {
+const humanizeTaskStatus = (value?: string | null) => {
+  if (!value) {
+    return null;
+  }
+  return value
+    .split("_")
+    .filter(Boolean)
+    .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase())
+    .join(" ");
+};
+
+const getBadge = (
+  summary: PatientTimelineWorklistSummaryItem,
+  taskSummary: PatientInterventionTaskSummary | null,
+) => {
+  if (taskSummary?.overdue_task_count && taskSummary.overdue_task_count > 0) {
+    return { label: `${taskSummary.overdue_task_count} overdue tasks`, variant: "badge--critical" };
+  }
+  if (taskSummary?.open_task_count && taskSummary.open_task_count > 0) {
+    return { label: `${taskSummary.open_task_count} open tasks`, variant: "badge--info" };
+  }
   if (summary.overdue_escalation_count > 0) {
     return { label: `${summary.overdue_escalation_count} overdue`, variant: "badge--critical" };
   }
@@ -32,7 +56,8 @@ const getBadge = (summary: PatientTimelineWorklistSummaryItem) => {
 
 const buildDetailLink = (
   summary: PatientTimelineWorklistSummaryItem,
-  queueQueryString?: string | null,
+  queueQueryString: string | null | undefined,
+  taskSummary: PatientInterventionTaskSummary | null,
 ) => {
   const params = new URLSearchParams();
   const chips: string[] = [];
@@ -40,6 +65,11 @@ const buildDetailLink = (
   if (summary.latest_open_escalation_id) {
     params.set("related_escalation_id", summary.latest_open_escalation_id);
     chips.push(STATUS_LABELS.activeEscalation);
+  }
+
+  if (taskSummary?.latest_active_task_id) {
+    params.set("related_task_id", taskSummary.latest_active_task_id);
+    chips.push("Active task context");
   }
 
   const hasOpenWork =
@@ -77,6 +107,7 @@ type AttentionSummary = {
 };
 
 const buildAttentionSummary = (summary: PatientTimelineWorklistSummaryItem): AttentionSummary => {
+  const taskSummary = summary.task_summary ?? null;
   const {
     overdue_escalation_count,
     at_risk_escalation_count,
@@ -91,6 +122,21 @@ const buildAttentionSummary = (summary: PatientTimelineWorklistSummaryItem): Att
 
   let primary = "Review patient timeline";
   let tone: EmphasisTone | undefined;
+
+  if (taskSummary) {
+    if (taskSummary.overdue_task_count > 0) {
+      primary = pluralize(taskSummary.overdue_task_count, "task overdue", "tasks overdue");
+      tone = "alert";
+    } else if (taskSummary.open_task_count > 0) {
+      primary =
+        taskSummary.in_progress_task_count > 0
+          ? pluralize(taskSummary.in_progress_task_count, "task in progress", "tasks in progress")
+          : pluralize(taskSummary.open_task_count, "open task");
+      tone = "info";
+    } else {
+      primary = "No active tasks";
+    }
+  }
 
   if (overdue_escalation_count > 0) {
     primary =
@@ -120,12 +166,20 @@ const buildAttentionSummary = (summary: PatientTimelineWorklistSummaryItem): Att
   }
 
   const detailParts: string[] = [];
-  if (latest_event_title) {
+  if (taskSummary?.latest_active_task_title) {
+    detailParts.push(taskSummary.latest_active_task_title);
+  } else if (latest_event_title) {
     detailParts.push(latest_event_title);
   } else if (latest_event_type) {
     detailParts.push(formatEventType(latest_event_type));
   }
-  if (latest_event_occurred_at) {
+  const taskTimestamp =
+    taskSummary?.latest_active_task_due_at ?? taskSummary?.latest_active_task_created_at ?? null;
+  if (taskTimestamp) {
+    detailParts.push(
+      `${formatRelativeTimeCompact(taskTimestamp)} · ${formatDateTime(taskTimestamp)}`,
+    );
+  } else if (latest_event_occurred_at) {
     const relative = formatRelativeTimeCompact(latest_event_occurred_at);
     detailParts.push(`${relative} · ${formatDateTime(latest_event_occurred_at)}`);
   }
@@ -151,6 +205,28 @@ type ActionCue = {
 };
 
 const buildActionCue = (summary: PatientTimelineWorklistSummaryItem): ActionCue | null => {
+  const taskSummary = summary.task_summary ?? null;
+  if (taskSummary?.overdue_task_count && taskSummary.overdue_task_count > 0) {
+    return {
+      label: "Resolve overdue tasks",
+      helper: "Task summary shows overdue workflow items",
+      tone: "alert",
+    };
+  }
+  if (taskSummary?.in_progress_task_count && taskSummary.in_progress_task_count > 0) {
+    return {
+      label: "Active tasks in progress",
+      helper: "Monitor intervention tasks to completion",
+      tone: "info",
+    };
+  }
+  if (taskSummary?.open_task_count && taskSummary.open_task_count > 0) {
+    return {
+      label: "Open tasks",
+      helper: "Tasks pending review or assignment",
+      tone: "info",
+    };
+  }
   if (summary.overdue_escalation_count > 0) {
     return {
       label: "Immediate follow-up",
@@ -187,6 +263,31 @@ const buildActionCue = (summary: PatientTimelineWorklistSummaryItem): ActionCue 
 
 const buildAttentionChips = (summary: PatientTimelineWorklistSummaryItem): AttentionChip[] => {
   const chips: AttentionChip[] = [];
+  const taskSummary = summary.task_summary ?? null;
+
+  if (taskSummary?.overdue_task_count && taskSummary.overdue_task_count > 0) {
+    chips.push({
+      id: "tasks-overdue",
+      label: "Tasks overdue",
+      value: String(taskSummary.overdue_task_count),
+      tone: "alert",
+    });
+  }
+  if (taskSummary?.in_progress_task_count && taskSummary.in_progress_task_count > 0) {
+    chips.push({
+      id: "tasks-progress",
+      label: "In progress",
+      value: String(taskSummary.in_progress_task_count),
+      tone: "info",
+    });
+  }
+  if (taskSummary?.open_task_count && taskSummary.open_task_count > 0) {
+    chips.push({
+      id: "tasks-open",
+      label: "Open tasks",
+      value: String(taskSummary.open_task_count),
+    });
+  }
 
   if (summary.has_unread_events && summary.unread_count > 0) {
     chips.push({
@@ -253,22 +354,32 @@ const getFreshnessTone = (occurredAt?: string | null): FreshnessTone | undefined
 };
 
 const buildRecencyContext = (summary: PatientTimelineWorklistSummaryItem): RecencyContext | null => {
+  const taskSummary = summary.task_summary ?? null;
+  const taskTimestamp =
+    taskSummary?.latest_active_task_due_at ?? taskSummary?.latest_active_task_created_at ?? null;
   const { latest_event_occurred_at, latest_event_type, has_unread_events, unread_count } = summary;
-  if (!latest_event_occurred_at && !latest_event_type && !(has_unread_events && unread_count > 0)) {
+  const effectiveTimestamp = taskTimestamp ?? latest_event_occurred_at;
+  if (!effectiveTimestamp && !latest_event_type && !(has_unread_events && unread_count > 0)) {
     return null;
   }
 
-  const timestamp = latest_event_occurred_at
-    ? formatDateTime(latest_event_occurred_at)
+  const timestamp = effectiveTimestamp
+    ? formatDateTime(effectiveTimestamp)
     : "No recent updates recorded";
   const relative =
-    latest_event_occurred_at && !Number.isNaN(new Date(latest_event_occurred_at).getTime())
-      ? formatRelativeTimeCompact(latest_event_occurred_at)
+    effectiveTimestamp && !Number.isNaN(new Date(effectiveTimestamp).getTime())
+      ? formatRelativeTimeCompact(effectiveTimestamp)
       : undefined;
-  const tone = getFreshnessTone(latest_event_occurred_at);
+  const tone = getFreshnessTone(effectiveTimestamp);
 
   const chips: AttentionChip[] = [];
-  if (latest_event_type) {
+  if (taskSummary?.latest_active_task_title) {
+    chips.push({
+      id: "latest-task",
+      label: "Active task",
+      value: taskSummary.latest_active_task_title,
+    });
+  } else if (latest_event_type) {
     chips.push({
       id: "latest-event-type",
       label: STATUS_LABELS.latestEvent,
@@ -288,21 +399,41 @@ const buildRecencyContext = (summary: PatientTimelineWorklistSummaryItem): Recen
 };
 
 export default function WorklistSummaryCard({ summary, queueQueryString }: Props) {
-  const badge = getBadge(summary);
-  const detailLink = buildDetailLink(summary, queueQueryString);
+  const taskSummary = summary.task_summary ?? null;
+  const badge = getBadge(summary, taskSummary);
+  const detailLink = buildDetailLink(summary, queueQueryString, taskSummary);
   const attention = buildAttentionSummary(summary);
   const attentionChips = buildAttentionChips(summary);
   const recency = buildRecencyContext(summary);
   const actionCue = buildActionCue(summary);
-  const latestEventSummary = summary.latest_event_occurred_at
-    ? `${formatRelativeTimeCompact(summary.latest_event_occurred_at)} · ${formatDateTime(summary.latest_event_occurred_at)}`
+  const latestActivityTimestamp =
+    taskSummary?.latest_active_task_created_at ?? summary.latest_event_occurred_at ?? null;
+  const latestEventSummary = latestActivityTimestamp
+    ? `${formatRelativeTimeCompact(latestActivityTimestamp)} · ${formatDateTime(latestActivityTimestamp)}`
     : "n/a";
   const latestEventHeadline =
+    taskSummary?.latest_active_task_title ??
+    (taskSummary?.latest_active_task_status
+      ? humanizeTaskStatus(taskSummary.latest_active_task_status)
+      : null) ??
     summary.latest_event_title ??
     (summary.latest_event_type ? formatEventType(summary.latest_event_type) : "No recent timeline activity");
   const attentionDetail = attention.detail.length ? attention.detail : "No additional evidence captured.";
 
   const workflowBadges: Array<{ id: string; content: string; variant?: string }> = [];
+  if (taskSummary?.open_task_count) {
+    workflowBadges.push({
+      id: "workflow-tasks",
+      content: `${taskSummary.open_task_count} open task${taskSummary.open_task_count === 1 ? "" : "s"}`,
+      variant: "badge--info",
+    });
+  }
+  if (taskSummary?.latest_active_task_status) {
+    workflowBadges.push({
+      id: "workflow-task-status",
+      content: humanizeTaskStatus(taskSummary.latest_active_task_status) ?? "Task active",
+    });
+  }
   if (summary.highest_escalation_priority) {
     workflowBadges.push({
       id: "workflow-priority",
@@ -323,6 +454,18 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
       variant: "badge--info",
     });
   }
+
+  const metrics = taskSummary
+    ? [
+        { id: "tasks-open", label: "Open tasks", value: taskSummary.open_task_count },
+        { id: "tasks-progress", label: "In progress", value: taskSummary.in_progress_task_count },
+        { id: "tasks-overdue", label: "Overdue", value: taskSummary.overdue_task_count },
+      ]
+    : [
+        { id: "esc-open", label: "Open", value: summary.open_escalation_count },
+        { id: "esc-overdue", label: "Overdue", value: summary.overdue_escalation_count },
+        { id: "esc-at-risk", label: "At risk", value: summary.at_risk_escalation_count },
+      ];
 
   return (
     <Link
@@ -441,31 +584,29 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
         </div>
 
         <div className="worklist-triage-block worklist-triage-block--metrics">
-          <p className="worklist-triage-label">Escalation pulse</p>
+          <p className="worklist-triage-label">
+            {taskSummary ? "Task pulse" : "Escalation pulse"}
+          </p>
           <div className="worklist-metric-row">
-            <div className="worklist-metric">
-              <span className="worklist-metric-value">{summary.open_escalation_count}</span>
-              <span className="worklist-metric-label">Open</span>
-            </div>
-            <div className="worklist-metric">
-              <span className="worklist-metric-value">{summary.overdue_escalation_count}</span>
-              <span className="worklist-metric-label">Overdue</span>
-            </div>
-            <div className="worklist-metric">
-              <span className="worklist-metric-value">{summary.at_risk_escalation_count}</span>
-              <span className="worklist-metric-label">At risk</span>
-            </div>
+            {metrics.map((metric) => (
+              <div className="worklist-metric" key={metric.id}>
+                <span className="worklist-metric-value">{metric.value}</span>
+                <span className="worklist-metric-label">{metric.label}</span>
+              </div>
+            ))}
           </div>
           {workflowBadges.length ? (
             <div className="worklist-metric-badges">
-              {workflowBadges.map((item) => (
+              {workflowBadges.slice(0, 2).map((item) => (
                 <span key={item.id} className={`badge${item.variant ? ` ${item.variant}` : ""}`}>
                   {item.content}
                 </span>
               ))}
             </div>
           ) : (
-            <p className="worklist-triage-detail">No workflow cues surfaced.</p>
+            <p className="worklist-triage-detail">
+              {taskSummary ? "No additional task cues surfaced." : "No workflow cues surfaced."}
+            </p>
           )}
         </div>
       </div>
