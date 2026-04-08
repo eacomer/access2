@@ -12,6 +12,7 @@ import STATUS_LABELS from "../../lib/statusLabels";
 import type {
   PatientInterventionTaskSummary,
   PatientTimelineWorklistSummaryItem,
+  PatientWorkflowStatusSummary,
 } from "../../types/patient";
 
 type Props = {
@@ -20,6 +21,54 @@ type Props = {
 };
 
 type EmphasisTone = "info" | "warning" | "alert";
+
+const describeWorkflowDriver = (driver?: string | null) => {
+  if (!driver) {
+    return null;
+  }
+  if (driver === "task") {
+    return "Task-driven posture";
+  }
+  if (driver === "escalation") {
+    return "Escalation-driven posture";
+  }
+  if (driver === "monitoring") {
+    return "Monitoring posture";
+  }
+  return `${driver.charAt(0).toUpperCase()}${driver.slice(1)} posture`;
+};
+
+const workflowSeverityToTone = (severity?: string | null): EmphasisTone | undefined => {
+  if (!severity) {
+    return undefined;
+  }
+  if (severity === "overdue") {
+    return "alert";
+  }
+  if (severity === "urgent") {
+    return "warning";
+  }
+  if (severity === "active") {
+    return "info";
+  }
+  return undefined;
+};
+
+const workflowSeverityToBadgeVariant = (severity?: string | null) => {
+  if (!severity) {
+    return "badge--info";
+  }
+  if (severity === "overdue") {
+    return "badge--critical";
+  }
+  if (severity === "urgent") {
+    return "badge--warning";
+  }
+  if (severity === "active") {
+    return "badge--info";
+  }
+  return "badge--positive";
+};
 
 const humanizeTaskStatus = (value?: string | null) => {
   if (!value) {
@@ -36,6 +85,13 @@ const getBadge = (
   summary: PatientTimelineWorklistSummaryItem,
   taskSummary: PatientInterventionTaskSummary | null,
 ) => {
+  const workflowStatus = summary.workflow_status ?? null;
+  if (workflowStatus) {
+    return {
+      label: workflowStatus.label,
+      variant: workflowSeverityToBadgeVariant(workflowStatus.severity),
+    };
+  }
   if (taskSummary?.overdue_task_count && taskSummary.overdue_task_count > 0) {
     return { label: `${taskSummary.overdue_task_count} overdue tasks`, variant: "badge--critical" };
   }
@@ -106,8 +162,51 @@ type AttentionSummary = {
   tone?: EmphasisTone;
 };
 
+const buildAttentionDetailParts = (
+  summary: PatientTimelineWorklistSummaryItem,
+  taskSummary: PatientInterventionTaskSummary | null,
+) => {
+  const detailParts: string[] = [];
+  if (taskSummary?.latest_active_task_title) {
+    detailParts.push(taskSummary.latest_active_task_title);
+  } else if (summary.latest_event_title) {
+    detailParts.push(summary.latest_event_title);
+  } else if (summary.latest_event_type) {
+    detailParts.push(formatEventType(summary.latest_event_type));
+  }
+  const taskTimestamp =
+    taskSummary?.latest_active_task_due_at ?? taskSummary?.latest_active_task_created_at ?? null;
+  if (taskTimestamp) {
+    detailParts.push(`${formatRelativeTimeCompact(taskTimestamp)} · ${formatDateTime(taskTimestamp)}`);
+  } else if (summary.latest_event_occurred_at) {
+    const relative = formatRelativeTimeCompact(summary.latest_event_occurred_at);
+    detailParts.push(`${relative} · ${formatDateTime(summary.latest_event_occurred_at)}`);
+  }
+  return detailParts;
+};
+
 const buildAttentionSummary = (summary: PatientTimelineWorklistSummaryItem): AttentionSummary => {
   const taskSummary = summary.task_summary ?? null;
+  const workflowStatus = summary.workflow_status ?? null;
+  if (workflowStatus) {
+    const tone = workflowSeverityToTone(workflowStatus.severity);
+    const detailParts: string[] = [];
+    if (workflowStatus.detail) {
+      detailParts.push(workflowStatus.detail);
+    }
+    if (!workflowStatus.detail) {
+      detailParts.push(...buildAttentionDetailParts(summary, taskSummary));
+    }
+    const driver = describeWorkflowDriver(workflowStatus.primary_driver);
+    if (driver && !detailParts.includes(driver)) {
+      detailParts.push(driver);
+    }
+    return {
+      primary: workflowStatus.label,
+      detail: detailParts.join(" • "),
+      tone,
+    };
+  }
   const {
     overdue_escalation_count,
     at_risk_escalation_count,
@@ -115,9 +214,6 @@ const buildAttentionSummary = (summary: PatientTimelineWorklistSummaryItem): Att
     has_unread_events,
     unread_count,
     highest_escalation_priority,
-    latest_event_title,
-    latest_event_occurred_at,
-    latest_event_type,
   } = summary;
 
   let primary = "Review patient timeline";
@@ -165,28 +261,9 @@ const buildAttentionSummary = (summary: PatientTimelineWorklistSummaryItem): Att
     primary = `${primary} · ${formatPriority(highest_escalation_priority)}`;
   }
 
-  const detailParts: string[] = [];
-  if (taskSummary?.latest_active_task_title) {
-    detailParts.push(taskSummary.latest_active_task_title);
-  } else if (latest_event_title) {
-    detailParts.push(latest_event_title);
-  } else if (latest_event_type) {
-    detailParts.push(formatEventType(latest_event_type));
-  }
-  const taskTimestamp =
-    taskSummary?.latest_active_task_due_at ?? taskSummary?.latest_active_task_created_at ?? null;
-  if (taskTimestamp) {
-    detailParts.push(
-      `${formatRelativeTimeCompact(taskTimestamp)} · ${formatDateTime(taskTimestamp)}`,
-    );
-  } else if (latest_event_occurred_at) {
-    const relative = formatRelativeTimeCompact(latest_event_occurred_at);
-    detailParts.push(`${relative} · ${formatDateTime(latest_event_occurred_at)}`);
-  }
-
   return {
     primary,
-    detail: detailParts.join(" • "),
+    detail: buildAttentionDetailParts(summary, taskSummary).join(" • "),
     tone,
   };
 };
@@ -205,6 +282,39 @@ type ActionCue = {
 };
 
 const buildActionCue = (summary: PatientTimelineWorklistSummaryItem): ActionCue | null => {
+  const workflowStatus = summary.workflow_status ?? null;
+  if (workflowStatus) {
+    const tone = workflowSeverityToTone(workflowStatus.severity);
+    let label = "Active workflow";
+    let helper = workflowStatus.detail ?? describeWorkflowDriver(workflowStatus.primary_driver) ?? "Workflow posture context";
+    if (!workflowStatus.has_active_work) {
+      label = "Monitoring only";
+      helper = workflowStatus.detail ?? "No active escalations or tasks";
+    } else if (workflowStatus.primary_driver === "task") {
+      if (workflowStatus.severity === "overdue") {
+        label = "Resolve overdue tasks";
+      } else if (workflowStatus.severity === "urgent") {
+        label = "Monitor task urgency";
+      } else {
+        label = "Active tasks in progress";
+      }
+      helper = workflowStatus.detail ?? "Task posture requires follow-up";
+    } else if (workflowStatus.primary_driver === "escalation") {
+      if (workflowStatus.severity === "overdue") {
+        label = "Immediate escalation follow-up";
+      } else if (workflowStatus.severity === "urgent") {
+        label = "Monitor SLA risk";
+      } else {
+        label = "Escalation work active";
+      }
+      helper = workflowStatus.detail ?? "Escalation posture requires review";
+    }
+    return {
+      label,
+      helper,
+      tone,
+    };
+  }
   const taskSummary = summary.task_summary ?? null;
   if (taskSummary?.overdue_task_count && taskSummary.overdue_task_count > 0) {
     return {
@@ -264,6 +374,24 @@ const buildActionCue = (summary: PatientTimelineWorklistSummaryItem): ActionCue 
 const buildAttentionChips = (summary: PatientTimelineWorklistSummaryItem): AttentionChip[] => {
   const chips: AttentionChip[] = [];
   const taskSummary = summary.task_summary ?? null;
+  const workflowStatus = summary.workflow_status ?? null;
+
+  if (workflowStatus) {
+    const driverLabel = describeWorkflowDriver(workflowStatus.primary_driver);
+    chips.push({
+      id: "workflow-driver",
+      label: "Workflow posture",
+      value: workflowStatus.label,
+      tone: workflowStatus.has_active_work ? workflowSeverityToTone(workflowStatus.severity) : undefined,
+    });
+    if (driverLabel) {
+      chips.push({
+        id: "workflow-driver-detail",
+        label: "Driver",
+        value: driverLabel,
+      });
+    }
+  }
 
   if (taskSummary?.overdue_task_count && taskSummary.overdue_task_count > 0) {
     chips.push({

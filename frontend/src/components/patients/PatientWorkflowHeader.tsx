@@ -6,6 +6,7 @@ import type {
   PatientTimelineItem,
   PatientInterventionTaskSummary,
   PatientTimelineWorklistSummaryItem,
+  PatientWorkflowStatusSummary,
 } from "../../types/patient";
 
 type HeaderChip = {
@@ -35,11 +36,46 @@ type Props = {
   summary: PatientTimelineWorklistSummaryItem | null;
   evidence: PatientEscalationEvidence | null;
   taskSummary?: PatientInterventionTaskSummary | null;
+  workflowStatus?: PatientWorkflowStatusSummary | null;
   queueViewName?: string;
   queueFilterSummary?: string | null;
   hasQueueReturnContext?: boolean;
   latestEvent: PatientTimelineItem | null;
   activeEscalationStatus?: EscalationStatus | null;
+};
+
+const describeWorkflowDriver = (driver?: string | null) => {
+  if (!driver) {
+    return null;
+  }
+  if (driver === "task") {
+    return "Task-driven posture";
+  }
+  if (driver === "escalation") {
+    return "Escalation-driven posture";
+  }
+  if (driver === "monitoring") {
+    return "Monitoring posture";
+  }
+  return `${driver.charAt(0).toUpperCase()}${driver.slice(1)} posture`;
+};
+
+const workflowSeverityToTone = (
+  severity?: string | null,
+): HeaderChip["tone"] | InsightCard["tone"] | undefined => {
+  if (!severity) {
+    return undefined;
+  }
+  if (severity === "overdue") {
+    return "alert";
+  }
+  if (severity === "urgent") {
+    return "warning";
+  }
+  if (severity === "active") {
+    return "info";
+  }
+  return undefined;
 };
 
 const pluralize = (count: number, singular: string, plural?: string) => {
@@ -61,11 +97,11 @@ const humanizeStatus = (value?: string | null) => {
     .join(" ");
 };
 
-const buildSubtitle = (
+const buildLegacySubtitleParts = (
   summary: PatientTimelineWorklistSummaryItem | null,
   evidence: PatientEscalationEvidence | null,
   taskSummary: PatientInterventionTaskSummary | null,
-): string => {
+) => {
   const parts: string[] = [];
   if (taskSummary?.overdue_task_count) {
     parts.push(pluralize(taskSummary.overdue_task_count, "overdue task"));
@@ -90,10 +126,38 @@ const buildSubtitle = (
   if (status) {
     parts.push(`Escalation ${status.toLowerCase()}`);
   }
-  if (parts.length === 0) {
+  return parts;
+};
+
+const buildSubtitle = (
+  summary: PatientTimelineWorklistSummaryItem | null,
+  evidence: PatientEscalationEvidence | null,
+  taskSummary: PatientInterventionTaskSummary | null,
+  workflowStatus: PatientWorkflowStatusSummary | null,
+): string => {
+  const legacyParts = buildLegacySubtitleParts(summary, evidence, taskSummary);
+  if (workflowStatus) {
+    const parts = [workflowStatus.label];
+    if (workflowStatus.detail) {
+      parts.push(workflowStatus.detail);
+    }
+    if (workflowStatus.has_active_work) {
+      const driver = describeWorkflowDriver(workflowStatus.primary_driver);
+      if (driver) {
+        parts.push(driver);
+      }
+    } else {
+      parts.push("Monitoring posture");
+    }
+    if (!workflowStatus.detail && legacyParts.length > 0) {
+      parts.push(legacyParts.join(" • "));
+    }
+    return parts.filter(Boolean).join(" • ");
+  }
+  if (legacyParts.length === 0) {
     return "Escalation-aware detail for the selected patient.";
   }
-  return parts.join(" • ");
+  return legacyParts.join(" • ");
 };
 
 const buildMetadata = (
@@ -168,8 +232,18 @@ const buildChips = (
   summary: PatientTimelineWorklistSummaryItem | null,
   evidence: PatientEscalationEvidence | null,
   taskSummary: PatientInterventionTaskSummary | null,
+  workflowStatus: PatientWorkflowStatusSummary | null,
 ): HeaderChip[] => {
   const chips: HeaderChip[] = [];
+
+  if (workflowStatus) {
+    chips.push({
+      id: "workflow-posture",
+      label: describeWorkflowDriver(workflowStatus.primary_driver) ?? "Workflow posture",
+      value: workflowStatus.label,
+      tone: workflowSeverityToTone(workflowStatus.severity),
+    });
+  }
 
   if (taskSummary?.overdue_task_count && taskSummary.overdue_task_count > 0) {
     chips.push({
@@ -310,6 +384,7 @@ const buildWorkInsight = (
   summary: PatientTimelineWorklistSummaryItem | null,
   taskSummary: PatientInterventionTaskSummary | null,
   latestEvent: PatientTimelineItem | null,
+  workflowStatus: PatientWorkflowStatusSummary | null,
 ): InsightCard | null => {
   if (taskSummary) {
     const overdueTasks = taskSummary.overdue_task_count;
@@ -384,6 +459,14 @@ const buildWorkInsight = (
       tone: "info",
     };
   }
+  if (workflowStatus && !workflowStatus.has_active_work) {
+    return {
+      id: "active-work",
+      label: "Active work",
+      value: "Monitoring",
+      detail: workflowStatus.detail ?? "No pending tasks or escalations",
+    };
+  }
   return {
     id: "active-work",
     label: "Active work",
@@ -396,16 +479,37 @@ const buildInsightCards = (
   summary: PatientTimelineWorklistSummaryItem | null,
   evidence: PatientEscalationEvidence | null,
   taskSummary: PatientInterventionTaskSummary | null,
+  workflowStatus: PatientWorkflowStatusSummary | null,
   queueViewName?: string,
   queueFilterSummary?: string | null,
   hasQueueReturnContext?: boolean,
   latestEvent: PatientTimelineItem | null,
   activeEscalationStatus?: EscalationStatus | null,
 ): InsightCard[] => {
+  const fallbackEscalationInsight = buildEscalationInsight(
+    summary,
+    evidence,
+    activeEscalationStatus,
+  );
+  const workflowInsight =
+    workflowStatus !== null
+      ? {
+          id: "workflow-posture",
+          label: "Workflow posture",
+          value: workflowStatus.label,
+          detail:
+            workflowStatus.detail ??
+            describeWorkflowDriver(workflowStatus.primary_driver) ??
+            fallbackEscalationInsight?.detail ??
+            undefined,
+          tone: workflowSeverityToTone(workflowStatus.severity) ?? fallbackEscalationInsight?.tone,
+        }
+      : fallbackEscalationInsight;
+
   const cards = [
     buildQueueInsight(queueViewName, queueFilterSummary, hasQueueReturnContext),
-    buildEscalationInsight(summary, evidence, activeEscalationStatus),
-    buildWorkInsight(summary, taskSummary, latestEvent),
+    workflowInsight,
+    buildWorkInsight(summary, taskSummary, latestEvent, workflowStatus),
   ].filter((card): card is InsightCard => Boolean(card));
   return cards;
 };
@@ -416,6 +520,7 @@ export default function PatientWorkflowHeader({
   summary,
   evidence,
   taskSummary: explicitTaskSummary,
+  workflowStatus: explicitWorkflowStatus,
   queueViewName,
   queueFilterSummary,
   hasQueueReturnContext,
@@ -423,13 +528,15 @@ export default function PatientWorkflowHeader({
   activeEscalationStatus,
 }: Props) {
   const resolvedTaskSummary = explicitTaskSummary ?? summary?.task_summary ?? null;
-  const subtitle = buildSubtitle(summary, evidence, resolvedTaskSummary);
+  const resolvedWorkflowStatus = explicitWorkflowStatus ?? summary?.workflow_status ?? null;
+  const subtitle = buildSubtitle(summary, evidence, resolvedTaskSummary, resolvedWorkflowStatus);
   const metadata = buildMetadata(patientId, summary, resolvedTaskSummary);
-  const chips = buildChips(summary, evidence, resolvedTaskSummary);
+  const chips = buildChips(summary, evidence, resolvedTaskSummary, resolvedWorkflowStatus);
   const insightCards = buildInsightCards(
     summary,
     evidence,
     resolvedTaskSummary,
+    resolvedWorkflowStatus,
     queueViewName,
     queueFilterSummary,
     hasQueueReturnContext,
