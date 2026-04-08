@@ -1,4 +1,6 @@
-import { getAuthTokenFromCookies } from "./auth/server-cookies";
+import { redirect } from "next/navigation";
+
+import { clearAuthToken, getAuthTokenFromCookies } from "./auth/server-cookies";
 
 import type {
   PatientEscalation,
@@ -60,6 +62,11 @@ async function apiFetch<TResponse>(path: string, options: ApiFetchOptions = {}):
     cache: "no-store",
     credentials: "include",
   });
+
+  if (response.status === 401) {
+    clearAuthToken();
+    redirect("/login");
+  }
 
   if (!response.ok) {
     const message = `Request failed for ${url.pathname}: ${response.status} ${response.statusText}`;

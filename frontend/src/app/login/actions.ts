@@ -56,3 +56,8 @@ export async function loginAction(_prevState: LoginActionState, formData: FormDa
   clearAuthToken();
   return { error: GENERIC_ERROR_MESSAGE };
 }
+
+export async function signOutAction() {
+  clearAuthToken();
+  redirect("/login");
+}

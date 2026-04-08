@@ -1,6 +1,7 @@
 import { formatDateTime, formatEventType, formatRelativeTimeCompact } from "../../lib/format";
 import STATUS_LABELS from "../../lib/statusLabels";
 import { describeWorkflowDriver, workflowSeverityToTone } from "../../lib/workflowStatus";
+import SignOutButton from "../SignOutButton";
 import type {
   EscalationStatus,
   PatientEscalationEvidence,
@@ -513,8 +514,19 @@ export default function PatientWorkflowHeader({
 
   return (
     <section className="page-header patient-workflow-header">
-      <div className="patient-workflow-header-main">
+      <div
+        style={{
+          display: "flex",
+          justifyContent: "space-between",
+          alignItems: "center",
+          flexWrap: "wrap",
+          gap: "0.75rem",
+        }}
+      >
         <p className="eyebrow">Patient timeline</p>
+        <SignOutButton />
+      </div>
+      <div className="patient-workflow-header-main">
         <h1>{patientName}</h1>
         <p className="patient-workflow-header-subtitle">{subtitle}</p>
       </div>
