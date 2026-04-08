@@ -91,6 +91,19 @@ class PatientEscalationEvidence(BaseModel):
 class PatientTimelineDetailResponse(BaseModel):
     item: PatientTimelineItem
     escalation_evidence: PatientEscalationEvidence | None = None
+    task_summary: "PatientInterventionTaskSummary | None" = None
+
+
+class PatientInterventionTaskSummary(BaseModel):
+    open_task_count: int = Field(default=0, ge=0)
+    in_progress_task_count: int = Field(default=0, ge=0)
+    overdue_task_count: int = Field(default=0, ge=0)
+    latest_active_task_id: UUID | None = None
+    latest_active_task_title: str | None = None
+    latest_active_task_status: str | None = None
+    latest_active_task_priority: str | None = None
+    latest_active_task_due_at: datetime | None = None
+    latest_active_task_created_at: datetime | None = None
 
 
 class PatientTimelineFilterParams(BaseModel):
@@ -251,6 +264,7 @@ class PatientTimelineWorklistSummaryItem(BaseModel):
     highest_escalation_priority: str | None = None
     next_escalation_sla_due_at: datetime | None = None
     latest_open_escalation_id: UUID | None = None
+    task_summary: PatientInterventionTaskSummary | None = None
 
 
 class PatientTimelineWorklistSummaryResponse(BaseModel):

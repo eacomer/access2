@@ -46,6 +46,7 @@ from app.services.patient_timeline_service import (
     UNRESOLVED_ESCALATION_STATUSES,
     UNRESOLVED_ESCALATION_STATUS_VALUES,
     EscalationWorklistSummary,
+    InterventionTaskSummary,
     PatientTimelineContextMismatchError,
     PatientTimelineContextNotFoundError,
     PatientTimelineEventNotFoundError,
@@ -57,6 +58,7 @@ from app.services.patient_timeline_service import (
     get_escalation_sla_reference_time,
     get_patient_timeline_event,
     get_sorted_patient_timeline_events,
+    summarize_intervention_tasks,
     timeline_event_matches_filters,
     validate_patient_timeline_filters,
 )
@@ -383,6 +385,10 @@ def list_patient_timeline_worklist_summaries(
         db=db,
         patient_ids=list(patient_map.keys()),
     )
+    task_summary_map = _load_task_summaries_for_patients(
+        db=db,
+        patient_ids=list(patient_map.keys()),
+    )
 
     items: list[dict] = []
     skipped_context_patients = 0
@@ -421,11 +427,13 @@ def list_patient_timeline_worklist_summaries(
             skipped_context_patients += 1
             continue
         summary_payload = escalation_summary_map.get(patient.id, EscalationWorklistSummary()).as_dict()
+        task_summary_payload = task_summary_map.get(patient.id, InterventionTaskSummary()).as_dict()
         items.append(
             {
                 **payload,
                 **summary_payload,
                 "patient_display_name": f"{patient.first_name} {patient.last_name}",
+                "task_summary": task_summary_payload,
             }
         )
 
@@ -475,6 +483,11 @@ def _build_single_patient_worklist_summary(
         patient_ids=[patient.id],
     )
     summary_payload = summary_map.get(patient.id, EscalationWorklistSummary()).as_dict()
+    task_summary_map = _load_task_summaries_for_patients(
+        db=db,
+        patient_ids=[patient.id],
+    )
+    task_summary_payload = task_summary_map.get(patient.id, InterventionTaskSummary()).as_dict()
     if has_unread_events is not None and payload["has_unread_events"] is not has_unread_events:
         return {"items": [], "total": 0}
 
@@ -492,6 +505,7 @@ def _build_single_patient_worklist_summary(
                 **payload,
                 **summary_payload,
                 "patient_display_name": f"{patient.first_name} {patient.last_name}",
+                "task_summary": task_summary_payload,
             }
         ],
         "total": total,
@@ -1491,4 +1505,29 @@ def _load_escalation_summaries_for_patients(
             )
         else:
             summary_map[patient_id] = EscalationWorklistSummary()
+    return summary_map
+
+
+def _load_task_summaries_for_patients(
+    *,
+    db: Session,
+    patient_ids: Sequence[uuid.UUID],
+) -> dict[uuid.UUID, InterventionTaskSummary]:
+    unique_ids = list(dict.fromkeys(patient_ids))
+    if not unique_ids:
+        return {}
+
+    stmt = select(InterventionTask).where(InterventionTask.patient_id.in_(tuple(unique_ids)))
+    rows = db.execute(stmt).scalars().all()
+    grouped: dict[uuid.UUID, list[InterventionTask]] = {}
+    for task in rows:
+        grouped.setdefault(task.patient_id, []).append(task)
+
+    reference_time = get_due_state_reference_time()
+    summary_map: dict[uuid.UUID, InterventionTaskSummary] = {}
+    for patient_id in unique_ids:
+        summary_map[patient_id] = summarize_intervention_tasks(
+            grouped.get(patient_id, []),
+            reference_time=reference_time,
+        )
     return summary_map

@@ -183,6 +183,32 @@ class EscalationEvidence:
 
 
 @dataclass(frozen=True)
+class InterventionTaskSummary:
+    open_task_count: int = 0
+    in_progress_task_count: int = 0
+    overdue_task_count: int = 0
+    latest_active_task_id: UUID | None = None
+    latest_active_task_title: str | None = None
+    latest_active_task_status: str | None = None
+    latest_active_task_priority: str | None = None
+    latest_active_task_due_at: datetime | None = None
+    latest_active_task_created_at: datetime | None = None
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "open_task_count": self.open_task_count,
+            "in_progress_task_count": self.in_progress_task_count,
+            "overdue_task_count": self.overdue_task_count,
+            "latest_active_task_id": self.latest_active_task_id,
+            "latest_active_task_title": self.latest_active_task_title,
+            "latest_active_task_status": self.latest_active_task_status,
+            "latest_active_task_priority": self.latest_active_task_priority,
+            "latest_active_task_due_at": self.latest_active_task_due_at,
+            "latest_active_task_created_at": self.latest_active_task_created_at,
+        }
+
+
+@dataclass(frozen=True)
 class PatientTimelineFilters:
     event_types: Tuple[str, ...] | None = None
     occurred_after: datetime | None = None
@@ -1171,6 +1197,55 @@ def build_patient_escalation_evidence(
         latest_escalation_event_id=latest_event["event_id"] if latest_event else None,
         latest_escalation_event_type=latest_event["event_type"] if latest_event else None,
         latest_escalation_event_occurred_at=latest_event["occurred_at"] if latest_event else None,
+    )
+
+
+def build_patient_task_summary(
+    db: Session,
+    *,
+    context: RequestContext,
+    patient: Patient,
+    reference_time: datetime | None = None,
+) -> InterventionTaskSummary:
+    ensure_tenant_scoped_resource(context=context, resource=patient)
+    tasks = list(_load_tasks(db=db, patient=patient))
+    return summarize_intervention_tasks(tasks, reference_time=reference_time)
+
+
+def summarize_intervention_tasks(
+    tasks: Iterable[InterventionTask],
+    *,
+    reference_time: datetime | None = None,
+) -> InterventionTaskSummary:
+    normalized_reference = _normalize_datetime(reference_time or get_due_state_reference_time())
+    open_task_count = 0
+    in_progress_task_count = 0
+    overdue_task_count = 0
+    latest_active_task: InterventionTask | None = None
+    latest_sort_key: tuple[datetime, str] | None = None
+
+    for task in tasks:
+        if task.status in OPEN_TASK_STATUSES:
+            open_task_count += 1
+            if task.status == InterventionTaskStatus.IN_PROGRESS:
+                in_progress_task_count += 1
+            if task.due_at is not None and _normalize_datetime(task.due_at) < normalized_reference:
+                overdue_task_count += 1
+            candidate_key = (_normalize_datetime(task.created_at), str(task.id))
+            if latest_sort_key is None or candidate_key > latest_sort_key:
+                latest_sort_key = candidate_key
+                latest_active_task = task
+
+    return InterventionTaskSummary(
+        open_task_count=open_task_count,
+        in_progress_task_count=in_progress_task_count,
+        overdue_task_count=overdue_task_count,
+        latest_active_task_id=latest_active_task.id if latest_active_task else None,
+        latest_active_task_title=latest_active_task.title if latest_active_task else None,
+        latest_active_task_status=latest_active_task.status.value if latest_active_task else None,
+        latest_active_task_priority=latest_active_task.priority.value if latest_active_task else None,
+        latest_active_task_due_at=latest_active_task.due_at if latest_active_task else None,
+        latest_active_task_created_at=latest_active_task.created_at if latest_active_task else None,
     )
 
 

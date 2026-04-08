@@ -1,11 +1,13 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+import uuid
 
 import pytest
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
+from app.models.intervention_task import InterventionTask
 from app.services import patient_timeline_read_state_service as read_state_service
 from tests.test_patients import (
     auth_headers,
@@ -245,6 +247,23 @@ def _get_escalation_evidence(
     evidence = payload.get("escalation_evidence")
     assert evidence is not None
     return evidence
+
+
+def _get_task_summary(
+    client: TestClient,
+    headers: dict[str, str],
+    patient_id: str,
+    event_id: str | None = None,
+) -> dict:
+    payload = _get_timeline_detail_payload(
+        client,
+        headers,
+        patient_id,
+        event_id=event_id,
+    )
+    summary = payload.get("task_summary")
+    assert summary is not None
+    return summary
 
 
 def _bootstrap_user_without_patient(
@@ -860,6 +879,106 @@ def test_patient_timeline_detail_escalation_evidence_is_patient_scoped(
     assert evidence["has_open_escalation"] is False
     assert evidence["open_escalation_count"] == 0
     assert evidence["latest_open_escalation_id"] is None
+
+
+def test_patient_timeline_detail_task_summary_no_tasks(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-task-evidence-none")
+    _create_care_update(client, env["headers"], env["patient_id"], summary="note-only")
+
+    summary = _get_task_summary(client, env["headers"], env["patient_id"])
+    assert summary["open_task_count"] == 0
+    assert summary["in_progress_task_count"] == 0
+    assert summary["overdue_task_count"] == 0
+    assert summary["latest_active_task_id"] is None
+
+
+def test_patient_timeline_detail_task_summary_open_and_completed(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-task-open")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    open_task_id = _create_task(client, env["headers"], escalation_id, title="Stay Open")
+    completed_task_id = _create_task(client, env["headers"], escalation_id, title="Finish Soon")
+    _complete_task_with_outcome(client, env["headers"], completed_task_id)
+
+    summary = _get_task_summary(client, env["headers"], env["patient_id"])
+    assert summary["open_task_count"] == 1
+    assert summary["in_progress_task_count"] == 0
+    assert summary["overdue_task_count"] == 0
+    assert summary["latest_active_task_id"] == open_task_id
+    assert summary["latest_active_task_status"] == "open"
+
+
+def test_patient_timeline_detail_task_summary_overdue_and_in_progress(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-task-overdue")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+
+    overdue_due_at = datetime.now(timezone.utc) - timedelta(hours=6)
+    overdue_task_id = _create_task(
+        client,
+        env["headers"],
+        escalation_id,
+        title="Past Due",
+        due_at=overdue_due_at,
+    )
+    start_resp = client.post(
+        f"/api/v1/tasks/{overdue_task_id}/start",
+        headers=env["headers"],
+    )
+    assert start_resp.status_code == 200
+
+    future_due_at = datetime.now(timezone.utc) + timedelta(days=2)
+    open_task_id = _create_task(
+        client,
+        env["headers"],
+        escalation_id,
+        title="Upcoming",
+        due_at=future_due_at,
+    )
+
+    summary = _get_task_summary(client, env["headers"], env["patient_id"])
+    assert summary["open_task_count"] == 2
+    assert summary["in_progress_task_count"] == 1
+    assert summary["overdue_task_count"] == 1
+    assert summary["latest_active_task_id"] == open_task_id
+    assert summary["latest_active_task_priority"] == "medium"
+    assert summary["latest_active_task_due_at"] is not None
+    latest_due_at = _parse_occurred_at(summary["latest_active_task_due_at"])
+    assert abs((latest_due_at - future_due_at).total_seconds()) < 1
+
+
+def test_patient_timeline_detail_task_summary_deterministic_latest_task(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-task-deterministic")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    first_task_id = _create_task(client, env["headers"], escalation_id, title="First Sequence")
+    second_task_id = _create_task(client, env["headers"], escalation_id, title="Second Sequence")
+
+    tie_timestamp = datetime.now(timezone.utc) - timedelta(minutes=5)
+    for task_id in (first_task_id, second_task_id):
+        task = db_session.get(InterventionTask, uuid.UUID(task_id))
+        assert task is not None
+        task.created_at = tie_timestamp
+    db_session.commit()
+
+    expected_latest = max(first_task_id, second_task_id)
+    summary = _get_task_summary(client, env["headers"], env["patient_id"])
+    assert summary["latest_active_task_id"] == expected_latest
+    expected_task = db_session.get(InterventionTask, uuid.UUID(expected_latest))
+    assert expected_task is not None
+    assert summary["latest_active_task_title"] == expected_task.title
 
 
 def test_patient_timeline_since_returns_only_newer_items(
@@ -2767,6 +2886,35 @@ def test_patient_timeline_worklist_summary_cross_org_scope(
     ids_two = {item["patient_id"] for item in payload_two["items"]}
     assert env_two["patient_id"] in ids_two
     assert env_one["patient_id"] not in ids_two
+
+
+def test_patient_timeline_worklist_summary_task_summary_respects_tenant_scope(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env_one = _bootstrap_patient_env(client, db_session, slug="worklist-task-scope-one")
+    signal_one = _create_signal(client, env_one["headers"], env_one["patient_id"])
+    escalation_one = signal_one["escalation"]["id"]
+    open_task_id = _create_task(client, env_one["headers"], escalation_one, title="Org One Task")
+
+    env_two = _bootstrap_patient_env(client, db_session, slug="worklist-task-scope-two")
+    signal_two = _create_signal(client, env_two["headers"], env_two["patient_id"])
+    escalation_two = signal_two["escalation"]["id"]
+    _create_task(client, env_two["headers"], escalation_two, title="Org Two Task")
+
+    payload = _get_worklist_summary(
+        client,
+        env_one["headers"],
+        params=[("patient_ids", env_one["patient_id"]), ("patient_ids", env_two["patient_id"])],
+    )
+    assert payload["total"] == 1
+    assert len(payload["items"]) == 1
+    row = payload["items"][0]
+    assert row["patient_id"] == env_one["patient_id"]
+    summary = row["task_summary"]
+    assert summary is not None
+    assert summary["open_task_count"] == 1
+    assert summary["latest_active_task_id"] == open_task_id
 
 
 def test_patient_timeline_worklist_summary_related_filters_reject_cross_org_context(
