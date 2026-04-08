@@ -9,11 +9,12 @@ import {
   pluralize,
 } from "../../lib/format";
 import STATUS_LABELS from "../../lib/statusLabels";
-import type {
-  PatientInterventionTaskSummary,
-  PatientTimelineWorklistSummaryItem,
-  PatientWorkflowStatusSummary,
-} from "../../types/patient";
+import {
+  describeWorkflowDriver,
+  workflowSeverityToBadgeVariant,
+  workflowSeverityToTone,
+} from "../../lib/workflowStatus";
+import type { PatientInterventionTaskSummary, PatientTimelineWorklistSummaryItem } from "../../types/patient";
 
 type Props = {
   summary: PatientTimelineWorklistSummaryItem;
@@ -21,54 +22,6 @@ type Props = {
 };
 
 type EmphasisTone = "info" | "warning" | "alert";
-
-const describeWorkflowDriver = (driver?: string | null) => {
-  if (!driver) {
-    return null;
-  }
-  if (driver === "task") {
-    return "Task-driven posture";
-  }
-  if (driver === "escalation") {
-    return "Escalation-driven posture";
-  }
-  if (driver === "monitoring") {
-    return "Monitoring posture";
-  }
-  return `${driver.charAt(0).toUpperCase()}${driver.slice(1)} posture`;
-};
-
-const workflowSeverityToTone = (severity?: string | null): EmphasisTone | undefined => {
-  if (!severity) {
-    return undefined;
-  }
-  if (severity === "overdue") {
-    return "alert";
-  }
-  if (severity === "urgent") {
-    return "warning";
-  }
-  if (severity === "active") {
-    return "info";
-  }
-  return undefined;
-};
-
-const workflowSeverityToBadgeVariant = (severity?: string | null) => {
-  if (!severity) {
-    return "badge--info";
-  }
-  if (severity === "overdue") {
-    return "badge--critical";
-  }
-  if (severity === "urgent") {
-    return "badge--warning";
-  }
-  if (severity === "active") {
-    return "badge--info";
-  }
-  return "badge--positive";
-};
 
 const humanizeTaskStatus = (value?: string | null) => {
   if (!value) {

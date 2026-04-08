@@ -1,5 +1,6 @@
 import { formatDateTime, formatEventType, formatRelativeTimeCompact } from "../../lib/format";
 import STATUS_LABELS from "../../lib/statusLabels";
+import { describeWorkflowDriver, workflowSeverityToTone } from "../../lib/workflowStatus";
 import type {
   EscalationStatus,
   PatientEscalationEvidence,
@@ -42,40 +43,6 @@ type Props = {
   hasQueueReturnContext?: boolean;
   latestEvent: PatientTimelineItem | null;
   activeEscalationStatus?: EscalationStatus | null;
-};
-
-const describeWorkflowDriver = (driver?: string | null) => {
-  if (!driver) {
-    return null;
-  }
-  if (driver === "task") {
-    return "Task-driven posture";
-  }
-  if (driver === "escalation") {
-    return "Escalation-driven posture";
-  }
-  if (driver === "monitoring") {
-    return "Monitoring posture";
-  }
-  return `${driver.charAt(0).toUpperCase()}${driver.slice(1)} posture`;
-};
-
-const workflowSeverityToTone = (
-  severity?: string | null,
-): HeaderChip["tone"] | InsightCard["tone"] | undefined => {
-  if (!severity) {
-    return undefined;
-  }
-  if (severity === "overdue") {
-    return "alert";
-  }
-  if (severity === "urgent") {
-    return "warning";
-  }
-  if (severity === "active") {
-    return "info";
-  }
-  return undefined;
 };
 
 const pluralize = (count: number, singular: string, plural?: string) => {

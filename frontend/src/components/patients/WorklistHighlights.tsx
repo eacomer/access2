@@ -1,5 +1,11 @@
 import type { PatientTimelineWorklistSummaryItem } from "../../types/patient";
 import STATUS_LABELS from "../../lib/statusLabels";
+import {
+  describeWorkflowDriver,
+  getWorkflowSeverityKey,
+  workflowSeverityToTone,
+  type WorkflowSeverityKey,
+} from "../../lib/workflowStatus";
 
 type Highlight = {
   id: string;
@@ -20,7 +26,78 @@ const formatPlural = (count: number, singular: string, plural?: string) => {
   return `${count} ${count === 1 ? singular : normalizedPlural}`;
 };
 
+const POSTURE_LABELS: Record<WorkflowSeverityKey, string> = {
+  overdue: STATUS_LABELS.slaOverdue,
+  urgent: STATUS_LABELS.slaAtRisk,
+  active: STATUS_LABELS.openWork,
+  stable: "Monitoring posture",
+};
+
+const POSTURE_DETAILS: Record<WorkflowSeverityKey, string> = {
+  overdue: "Resolve overdue workflow posture",
+  urgent: "Escalations nearing SLA",
+  active: "Active work in play",
+  stable: "No active work",
+};
+
+const buildPostureHighlights = (items: PatientTimelineWorklistSummaryItem[]): Highlight[] | null => {
+  const stats: Record<
+    WorkflowSeverityKey,
+    { count: number; driverCounts: Record<string, number> }
+  > = {
+    overdue: { count: 0, driverCounts: {} },
+    urgent: { count: 0, driverCounts: {} },
+    active: { count: 0, driverCounts: {} },
+    stable: { count: 0, driverCounts: {} },
+  };
+  let hasWorkflowStatus = false;
+
+  items.forEach((item) => {
+    const status = item.workflow_status ?? null;
+    if (!status) {
+      return;
+    }
+    const severityKey = getWorkflowSeverityKey(status);
+    if (!severityKey) {
+      return;
+    }
+    hasWorkflowStatus = true;
+    stats[severityKey].count += 1;
+    const driverLabel = describeWorkflowDriver(status.primary_driver) ?? "Workflow posture";
+    stats[severityKey].driverCounts[driverLabel] =
+      (stats[severityKey].driverCounts[driverLabel] ?? 0) + 1;
+  });
+
+  if (!hasWorkflowStatus) {
+    return null;
+  }
+
+  const severityOrder: WorkflowSeverityKey[] = ["overdue", "urgent", "active", "stable"];
+  const highlights: Highlight[] = [];
+  severityOrder.forEach((key) => {
+    const entry = stats[key];
+    if (entry.count === 0) {
+      return;
+    }
+    const driverLabel = Object.entries(entry.driverCounts).sort((a, b) => b[1] - a[1])[0]?.[0];
+    highlights.push({
+      id: `posture-${key}`,
+      label: POSTURE_LABELS[key],
+      value: String(entry.count),
+      detail: driverLabel ?? POSTURE_DETAILS[key],
+      tone: workflowSeverityToTone(key === "stable" ? "stable" : key),
+    });
+  });
+
+  return highlights.slice(0, 4);
+};
+
 const buildHighlights = (items: PatientTimelineWorklistSummaryItem[]): Highlight[] => {
+  const postureHighlights = buildPostureHighlights(items);
+  if (postureHighlights && postureHighlights.length > 0) {
+    return postureHighlights;
+  }
+
   const stats = items.reduce(
     (acc, item) => {
       const hasOpen = item.open_escalation_count > 0;
