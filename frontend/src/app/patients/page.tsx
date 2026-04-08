@@ -9,6 +9,11 @@ import WorklistPaginationControls from "../../components/patients/WorklistPagina
 import { fetchWorklistSummary } from "../../lib/api";
 import { pluralize } from "../../lib/format";
 import { FILTER_LABELS } from "../../lib/statusLabels";
+import {
+  compareWorkflowStatuses,
+  inferWorkflowStatusSummary,
+} from "../../lib/workflowStatus";
+import type { PatientTimelineWorklistSummaryItem } from "../../types/patient";
 
 export const dynamic = "force-dynamic";
 
@@ -77,6 +82,54 @@ const toHref = (params: URLSearchParams) => {
   return query ? `/patients?${query}` : "/patients";
 };
 
+const resolveWorkflowStatus = (item: PatientTimelineWorklistSummaryItem) =>
+  item.workflow_status ?? inferWorkflowStatusSummary(item);
+
+const getLatestEvidenceTimestamp = (item: PatientTimelineWorklistSummaryItem): string | null => {
+  const taskSummary = item.task_summary ?? null;
+  return (
+    taskSummary?.latest_active_task_due_at ??
+    taskSummary?.latest_active_task_created_at ??
+    item.latest_event_occurred_at ??
+    item.latest_unread_event_occurred_at ??
+    item.oldest_unread_event_occurred_at ??
+    null
+  );
+};
+
+const compareWorklistItems = (
+  a: PatientTimelineWorklistSummaryItem,
+  b: PatientTimelineWorklistSummaryItem,
+) => {
+  const statusComparison = compareWorkflowStatuses(resolveWorkflowStatus(a), resolveWorkflowStatus(b));
+  if (statusComparison !== 0) {
+    return statusComparison;
+  }
+
+  const unreadA = a.has_unread_events ? a.unread_count : 0;
+  const unreadB = b.has_unread_events ? b.unread_count : 0;
+  if (unreadA !== unreadB) {
+    return unreadB - unreadA;
+  }
+
+  const timestampA = getLatestEvidenceTimestamp(a);
+  const timestampB = getLatestEvidenceTimestamp(b);
+  if (timestampA && timestampB) {
+    if (timestampA > timestampB) {
+      return -1;
+    }
+    if (timestampA < timestampB) {
+      return 1;
+    }
+  } else if (timestampA) {
+    return -1;
+  } else if (timestampB) {
+    return 1;
+  }
+
+  return a.patient_display_name.localeCompare(b.patient_display_name);
+};
+
 export default async function PatientsPage({ searchParams }: PageProps) {
   const resolvedSearchParams =
     (searchParams ? await searchParams : {}) as Record<string, string | string[] | undefined>;
@@ -137,7 +190,8 @@ export default async function PatientsPage({ searchParams }: PageProps) {
     ...(hasUnreadOnly ? { hasUnreadEvents: true } : {}),
   });
 
-  const visibleCount = worklist.items.length;
+  const queueItems = [...worklist.items].sort(compareWorklistItems);
+  const visibleCount = queueItems.length;
   const totalCount = worklist.total;
   const viewDescriptor = activeOnly ? "Standard queue view" : "All patients view";
   const filterDescriptors: string[] = [viewDescriptor];
@@ -239,7 +293,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
         {visibleCount > 0 ? (
           <>
             <WorklistHighlights
-              items={worklist.items}
+              items={queueItems}
               helper="Counts reflect patients currently visible."
             />
             <WorklistPaginationControls
@@ -271,7 +325,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
             </p>
           </div>
           <div className="worklist-grid" role="list">
-            {worklist.items.map((item) => (
+            {queueItems.map((item) => (
               <WorklistSummaryCard
                 key={item.patient_id}
                 summary={item}
