@@ -1,4 +1,4 @@
-import { cookies } from "next/headers";
+import { getAuthTokenFromCookies } from "./auth/server-cookies";
 
 import type {
   PatientEscalation,
@@ -27,8 +27,10 @@ const normalizeBaseUrl = (value?: string) => {
   return value.endsWith("/") ? value.slice(0, -1) : value;
 };
 
+export const getApiBaseUrl = () => normalizeBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
+
 async function apiFetch<TResponse>(path: string, options: ApiFetchOptions = {}): Promise<TResponse> {
-  const base = normalizeBaseUrl(process.env.NEXT_PUBLIC_API_BASE_URL);
+  const base = getApiBaseUrl();
   const relativePath = path.startsWith("/") ? path : `/${path}`;
   const url = new URL(`${base}${relativePath}`);
 
@@ -47,9 +49,9 @@ async function apiFetch<TResponse>(path: string, options: ApiFetchOptions = {}):
 
   const headers = new Headers(options.init?.headers);
   headers.set("Accept", "application/json");
-  const cookieHeader = cookies().toString();
-  if (cookieHeader) {
-    headers.set("cookie", cookieHeader);
+  const authToken = getAuthTokenFromCookies();
+  if (authToken) {
+    headers.set("Authorization", `Bearer ${authToken}`);
   }
 
   const response = await fetch(url, {
