@@ -92,6 +92,7 @@ class PatientTimelineDetailResponse(BaseModel):
     item: PatientTimelineItem
     escalation_evidence: PatientEscalationEvidence | None = None
     task_summary: "PatientInterventionTaskSummary | None" = None
+    workflow_status: "PatientWorkflowStatusSummary | None" = None
 
 
 class PatientInterventionTaskSummary(BaseModel):
@@ -104,6 +105,15 @@ class PatientInterventionTaskSummary(BaseModel):
     latest_active_task_priority: str | None = None
     latest_active_task_due_at: datetime | None = None
     latest_active_task_created_at: datetime | None = None
+
+
+class PatientWorkflowStatusSummary(BaseModel):
+    status_key: str
+    label: str
+    has_active_work: bool
+    primary_driver: str
+    severity: str | None = None
+    detail: str | None = None
 
 
 class PatientTimelineFilterParams(BaseModel):
@@ -265,6 +275,7 @@ class PatientTimelineWorklistSummaryItem(BaseModel):
     next_escalation_sla_due_at: datetime | None = None
     latest_open_escalation_id: UUID | None = None
     task_summary: PatientInterventionTaskSummary | None = None
+    workflow_status: PatientWorkflowStatusSummary | None = None
 
 
 class PatientTimelineWorklistSummaryResponse(BaseModel):

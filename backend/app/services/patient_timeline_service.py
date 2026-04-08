@@ -209,6 +209,26 @@ class InterventionTaskSummary:
 
 
 @dataclass(frozen=True)
+class WorkflowStatusSummary:
+    status_key: str
+    label: str
+    has_active_work: bool
+    primary_driver: str
+    severity: str | None = None
+    detail: str | None = None
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "status_key": self.status_key,
+            "label": self.label,
+            "has_active_work": self.has_active_work,
+            "primary_driver": self.primary_driver,
+            "severity": self.severity,
+            "detail": self.detail,
+        }
+
+
+@dataclass(frozen=True)
 class PatientTimelineFilters:
     event_types: Tuple[str, ...] | None = None
     occurred_after: datetime | None = None
@@ -1246,6 +1266,113 @@ def summarize_intervention_tasks(
         latest_active_task_priority=latest_active_task.priority.value if latest_active_task else None,
         latest_active_task_due_at=latest_active_task.due_at if latest_active_task else None,
         latest_active_task_created_at=latest_active_task.created_at if latest_active_task else None,
+    )
+
+
+def derive_workflow_status_summary(
+    *,
+    task_summary: InterventionTaskSummary | None = None,
+    escalation_summary: EscalationWorklistSummary | None = None,
+    escalation_evidence: EscalationEvidence | None = None,
+) -> WorkflowStatusSummary:
+    def _pluralize(count: int, singular: str, plural: str | None = None) -> str:
+        if count == 1:
+            return f"1 {singular}"
+        resolved = plural or f"{singular}s"
+        return f"{count} {resolved}"
+
+    def _status(
+        key: str,
+        label: str,
+        *,
+        driver: str,
+        severity: str | None,
+        active: bool,
+        detail: str | None = None,
+    ) -> WorkflowStatusSummary:
+        return WorkflowStatusSummary(
+            status_key=key,
+            label=label,
+            has_active_work=active,
+            primary_driver=driver,
+            severity=severity,
+            detail=detail,
+        )
+
+    task_overdue = task_summary.overdue_task_count if task_summary else 0
+    task_in_progress = task_summary.in_progress_task_count if task_summary else 0
+    task_open = task_summary.open_task_count if task_summary else 0
+
+    escalation_overdue = (
+        escalation_evidence.overdue_escalation_count
+        if escalation_evidence
+        else (escalation_summary.overdue_escalation_count if escalation_summary else 0)
+    )
+    escalation_at_risk = (
+        escalation_evidence.at_risk_escalation_count
+        if escalation_evidence
+        else (escalation_summary.at_risk_escalation_count if escalation_summary else 0)
+    )
+    escalation_open = (
+        escalation_evidence.open_escalation_count
+        if escalation_evidence
+        else (escalation_summary.open_escalation_count if escalation_summary else 0)
+    )
+
+    if task_overdue > 0:
+        return _status(
+            "task_overdue",
+            f"{_pluralize(task_overdue, 'task')} overdue",
+            driver="task",
+            severity="overdue",
+            active=True,
+        )
+    if escalation_overdue > 0:
+        return _status(
+            "escalation_overdue",
+            f"{_pluralize(escalation_overdue, 'escalation')} overdue",
+            driver="escalation",
+            severity="overdue",
+            active=True,
+        )
+    if task_in_progress > 0:
+        return _status(
+            "task_in_progress",
+            f"{_pluralize(task_in_progress, 'task')} in progress",
+            driver="task",
+            severity="active",
+            active=True,
+        )
+    if escalation_at_risk > 0:
+        return _status(
+            "escalation_at_risk",
+            f"{_pluralize(escalation_at_risk, 'escalation')} at risk",
+            driver="escalation",
+            severity="urgent",
+            active=True,
+        )
+    if task_open > 0:
+        return _status(
+            "task_open",
+            f"{_pluralize(task_open, 'open task')}",
+            driver="task",
+            severity="active",
+            active=True,
+        )
+    if escalation_open > 0:
+        return _status(
+            "escalation_open",
+            f"{_pluralize(escalation_open, 'escalation')} active",
+            driver="escalation",
+            severity="active",
+            active=True,
+        )
+    return _status(
+        "monitoring_stable",
+        "Monitoring",
+        driver="monitoring",
+        severity="stable",
+        active=False,
     )
 
 

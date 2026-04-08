@@ -266,6 +266,23 @@ def _get_task_summary(
     return summary
 
 
+def _get_workflow_status(
+    client: TestClient,
+    headers: dict[str, str],
+    patient_id: str,
+    event_id: str | None = None,
+) -> dict:
+    payload = _get_timeline_detail_payload(
+        client,
+        headers,
+        patient_id,
+        event_id=event_id,
+    )
+    status = payload.get("workflow_status")
+    assert status is not None
+    return status
+
+
 def _bootstrap_user_without_patient(
     client: TestClient,
     db_session: Session,
@@ -979,6 +996,74 @@ def test_patient_timeline_detail_task_summary_deterministic_latest_task(
     expected_task = db_session.get(InterventionTask, uuid.UUID(expected_latest))
     assert expected_task is not None
     assert summary["latest_active_task_title"] == expected_task.title
+
+
+def test_patient_workflow_status_detail_monitoring(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="workflow-status-monitoring")
+    _create_care_update(client, env["headers"], env["patient_id"], summary="routine note")
+
+    status = _get_workflow_status(client, env["headers"], env["patient_id"])
+    assert status["status_key"] == "monitoring_stable"
+    assert status["has_active_work"] is False
+    assert status["primary_driver"] == "monitoring"
+
+
+def test_patient_workflow_status_detail_task_overdue_precedence(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="workflow-status-task-overdue")
+    signal_payload = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        escalation_sla_due_at=datetime.now(timezone.utc) - timedelta(hours=2),
+    )
+    escalation_id = signal_payload["escalation"]["id"]
+    overdue_due_at = datetime.now(timezone.utc) - timedelta(hours=4)
+    _create_task(client, env["headers"], escalation_id, title="Past due outreach", due_at=overdue_due_at)
+
+    status = _get_workflow_status(client, env["headers"], env["patient_id"])
+    assert status["status_key"] == "task_overdue"
+    assert status["primary_driver"] == "task"
+
+
+def test_patient_workflow_status_detail_task_in_progress(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="workflow-status-task-progress")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    future_due_at = datetime.now(timezone.utc) + timedelta(days=1)
+    task_id = _create_task(client, env["headers"], escalation_id, due_at=future_due_at)
+    start_resp = client.post(f"/api/v1/tasks/{task_id}/start", headers=env["headers"])
+    assert start_resp.status_code == 200
+
+    status = _get_workflow_status(client, env["headers"], env["patient_id"])
+    assert status["status_key"] == "task_in_progress"
+    assert status["has_active_work"] is True
+
+
+def test_patient_workflow_status_detail_escalation_overdue(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="workflow-status-escalation")
+    overdue_due_at = datetime.now(timezone.utc) - timedelta(hours=3)
+    _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        escalation_sla_due_at=overdue_due_at,
+    )
+
+    status = _get_workflow_status(client, env["headers"], env["patient_id"])
+    assert status["status_key"] == "escalation_overdue"
+    assert status["primary_driver"] == "escalation"
 
 
 def test_patient_timeline_since_returns_only_newer_items(
@@ -2886,6 +2971,51 @@ def test_patient_timeline_worklist_summary_cross_org_scope(
     ids_two = {item["patient_id"] for item in payload_two["items"]}
     assert env_two["patient_id"] in ids_two
     assert env_one["patient_id"] not in ids_two
+
+
+def test_patient_workflow_status_worklist_summary_includes_status(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="workflow-status-worklist")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    overdue_due_at = datetime.now(timezone.utc) - timedelta(hours=5)
+    _create_task(client, env["headers"], escalation_id, title="Queue task overdue", due_at=overdue_due_at)
+
+    payload = _get_worklist_summary(client, env["headers"])
+    row = _find_worklist_item(payload, env["patient_id"])
+    status = row.get("workflow_status")
+    assert status is not None
+    assert status["status_key"] == "task_overdue"
+    assert status["has_active_work"] is True
+
+
+def test_patient_workflow_status_worklist_cross_org_isolation(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env_one = _bootstrap_patient_env(client, db_session, slug="workflow-status-scope-one")
+    env_two = _bootstrap_patient_env(client, db_session, slug="workflow-status-scope-two")
+    signal_payload = _create_signal(client, env_two["headers"], env_two["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    _create_task(client, env_two["headers"], escalation_id, title="Other org task")
+
+    _get_worklist_summary(
+        client,
+        env_one["headers"],
+        params=[("patient_ids", env_two["patient_id"])],
+        expect_status=404,
+    )
+
+    payload_two = _get_worklist_summary(
+        client,
+        env_two["headers"],
+        params=[("patient_ids", env_two["patient_id"])],
+    )
+    status = payload_two["items"][0].get("workflow_status")
+    assert status is not None
+    assert status["status_key"].startswith("task_")
 
 
 def test_patient_timeline_worklist_summary_task_summary_respects_tenant_scope(

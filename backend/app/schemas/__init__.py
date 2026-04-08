@@ -25,6 +25,7 @@ from app.schemas.task_outcome import (
 from app.schemas.patient_timeline import (
     PatientEscalationEvidence,
     PatientInterventionTaskSummary,
+    PatientWorkflowStatusSummary,
     PatientTimelineFilterSnapshotResponse,
     PatientTimelineInboxSummaryResponse,
     PatientTimelineWorklistSummaryItem,
@@ -80,4 +81,5 @@ __all__ = [
     "PatientTimelineWorklistSummaryResponse",
     "PatientEscalationEvidence",
     "PatientInterventionTaskSummary",
+    "PatientWorkflowStatusSummary",
 ]
