@@ -507,7 +507,14 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
           latestEvent={latestTimelineEvent}
           activeEscalationStatus={escalationStatus}
         />
-        <PatientRecentActivityStrip latestEvent={latestTimelineEvent} summary={worklistSummary} />
+        <PatientRecentActivityStrip
+          latestEvent={latestTimelineEvent}
+          summary={worklistSummary}
+          taskSummary={taskSummary}
+          escalationEvidence={escalationEvidence}
+          workflowStatus={workflowStatus}
+          activeEscalationStatus={escalationStatus}
+        />
       </div>
       <PatientEvidenceSummary evidence={escalationEvidence} summary={worklistSummary} />
       <EscalationEvidenceCard evidence={escalationEvidence} />
