@@ -515,6 +515,7 @@ export default function PatientWorkflowHeader({
   return (
     <section className="page-header patient-workflow-header">
       <div
+        aria-label="Patient detail controls"
         style={{
           display: "flex",
           justifyContent: "space-between",

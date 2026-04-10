@@ -16,6 +16,7 @@ export default function WorklistHeader({ title, subtitle, description, chips }: 
   return (
     <section className="patient-workflow-header">
       <div
+        aria-label="Queue controls"
         style={{
           display: "flex",
           justifyContent: "space-between",
