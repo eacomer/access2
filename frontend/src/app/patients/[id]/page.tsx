@@ -1,6 +1,7 @@
 import Link from "next/link";
 import { revalidatePath } from "next/cache";
 
+import StateNotice from "../../../components/StateNotice";
 import CreateTaskForm, { TaskFormValues } from "../../../components/patients/CreateTaskForm";
 import EscalationActionBar, {
   EscalationActionRequest,
@@ -26,8 +27,12 @@ import {
   updateEscalationStatus,
 } from "../../../lib/api";
 import { formatDueDate, formatEventType, pluralize } from "../../../lib/format";
+import { requireAuth } from "../../../lib/auth/session";
 import STATUS_LABELS, { FILTER_LABELS } from "../../../lib/statusLabels";
 import type { EscalationStatus, PatientEscalation } from "../../../types/patient";
+
+type WorklistSummaryResponse = Awaited<ReturnType<typeof fetchWorklistSummary>>;
+type TimelineResponse = Awaited<ReturnType<typeof fetchPatientTimeline>>;
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -123,6 +128,8 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   const pagePath = `/patients/${patientId}`;
   const originalSearchParams = createSearchParams(resolvedSearchParams);
   const originalQueryString = originalSearchParams.toString();
+  const detailRetryHref = originalQueryString ? `${pagePath}?${originalQueryString}` : pagePath;
+  requireAuth(detailRetryHref);
 
   const buildFilterHref = (
     removals: Array<{ key: string; value?: string | null }> = [],
@@ -156,24 +163,61 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   const resetPaginationQueryString = resetPaginationParams.toString();
   const isPaged = Boolean(cursorOccurredAt || cursorEventId);
 
-  const [worklist, timeline] = await Promise.all([
-    fetchWorklistSummary({ patientIds: [patientId], limit: 1 }),
-    fetchPatientTimeline(patientId, {
-      limit: pageSize,
-      ...(cursorDirection === "newer"
-        ? {}
-        : {
-            cursorOccurredAt: cursorOccurredAt ?? undefined,
-            cursorEventId: cursorEventId ?? undefined,
-          }),
-      filters: hasRequestFilters ? requestFilters : undefined,
-    }),
-  ]);
+  let worklist: WorklistSummaryResponse | null = null;
+  let timeline: TimelineResponse | null = null;
+  try {
+    [worklist, timeline] = await Promise.all([
+      fetchWorklistSummary({ patientIds: [patientId], limit: 1 }, { authRedirectPath: detailRetryHref }),
+      fetchPatientTimeline(
+        patientId,
+        {
+          limit: pageSize,
+          ...(cursorDirection === "newer"
+            ? {}
+            : {
+                cursorOccurredAt: cursorOccurredAt ?? undefined,
+                cursorEventId: cursorEventId ?? undefined,
+              }),
+          filters: hasRequestFilters ? requestFilters : undefined,
+        },
+        { authRedirectPath: detailRetryHref },
+      ),
+    ]);
+  } catch (error) {
+    console.error(`Failed to load timeline for patient ${patientId}`, error);
+    return (
+      <main className="page">
+        <Link href={queueReturnHref} className="back-link">
+          {queueReturnLabel}
+        </Link>
+        <StateNotice
+          tone="danger"
+          title="Unable to load patient evidence"
+          body="The patient timeline could not be loaded. Retry or return to the worklist."
+          actions={[
+            { label: "Retry", href: detailRetryHref },
+            { label: "Back to queue", href: queueReturnHref, variant: "secondary" },
+          ]}
+        />
+      </main>
+    );
+  }
+
+  if (!worklist || !timeline) {
+    return null;
+  }
 
   const latestTimelineEvent = timeline.items[0] ?? null;
   const selectedEventId = requestedEventId ?? latestTimelineEvent?.event_id;
+  let detailLoadFailed = false;
   const detail = selectedEventId
-    ? await fetchPatientTimelineEvent(patientId, selectedEventId)
+    ? await fetchPatientTimelineEvent(patientId, selectedEventId, {
+        authRedirectPath: detailRetryHref,
+      }).catch((error) => {
+        detailLoadFailed = true;
+        console.error(`Failed to load timeline event ${selectedEventId} for patient ${patientId}`, error);
+        return null;
+      })
     : null;
   const selectedEventTitleId = selectedEventId ? `timeline-${selectedEventId}-title` : null;
   const worklistSummary = worklist.items[0] ?? null;
@@ -191,7 +235,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   let activeEscalation: PatientEscalation | null = null;
   if (activeEscalationId) {
     try {
-      activeEscalation = await fetchEscalation(activeEscalationId);
+      activeEscalation = await fetchEscalation(activeEscalationId, { authRedirectPath: detailRetryHref });
     } catch (error) {
       console.error("Unable to load escalation context", error);
       activeEscalation = null;
@@ -298,6 +342,9 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
       ? `${queueViewName} · No filters from queue`
       : null;
   const detailEmptyHints: string[] = [];
+  if (detailLoadFailed) {
+    detailEmptyHints.push("Event detail failed to load. Retry or refresh the page.");
+  }
   if (hasActiveTimelineFilters) {
     detailEmptyHints.push("Filters active");
   }
@@ -319,16 +366,24 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
 
     try {
       if (request.type === "acknowledge") {
-        await acknowledgeEscalation(activeEscalationId);
+        await acknowledgeEscalation(activeEscalationId, { authRedirectPath: detailRetryHref });
       } else if (request.type === "start") {
-        await updateEscalationStatus(activeEscalationId, {
-          status: "in_progress",
-          note: request.note ?? null,
-        });
+        await updateEscalationStatus(
+          activeEscalationId,
+          {
+            status: "in_progress",
+            note: request.note ?? null,
+          },
+          { authRedirectPath: detailRetryHref },
+        );
       } else if (request.type === "resolve") {
-        await resolveEscalation(activeEscalationId, {
-          resolution_notes: request.note ?? null,
-        });
+        await resolveEscalation(
+          activeEscalationId,
+          {
+            resolution_notes: request.note ?? null,
+          },
+          { authRedirectPath: detailRetryHref },
+        );
       }
       revalidatePath(pagePath);
       const successMessage =
@@ -359,12 +414,16 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
     const dueAtIso = payload.dueAt ? new Date(payload.dueAt).toISOString() : null;
 
     try {
-      await createInterventionTask(activeEscalationId, {
-        title: payload.title,
-        description: payload.description ?? null,
-        priority: payload.priority,
-        due_at: dueAtIso,
-      });
+      await createInterventionTask(
+        activeEscalationId,
+        {
+          title: payload.title,
+          description: payload.description ?? null,
+          priority: payload.priority,
+          due_at: dueAtIso,
+        },
+        { authRedirectPath: detailRetryHref },
+      );
       revalidatePath(pagePath);
       return { success: true, message: "Task created successfully." };
     } catch (error) {
