@@ -150,7 +150,7 @@ export default function CreateTaskForm({
         <button
           type="button"
           className="button button--ghost"
-          disabled={disabled || isPending}
+          disabled={disabled || isSubmitting}
           onClick={resetForm}
         >
           Cancel

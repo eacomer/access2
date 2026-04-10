@@ -247,3 +247,41 @@ export async function createInterventionTask(
     auth: { redirectPath: options.authRedirectPath },
   });
 }
+
+export async function fetchInterventionTask(
+  taskId: string,
+  options: AuthenticatedRequestOptions = {},
+): Promise<InterventionTask> {
+  return apiFetch<InterventionTask>(`/tasks/${taskId}`, {
+    auth: { redirectPath: options.authRedirectPath },
+  });
+}
+
+export async function startInterventionTask(
+  taskId: string,
+  options: AuthenticatedRequestOptions = {},
+): Promise<InterventionTask> {
+  return apiFetch<InterventionTask>(`/tasks/${taskId}/start`, {
+    init: {
+      method: "POST",
+    },
+    auth: { redirectPath: options.authRedirectPath },
+  });
+}
+
+export async function completeInterventionTask(
+  taskId: string,
+  payload: { completion_note?: string | null } = {},
+  options: AuthenticatedRequestOptions = {},
+): Promise<InterventionTask> {
+  return apiFetch<InterventionTask>(`/tasks/${taskId}/complete`, {
+    init: {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+    auth: { redirectPath: options.authRedirectPath },
+  });
+}

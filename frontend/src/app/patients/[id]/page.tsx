@@ -10,6 +10,7 @@ import EscalationEvidenceCard from "../../../components/patients/EscalationEvide
 import PatientEvidenceSummary from "../../../components/patients/PatientEvidenceSummary";
 import PatientRecentActivityStrip from "../../../components/patients/PatientRecentActivityStrip";
 import PatientWorkflowHeader from "../../../components/patients/PatientWorkflowHeader";
+import TaskActionPanel, { TaskActionRequest } from "../../../components/patients/TaskActionPanel";
 import TimelineAppliedFilters from "../../../components/patients/TimelineAppliedFilters";
 import TimelineFilters from "../../../components/patients/TimelineFilters";
 import TimelineList from "../../../components/patients/TimelineList";
@@ -18,18 +19,21 @@ import TimelineEventDetail from "../../../components/patients/TimelineEventDetai
 import TimelineStateSummary from "../../../components/patients/TimelineStateSummary";
 import {
   acknowledgeEscalation,
+  completeInterventionTask,
   createInterventionTask,
   fetchEscalation,
+  fetchInterventionTask,
   fetchPatientTimeline,
   fetchPatientTimelineEvent,
   fetchWorklistSummary,
   resolveEscalation,
+  startInterventionTask,
   updateEscalationStatus,
 } from "../../../lib/api";
 import { formatDueDate, formatEventType, pluralize } from "../../../lib/format";
 import { requireAuth } from "../../../lib/auth/session";
 import STATUS_LABELS, { FILTER_LABELS } from "../../../lib/statusLabels";
-import type { EscalationStatus, PatientEscalation } from "../../../types/patient";
+import type { EscalationStatus, InterventionTask, PatientEscalation } from "../../../types/patient";
 
 type WorklistSummaryResponse = Awaited<ReturnType<typeof fetchWorklistSummary>>;
 type TimelineResponse = Awaited<ReturnType<typeof fetchPatientTimeline>>;
@@ -242,6 +246,17 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
     }
   }
 
+  const activeTaskId = taskSummary?.latest_active_task_id ?? null;
+  let activeTask: InterventionTask | null = null;
+  if (activeTaskId) {
+    try {
+      activeTask = await fetchInterventionTask(activeTaskId, { authRedirectPath: detailRetryHref });
+    } catch (error) {
+      console.error("Unable to load intervention task context", error);
+      activeTask = null;
+    }
+  }
+
   const escalationStatus: EscalationStatus | null =
     activeEscalation?.status ?? escalationEvidence?.latest_open_escalation_status ?? null;
   const createTaskContextLabel = activeEscalation
@@ -402,6 +417,44 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
     }
   };
 
+  const taskAction = async (
+    request: TaskActionRequest,
+  ): Promise<{ success: boolean; message?: string }> => {
+    "use server";
+
+    if (!activeTaskId) {
+      return { success: false, message: "No intervention task is available for this patient." };
+    }
+
+    try {
+      if (request.type === "start") {
+        await startInterventionTask(activeTaskId, { authRedirectPath: detailRetryHref });
+      } else if (request.type === "complete") {
+        const completionNote =
+          request.note && request.note.trim().length > 0
+            ? request.note.trim()
+            : "Completed from patient detail workflow controls.";
+        await completeInterventionTask(
+          activeTaskId,
+          {
+            completion_note: completionNote,
+          },
+          { authRedirectPath: detailRetryHref },
+        );
+      }
+      revalidatePath(pagePath);
+      const successMessage =
+        request.type === "start" ? "Task started." : "Task completed and documented.";
+      return { success: true, message: successMessage };
+    } catch (error) {
+      console.error("Failed to update task", error);
+      return {
+        success: false,
+        message: error instanceof Error ? error.message : "Unable to update task.",
+      };
+    }
+  };
+
   const submitTask = async (
     payload: TaskFormValues,
   ): Promise<{ success: boolean; message?: string }> => {
@@ -467,6 +520,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
           </div>
         </div>
         <EscalationActionBar status={escalationStatus} onAction={escalationAction} />
+        <TaskActionPanel task={activeTask} taskSummary={taskSummary} onAction={taskAction} />
         <CreateTaskForm
           patientName={patientName}
           contextLabel={createTaskContextLabel}
