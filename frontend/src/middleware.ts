@@ -1,13 +1,12 @@
 import type { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
-import { AUTH_COOKIE_NAME } from "./lib/auth/constants";
+import { AUTH_COOKIE_NAME } from "./lib/auth/server-cookies";
 
 const LOGIN_PATH = "/login";
-const DEFAULT_AFTER_LOGIN_PATH = "/patients";
 
 export function middleware(request: NextRequest) {
-  const { pathname } = request.nextUrl;
+  const { pathname, search } = request.nextUrl;
   const hasSession = Boolean(request.cookies.get(AUTH_COOKIE_NAME)?.value);
 
   const isLoginRoute = pathname === LOGIN_PATH;
@@ -15,12 +14,13 @@ export function middleware(request: NextRequest) {
 
   if (!hasSession && isProtectedRoute) {
     const loginUrl = new URL(LOGIN_PATH, request.url);
+    const nextPath = `${pathname}${search ?? ""}`;
+    loginUrl.searchParams.set("next", nextPath);
     return NextResponse.redirect(loginUrl);
   }
 
-  if (hasSession && isLoginRoute) {
-    const targetUrl = new URL(DEFAULT_AFTER_LOGIN_PATH, request.url);
-    return NextResponse.redirect(targetUrl);
+  if (isLoginRoute) {
+    return NextResponse.next();
   }
 
   return NextResponse.next();

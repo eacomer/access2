@@ -15,6 +15,7 @@ from sqlalchemy import (
     select,
     union_all,
 )
+from sqlalchemy.dialects.postgresql import UUID as PG_UUID
 from sqlalchemy.orm import Session
 
 from app.core.context import RequestContext
@@ -886,6 +887,8 @@ def _normalize_event_id_value(value: str | None) -> str | None:
     if value is None:
         return None
     return value.replace("-", "")
+
+
 def _resolve_patient_scope_from_filters(
     db: Session,
     *,
@@ -1214,6 +1217,9 @@ def _build_filtered_events_statement(
     sla_reference_time = get_escalation_sla_reference_time()
     sla_risk_window_end = sla_reference_time + ESCALATION_SLA_AT_RISK_THRESHOLD
 
+    null_uuid = cast(literal(None), PG_UUID(as_uuid=True))
+    null_text = cast(literal(None), String)
+
     signal_stmt = (
         select(
             PatientSignal.patient_id.label("patient_id"),
@@ -1222,9 +1228,9 @@ def _build_filtered_events_statement(
             func.concat(literal("signal:"), cast(PatientSignal.id, String)).label("event_id"),
             literal(EVENT_TYPE_SIGNAL).label("event_type"),
             PatientEscalation.id.label("related_escalation_id"),
-            literal(None).label("related_task_id"),
+            null_uuid.label("related_task_id"),
             cast(PatientEscalation.status, String).label("related_escalation_status"),
-            literal(None).label("related_task_status"),
+            null_text.label("related_task_status"),
         )
         .select_from(
             PatientSignal.__table__.outerjoin(
@@ -1241,9 +1247,9 @@ def _build_filtered_events_statement(
         func.concat(literal("escalation:"), cast(PatientEscalation.id, String)).label("event_id"),
         literal(EVENT_TYPE_ESCALATION).label("event_type"),
         PatientEscalation.id.label("related_escalation_id"),
-        literal(None).label("related_task_id"),
+        null_uuid.label("related_task_id"),
         cast(PatientEscalation.status, String).label("related_escalation_status"),
-        literal(None).label("related_task_status"),
+        null_text.label("related_task_status"),
     )
 
     escalation_status_stmt = (
@@ -1256,9 +1262,9 @@ def _build_filtered_events_statement(
             ),
             literal(EVENT_TYPE_ESCALATION_STATUS).label("event_type"),
             PatientEscalationStatusEvent.escalation_id.label("related_escalation_id"),
-            literal(None).label("related_task_id"),
+            null_uuid.label("related_task_id"),
             cast(PatientEscalationStatusEvent.status, String).label("related_escalation_status"),
-            literal(None).label("related_task_status"),
+            null_text.label("related_task_status"),
         )
     )
 
@@ -1300,7 +1306,7 @@ def _build_filtered_events_statement(
         )
         .where(
             InterventionTask.due_at.is_not(None),
-            InterventionTask.status.in_(OPEN_TASK_STATUSES),
+            cast(InterventionTask.status, String).in_(OPEN_TASK_STATUS_VALUES),
             InterventionTask.due_at > task_reference_time,
         )
     )
@@ -1323,7 +1329,7 @@ def _build_filtered_events_statement(
         )
         .where(
             InterventionTask.due_at.is_not(None),
-            InterventionTask.status.in_(OPEN_TASK_STATUSES),
+            cast(InterventionTask.status, String).in_(OPEN_TASK_STATUS_VALUES),
             InterventionTask.due_at < task_reference_time,
         )
     )
@@ -1338,13 +1344,13 @@ def _build_filtered_events_statement(
             ),
             literal(EVENT_TYPE_ESCALATION_SLA_AT_RISK).label("event_type"),
             PatientEscalation.id.label("related_escalation_id"),
-            literal(None).label("related_task_id"),
+            null_uuid.label("related_task_id"),
             cast(PatientEscalation.status, String).label("related_escalation_status"),
-            literal(None).label("related_task_status"),
+            null_text.label("related_task_status"),
         )
         .where(
             PatientEscalation.sla_due_at.is_not(None),
-            PatientEscalation.status.in_(UNRESOLVED_ESCALATION_STATUSES),
+            cast(PatientEscalation.status, String).in_(UNRESOLVED_ESCALATION_STATUS_VALUES),
             PatientEscalation.sla_due_at >= sla_reference_time,
             PatientEscalation.sla_due_at <= sla_risk_window_end,
         )
@@ -1360,13 +1366,13 @@ def _build_filtered_events_statement(
             ),
             literal(EVENT_TYPE_ESCALATION_SLA_OVERDUE).label("event_type"),
             PatientEscalation.id.label("related_escalation_id"),
-            literal(None).label("related_task_id"),
+            null_uuid.label("related_task_id"),
             cast(PatientEscalation.status, String).label("related_escalation_status"),
-            literal(None).label("related_task_status"),
+            null_text.label("related_task_status"),
         )
         .where(
             PatientEscalation.sla_due_at.is_not(None),
-            PatientEscalation.status.in_(UNRESOLVED_ESCALATION_STATUSES),
+            cast(PatientEscalation.status, String).in_(UNRESOLVED_ESCALATION_STATUS_VALUES),
             PatientEscalation.sla_due_at < sla_reference_time,
         )
     )
@@ -1502,7 +1508,7 @@ def _load_escalation_summaries_for_patients(
         select(PatientEscalation)
         .where(
             PatientEscalation.patient_id.in_(tuple(unique_ids)),
-            PatientEscalation.status.in_(UNRESOLVED_ESCALATION_STATUSES),
+            cast(PatientEscalation.status, String).in_(UNRESOLVED_ESCALATION_STATUS_VALUES),
         )
     )
     rows = db.execute(stmt).scalars().all()

@@ -1,13 +1,17 @@
 "use client";
 
-import { useFormState, useFormStatus } from "react-dom";
+import { useFormStatus } from "react-dom";
 
-import { loginAction, type LoginActionState } from "./actions";
+import { loginAction } from "./actions";
 
-const INITIAL_STATE: LoginActionState = {};
+type Props = {
+  nextPath?: string;
+  errorMessage?: string;
+};
 
 function SubmitButton() {
   const { pending } = useFormStatus();
+
   return (
     <button className="button button--primary" type="submit" disabled={pending}>
       {pending ? "Signing in..." : "Sign in"}
@@ -15,11 +19,11 @@ function SubmitButton() {
   );
 }
 
-export default function LoginForm() {
-  const [state, formAction] = useFormState(loginAction, INITIAL_STATE);
-
+export default function LoginForm({ nextPath, errorMessage }: Props) {
   return (
-    <form className="form-stack" action={formAction}>
+    <form className="form-stack" action={loginAction}>
+      {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
+
       <div className="form-field">
         <label htmlFor="email">Work email</label>
         <input
@@ -32,6 +36,7 @@ export default function LoginForm() {
           autoComplete="email"
         />
       </div>
+
       <div className="form-field">
         <label htmlFor="password">Password</label>
         <input
@@ -44,11 +49,13 @@ export default function LoginForm() {
           autoComplete="current-password"
         />
       </div>
-      {state?.error ? (
+
+      {errorMessage ? (
         <p role="alert" className="form-feedback form-feedback--error">
-          {state.error}
+          {errorMessage}
         </p>
       ) : null}
+
       <div className="form-footer">
         <SubmitButton />
       </div>

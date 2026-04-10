@@ -1,3 +1,4 @@
+import StateNotice from "../../components/StateNotice";
 import TimelineAppliedFilters from "../../components/patients/TimelineAppliedFilters";
 import WorklistHeader from "../../components/patients/WorklistHeader";
 import WorklistControls from "../../components/patients/WorklistControls";
@@ -7,6 +8,7 @@ import WorklistSummaryCard from "../../components/patients/WorklistSummaryCard";
 import WorklistHighlights from "../../components/patients/WorklistHighlights";
 import WorklistPaginationControls from "../../components/patients/WorklistPaginationControls";
 import { fetchWorklistSummary } from "../../lib/api";
+import { requireAuth } from "../../lib/auth/session";
 import { pluralize } from "../../lib/format";
 import { FILTER_LABELS } from "../../lib/statusLabels";
 import {
@@ -15,10 +17,23 @@ import {
 } from "../../lib/workflowStatus";
 import type { PatientTimelineWorklistSummaryItem } from "../../types/patient";
 
+type WorklistResponse = Awaited<ReturnType<typeof fetchWorklistSummary>>;
+
 export const dynamic = "force-dynamic";
 
 type PageProps = {
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+const isRedirectLikeError = (error: unknown): boolean => {
+  if (!error || typeof error !== "object") {
+    return false;
+  }
+  const maybeError = error as { message?: unknown; digest?: unknown };
+  if (maybeError.message === "NEXT_REDIRECT") {
+    return true;
+  }
+  return typeof maybeError.digest === "string" && maybeError.digest.startsWith("NEXT_REDIRECT");
 };
 
 const normalizeArrayParam = (value?: string | string[]): string[] => {
@@ -136,6 +151,8 @@ export default async function PatientsPage({ searchParams }: PageProps) {
 
   const queueParams = createSearchParams(resolvedSearchParams);
   const queueQueryString = queueParams.toString();
+  const retryHref = queueQueryString ? `/patients?${queueQueryString}` : "/patients";
+  await requireAuth(retryHref);
 
   const hasUnreadOnly = parseBooleanParam(resolvedSearchParams.has_unread_events, false);
   const activeOnly = parseBooleanParam(resolvedSearchParams.active_only, true);
@@ -182,13 +199,55 @@ export default async function PatientsPage({ searchParams }: PageProps) {
     preservedParams.limit = limitParam;
   }
 
-  const worklist = await fetchWorklistSummary({
-    limit: pageSize,
-    skip,
-    activeOnly,
-    ...(patientIds.length ? { patientIds } : {}),
-    ...(hasUnreadOnly ? { hasUnreadEvents: true } : {}),
-  });
+  let worklist: WorklistResponse | null = null;
+  try {
+    worklist = await fetchWorklistSummary(
+      {
+        limit: pageSize,
+        skip,
+        activeOnly,
+        ...(patientIds.length ? { patientIds } : {}),
+        ...(hasUnreadOnly ? { hasUnreadEvents: true } : {}),
+      },
+      { authRedirectPath: retryHref },
+    );
+  } catch (error) {
+    if (isRedirectLikeError(error)) {
+      throw error;
+    }
+    console.error("Failed to load patient worklist", error);
+    const headerTitle = "Patient queue";
+    const headerSubtitle = hasActiveFilters ? "Filtered queue view" : "Standard queue view";
+    const headerDescription = hasActiveFilters
+      ? "You are viewing a narrowed queue slice. Filters and chips show what is in effect."
+      : "Escalation-aware queue showing patients who currently need intervention work.";
+    const headerChips: Array<{ id: string; label: string }> = [
+      { id: "scope-mode", label: activeOnly ? "Standard queue view" : "All patients view" },
+      ...(hasUnreadOnly ? [{ id: "scope-unread", label: FILTER_LABELS.unreadOnly }] : []),
+      ...patientIds.map((patientId) => ({ id: `patient-${patientId}`, label: `Patient ${patientId}` })),
+    ];
+
+    return (
+      <main className="page">
+        <WorklistHeader
+          title={headerTitle}
+          subtitle={headerSubtitle}
+          description={headerDescription}
+          chips={headerChips}
+        />
+        <StateNotice
+          tone="danger"
+          title="Unable to load the patient queue"
+          body="The backend request failed. Retry or check that the backend service is healthy."
+          actions={[{ label: "Retry", href: retryHref }]}
+        />
+      </main>
+    );
+  }
+
+  if (!worklist) {
+    return null;
+  }
 
   const queueItems = [...worklist.items].sort(compareWorklistItems);
   const visibleCount = queueItems.length;

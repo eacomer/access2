@@ -1,6 +1,5 @@
-import { redirect } from "next/navigation";
-
-import { clearAuthToken, getAuthTokenFromCookies } from "./auth/server-cookies";
+import { getAuthTokenFromCookies } from "./auth/server-cookies";
+import { handleUnauthorized } from "./auth/session";
 
 import type {
   PatientEscalation,
@@ -20,6 +19,13 @@ type QueryValue = string | number | boolean | Array<string | number | boolean> |
 type ApiFetchOptions = {
   query?: Record<string, QueryValue>;
   init?: RequestInit;
+  auth?: {
+    redirectPath?: string | null;
+  };
+};
+
+type AuthenticatedRequestOptions = {
+  authRedirectPath?: string | null;
 };
 
 const normalizeBaseUrl = (value?: string) => {
@@ -51,7 +57,16 @@ async function apiFetch<TResponse>(path: string, options: ApiFetchOptions = {}):
 
   const headers = new Headers(options.init?.headers);
   headers.set("Accept", "application/json");
-  const authToken = getAuthTokenFromCookies();
+
+  const authToken = await getAuthTokenFromCookies();
+  console.log("[apiFetch.request]", {
+    path,
+    url: url.toString(),
+    hasAuthToken: Boolean(authToken),
+    authTokenLength: authToken?.length ?? 0,
+    redirectPath: options.auth?.redirectPath ?? null,
+  });
+
   if (authToken) {
     headers.set("Authorization", `Bearer ${authToken}`);
   }
@@ -63,9 +78,15 @@ async function apiFetch<TResponse>(path: string, options: ApiFetchOptions = {}):
     credentials: "include",
   });
 
+  console.log("[apiFetch.response]", {
+    path,
+    status: response.status,
+    statusText: response.statusText,
+    redirected: response.redirected,
+  });
+
   if (response.status === 401) {
-    clearAuthToken();
-    redirect("/login");
+    return handleUnauthorized(options.auth?.redirectPath);
   }
 
   if (!response.ok) {
@@ -84,6 +105,7 @@ export async function fetchWorklistSummary(
     hasUnreadEvents?: boolean;
     activeOnly?: boolean;
   } = {},
+  options: AuthenticatedRequestOptions = {},
 ): Promise<PatientTimelineWorklistSummaryResponse> {
   return apiFetch<PatientTimelineWorklistSummaryResponse>("/patients/timeline/worklist-summary", {
     query: {
@@ -93,6 +115,7 @@ export async function fetchWorklistSummary(
       has_unread_events: params.hasUnreadEvents,
       ...(params.patientIds?.length ? { patient_ids: params.patientIds } : {}),
     },
+    auth: { redirectPath: options.authRedirectPath },
   });
 }
 
@@ -104,6 +127,7 @@ export async function fetchPatientTimeline(
     cursorEventId?: string;
     filters?: PatientTimelineFilters;
   } = {},
+  requestOptions: AuthenticatedRequestOptions = {},
 ): Promise<PatientTimelineListResponse> {
   const query: Record<string, QueryValue> = {
     limit: options.limit,
@@ -138,31 +162,45 @@ export async function fetchPatientTimeline(
 
   return apiFetch<PatientTimelineListResponse>(`/patients/${patientId}/timeline`, {
     query,
+    auth: { redirectPath: requestOptions.authRedirectPath },
   });
 }
 
 export async function fetchPatientTimelineEvent(
   patientId: string,
   eventId: string,
+  options: AuthenticatedRequestOptions = {},
 ): Promise<PatientTimelineDetailResponse> {
-  return apiFetch<PatientTimelineDetailResponse>(`/patients/${patientId}/timeline/${eventId}`);
+  return apiFetch<PatientTimelineDetailResponse>(`/patients/${patientId}/timeline/${eventId}`, {
+    auth: { redirectPath: options.authRedirectPath },
+  });
 }
 
-export async function fetchEscalation(escalationId: string): Promise<PatientEscalation> {
-  return apiFetch<PatientEscalation>(`/escalations/${escalationId}`);
+export async function fetchEscalation(
+  escalationId: string,
+  options: AuthenticatedRequestOptions = {},
+): Promise<PatientEscalation> {
+  return apiFetch<PatientEscalation>(`/escalations/${escalationId}`, {
+    auth: { redirectPath: options.authRedirectPath },
+  });
 }
 
-export async function acknowledgeEscalation(escalationId: string): Promise<PatientEscalation> {
+export async function acknowledgeEscalation(
+  escalationId: string,
+  options: AuthenticatedRequestOptions = {},
+): Promise<PatientEscalation> {
   return apiFetch<PatientEscalation>(`/escalations/${escalationId}/acknowledge`, {
     init: {
       method: "POST",
     },
+    auth: { redirectPath: options.authRedirectPath },
   });
 }
 
 export async function updateEscalationStatus(
   escalationId: string,
   payload: { status: EscalationStatus; note?: string | null },
+  options: AuthenticatedRequestOptions = {},
 ): Promise<PatientEscalation> {
   return apiFetch<PatientEscalation>(`/escalations/${escalationId}/status`, {
     init: {
@@ -172,12 +210,14 @@ export async function updateEscalationStatus(
       },
       body: JSON.stringify(payload),
     },
+    auth: { redirectPath: options.authRedirectPath },
   });
 }
 
 export async function resolveEscalation(
   escalationId: string,
   payload: { resolution_notes?: string | null } = {},
+  options: AuthenticatedRequestOptions = {},
 ): Promise<PatientEscalation> {
   return apiFetch<PatientEscalation>(`/escalations/${escalationId}/resolve`, {
     init: {
@@ -187,12 +227,14 @@ export async function resolveEscalation(
       },
       body: JSON.stringify(payload),
     },
+    auth: { redirectPath: options.authRedirectPath },
   });
 }
 
 export async function createInterventionTask(
   escalationId: string,
   payload: InterventionTaskCreateRequest,
+  options: AuthenticatedRequestOptions = {},
 ): Promise<InterventionTask> {
   return apiFetch<InterventionTask>(`/escalations/${escalationId}/tasks`, {
     init: {
@@ -202,5 +244,6 @@ export async function createInterventionTask(
       },
       body: JSON.stringify(payload),
     },
+    auth: { redirectPath: options.authRedirectPath },
   });
 }

@@ -1,24 +1,48 @@
-import { cookies } from "next/headers";
+import { cookies, headers } from "next/headers";
 
-import { AUTH_COOKIE_NAME } from "./constants";
+export const AUTH_COOKIE_NAME = "access_token";
 
-const isProduction = process.env.NODE_ENV === "production";
-const BASE_COOKIE_OPTIONS = {
-  name: AUTH_COOKIE_NAME,
-  httpOnly: true,
-  sameSite: "lax" as const,
-  secure: isProduction,
-  path: "/",
+const ONE_DAY_IN_SECONDS = 60 * 60 * 24;
+
+const isSecureRequest = async (): Promise<boolean> => {
+  const headerStore = await headers();
+
+  const forwardedProto = headerStore.get("x-forwarded-proto");
+  if (forwardedProto) {
+    const primaryProto = forwardedProto.split(",")[0]?.trim().toLowerCase();
+    if (primaryProto) {
+      return primaryProto === "https";
+    }
+  }
+
+  const forwarded = headerStore.get("forwarded");
+  if (forwarded) {
+    const protoMatch = forwarded.match(/proto=([^;,\s]+)/i);
+    if (protoMatch?.[1]) {
+      return protoMatch[1].trim().toLowerCase() === "https";
+    }
+  }
+
+  return process.env.NODE_ENV === "production";
 };
 
-export function getAuthTokenFromCookies(): string | null {
-  return cookies().get(AUTH_COOKIE_NAME)?.value ?? null;
+export async function getAuthTokenFromCookies(): Promise<string | null> {
+  const cookieStore = await cookies();
+  return cookieStore.get(AUTH_COOKIE_NAME)?.value ?? null;
 }
 
-export function persistAuthToken(token: string) {
-  cookies().set({ ...BASE_COOKIE_OPTIONS, value: token });
+export async function persistAuthToken(token: string) {
+  const cookieStore = await cookies();
+  cookieStore.set(AUTH_COOKIE_NAME, token, {
+    httpOnly: true,
+    sameSite: "lax",
+    secure: await isSecureRequest(),
+    path: "/",
+    maxAge: ONE_DAY_IN_SECONDS,
+  });
 }
 
-export function clearAuthToken() {
-  cookies().delete(AUTH_COOKIE_NAME);
+export async function clearAuthToken() {
+  const cookieStore = await cookies();
+  cookieStore.delete(AUTH_COOKIE_NAME);
 }

@@ -1,13 +1,23 @@
-import { redirect } from "next/navigation";
-
-import { getAuthTokenFromCookies } from "../../lib/auth/server-cookies";
+import { sanitizeReturnPath } from "../../lib/auth/session";
 import LoginForm from "./LoginForm";
 
-export default function LoginPage() {
-  const token = getAuthTokenFromCookies();
-  if (token) {
-    redirect("/patients");
-  }
+type PageProps = {
+  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+};
+
+export default async function LoginPage({ searchParams }: PageProps) {
+  const resolvedSearchParams =
+    (searchParams ? await searchParams : {}) as Record<string, string | string[] | undefined>;
+
+  const nextParam = resolvedSearchParams.next;
+  const requestedNext =
+    typeof nextParam === "string" ? nextParam : Array.isArray(nextParam) ? nextParam[0] : null;
+
+  const errorParam = resolvedSearchParams.error;
+  const errorMessage =
+    typeof errorParam === "string" ? errorParam : Array.isArray(errorParam) ? errorParam[0] : null;
+
+  const sanitizedNext = sanitizeReturnPath(requestedNext ?? undefined);
 
   return (
     <main className="page" style={{ minHeight: "100vh", display: "flex", alignItems: "center" }}>
@@ -17,7 +27,7 @@ export default function LoginPage() {
           <h1>Sign in</h1>
           <p>Authenticate to review patient worklists and timelines.</p>
         </div>
-        <LoginForm />
+        <LoginForm nextPath={sanitizedNext ?? undefined} errorMessage={errorMessage ?? undefined} />
       </section>
     </main>
   );
