@@ -27,6 +27,11 @@ if TYPE_CHECKING:
     from app.models.user import User
 
 
+def enum_values(enum_cls: type[Enum]) -> list[str]:
+    """Return SAEnum values matching the database's lowercase labels."""
+    return [item.value for item in enum_cls]
+
+
 class SignalType(str, Enum):
     SYMPTOM_SCORE = "symptom_score"
     BLOOD_PRESSURE_SYSTOLIC = "blood_pressure_systolic"
@@ -70,7 +75,7 @@ class PatientSignal(IDTimestampMixin, Base):
     )
 
     signal_type: Mapped[SignalType] = mapped_column(
-        SAEnum(SignalType, name="signaltype"),
+        SAEnum(SignalType, name="signaltype", values_callable=enum_values),
         nullable=False,
     )
 
@@ -154,14 +159,14 @@ class PatientEscalation(IDTimestampMixin, Base):
     )
 
     status: Mapped[EscalationStatus] = mapped_column(
-        SAEnum(EscalationStatus, name="escalationstatus"),
+        SAEnum(EscalationStatus, name="escalationstatus", values_callable=enum_values),
         nullable=False,
         default=EscalationStatus.OPEN,
         server_default=EscalationStatus.OPEN.value,
     )
 
     severity: Mapped[EscalationSeverity] = mapped_column(
-        SAEnum(EscalationSeverity, name="escalationseverity"),
+        SAEnum(EscalationSeverity, name="escalationseverity", values_callable=enum_values),
         nullable=False,
     )
 
@@ -239,7 +244,7 @@ class PatientEscalationStatusEvent(IDTimestampMixin, Base):
     )
 
     status: Mapped[EscalationStatus] = mapped_column(
-        SAEnum(EscalationStatus, name="escalationstatus"),
+        SAEnum(EscalationStatus, name="escalationstatus", values_callable=enum_values),
         nullable=False,
     )
 
