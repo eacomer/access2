@@ -6,7 +6,7 @@ import { useMemo, useState } from "react";
 import type { InterventionTask, PatientInterventionTaskSummary } from "../../types/patient";
 
 export type TaskActionRequest = {
-  type: "start" | "complete";
+  type: "start" | "complete" | "cancel";
   note?: string | null;
 };
 
@@ -45,7 +45,8 @@ export default function TaskActionPanel({ task, taskSummary, onAction }: Props) 
 
   const canStart = resolvedStatus === "open";
   const canComplete = resolvedStatus === "open" || resolvedStatus === "in_progress";
-  const hasActionButtons = canStart || canComplete;
+  const canCancel = resolvedStatus === "open" || resolvedStatus === "in_progress";
+  const hasActionButtons = canStart || canComplete || canCancel;
   const title = task?.title ?? taskSummary?.latest_active_task_title ?? "Intervention task";
 
   const runAction = async (type: TaskActionRequest["type"]) => {
@@ -112,6 +113,16 @@ export default function TaskActionPanel({ task, taskSummary, onAction }: Props) 
                 onClick={() => runAction("complete")}
               >
                 Complete task
+              </button>
+            )}
+            {canCancel && (
+              <button
+                type="button"
+                className="button button--ghost"
+                disabled={isPending}
+                onClick={() => runAction("cancel")}
+              >
+                Cancel task
               </button>
             )}
           </div>

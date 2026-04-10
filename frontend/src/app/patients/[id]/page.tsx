@@ -19,6 +19,7 @@ import TimelineEventDetail from "../../../components/patients/TimelineEventDetai
 import TimelineStateSummary from "../../../components/patients/TimelineStateSummary";
 import {
   acknowledgeEscalation,
+  cancelInterventionTask,
   completeInterventionTask,
   createInterventionTask,
   fetchEscalation,
@@ -429,6 +430,8 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
     try {
       if (request.type === "start") {
         await startInterventionTask(activeTaskId, { authRedirectPath: detailRetryHref });
+      } else if (request.type === "cancel") {
+        await cancelInterventionTask(activeTaskId, { authRedirectPath: detailRetryHref });
       } else if (request.type === "complete") {
         const completionNote =
           request.note && request.note.trim().length > 0
@@ -444,7 +447,11 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
       }
       revalidatePath(pagePath);
       const successMessage =
-        request.type === "start" ? "Task started." : "Task completed and documented.";
+        request.type === "start"
+          ? "Task started."
+          : request.type === "cancel"
+            ? "Task canceled."
+            : "Task completed and documented.";
       return { success: true, message: successMessage };
     } catch (error) {
       console.error("Failed to update task", error);

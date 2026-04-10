@@ -273,6 +273,18 @@ export async function startInterventionTask(
   });
 }
 
+export async function cancelInterventionTask(
+  taskId: string,
+  options: AuthenticatedRequestOptions = {},
+): Promise<InterventionTask> {
+  return apiFetch<InterventionTask>(`/tasks/${taskId}/cancel`, {
+    init: {
+      method: "POST",
+    },
+    auth: { redirectPath: options.authRedirectPath },
+  });
+}
+
 export async function completeInterventionTask(
   taskId: string,
   payload: { completion_note?: string | null } = {},
