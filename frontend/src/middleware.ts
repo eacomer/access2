@@ -5,12 +5,15 @@ import { AUTH_COOKIE_NAME } from "./lib/auth/server-cookies";
 
 const LOGIN_PATH = "/login";
 
+const isProtectedPath = (pathname: string) =>
+  pathname.startsWith("/patients") || pathname.startsWith("/admin");
+
 export function middleware(request: NextRequest) {
   const { pathname, search } = request.nextUrl;
   const hasSession = Boolean(request.cookies.get(AUTH_COOKIE_NAME)?.value);
 
   const isLoginRoute = pathname === LOGIN_PATH;
-  const isProtectedRoute = pathname.startsWith("/patients");
+  const isProtectedRoute = isProtectedPath(pathname);
 
   if (!hasSession && isProtectedRoute) {
     const loginUrl = new URL(LOGIN_PATH, request.url);
@@ -27,5 +30,5 @@ export function middleware(request: NextRequest) {
 }
 
 export const config = {
-  matcher: ["/login", "/patients/:path*"],
+  matcher: ["/login", "/patients/:path*", "/admin/:path*"],
 };

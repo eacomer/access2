@@ -2,6 +2,10 @@ import { getAuthTokenFromCookies } from "./auth/server-cookies";
 import { handleUnauthorized } from "./auth/session";
 
 import type {
+  WorkflowBootstrapCreateRequest,
+  WorkflowBootstrapCreateResponse,
+} from "../types/admin";
+import type {
   PatientEscalation,
   PatientTimelineDetailResponse,
   PatientTimelineListResponse,
@@ -275,6 +279,22 @@ export async function completeInterventionTask(
   options: AuthenticatedRequestOptions = {},
 ): Promise<InterventionTask> {
   return apiFetch<InterventionTask>(`/tasks/${taskId}/complete`, {
+    init: {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify(payload),
+    },
+    auth: { redirectPath: options.authRedirectPath },
+  });
+}
+
+export async function createWorkflowBootstrap(
+  payload: WorkflowBootstrapCreateRequest,
+  options: AuthenticatedRequestOptions = {},
+): Promise<WorkflowBootstrapCreateResponse> {
+  return apiFetch<WorkflowBootstrapCreateResponse>("/admin/workflow/bootstrap", {
     init: {
       method: "POST",
       headers: {
