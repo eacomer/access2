@@ -4,21 +4,18 @@ import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import type { InterventionTask, PatientInterventionTaskSummary } from "../../types/patient";
+import type { ActionResult } from "./ActionFeedbackBanner";
 
 export type TaskActionRequest = {
   type: "start" | "complete" | "cancel";
   note?: string | null;
 };
 
-type ActionResult = {
-  success: boolean;
-  message?: string;
-};
-
 type Props = {
   task: InterventionTask | null;
   taskSummary: PatientInterventionTaskSummary | null;
   onAction: (request: TaskActionRequest) => Promise<ActionResult>;
+  onFeedback?: (result: ActionResult | null) => void;
 };
 
 const formatTaskStatus = (status: string | null | undefined): string => {
@@ -32,10 +29,9 @@ const formatTaskStatus = (status: string | null | undefined): string => {
     .join(" ");
 };
 
-export default function TaskActionPanel({ task, taskSummary, onAction }: Props) {
+export default function TaskActionPanel({ task, taskSummary, onAction, onFeedback }: Props) {
   const router = useRouter();
   const [completionNote, setCompletionNote] = useState("");
-  const [feedback, setFeedback] = useState<ActionResult | null>(null);
   const [isPending, setIsPending] = useState(false);
 
   const resolvedStatus = useMemo(() => {
@@ -50,14 +46,14 @@ export default function TaskActionPanel({ task, taskSummary, onAction }: Props) 
   const title = task?.title ?? taskSummary?.latest_active_task_title ?? "Intervention task";
 
   const runAction = async (type: TaskActionRequest["type"]) => {
-    setFeedback(null);
+    onFeedback?.(null);
     setIsPending(true);
     try {
       const result = await onAction({
         type,
         note: type === "complete" ? completionNote.trim() || null : null,
       });
-      setFeedback(result);
+      onFeedback?.(result);
       if (result.success) {
         if (type === "complete") {
           setCompletionNote("");
@@ -65,7 +61,7 @@ export default function TaskActionPanel({ task, taskSummary, onAction }: Props) 
         router.refresh();
       }
     } catch (error) {
-      setFeedback({
+      onFeedback?.({
         success: false,
         message: "Unable to update the task right now.",
       });
@@ -146,15 +142,6 @@ export default function TaskActionPanel({ task, taskSummary, onAction }: Props) 
           This task is already {formatTaskStatus(task.status).toLowerCase()}.
         </p>
       )}
-      {feedback ? (
-        <p
-          className={`form-feedback ${
-            feedback.success ? "form-feedback--success" : "form-feedback--error"
-          }`}
-        >
-          {feedback.message}
-        </p>
-      ) : null}
     </div>
   );
 }

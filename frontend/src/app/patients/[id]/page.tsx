@@ -2,15 +2,14 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 
 import StateNotice from "../../../components/StateNotice";
-import CreateTaskForm, { TaskFormValues } from "../../../components/patients/CreateTaskForm";
-import EscalationActionBar, {
-  EscalationActionRequest,
-} from "../../../components/patients/EscalationActionBar";
+import { TaskFormValues } from "../../../components/patients/CreateTaskForm";
+import PatientActionControls from "../../../components/patients/PatientActionControls";
+import { EscalationActionRequest } from "../../../components/patients/EscalationActionBar";
 import EscalationEvidenceCard from "../../../components/patients/EscalationEvidenceCard";
 import PatientEvidenceSummary from "../../../components/patients/PatientEvidenceSummary";
 import PatientRecentActivityStrip from "../../../components/patients/PatientRecentActivityStrip";
 import PatientWorkflowHeader from "../../../components/patients/PatientWorkflowHeader";
-import TaskActionPanel, { TaskActionRequest } from "../../../components/patients/TaskActionPanel";
+import { TaskActionRequest } from "../../../components/patients/TaskActionPanel";
 import TimelineAppliedFilters from "../../../components/patients/TimelineAppliedFilters";
 import TimelineFilters from "../../../components/patients/TimelineFilters";
 import TimelineList from "../../../components/patients/TimelineList";
@@ -533,14 +532,17 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
             <p className="section-subtitle">Act on the escalation and capture intervention work.</p>
           </div>
         </div>
-        <EscalationActionBar status={escalationStatus} onAction={escalationAction} />
-        <TaskActionPanel task={activeTask} taskSummary={taskSummary} onAction={taskAction} />
-        <CreateTaskForm
+        <PatientActionControls
+          escalationStatus={escalationStatus}
+          task={activeTask}
+          taskSummary={taskSummary}
           patientName={patientName}
-          contextLabel={createTaskContextLabel}
-          disabled={!activeEscalationId}
-          disabledMessage="Tasks are created when a patient has an open escalation."
-          onCreate={submitTask}
+          createTaskContextLabel={createTaskContextLabel}
+          disableTaskCreation={!activeEscalationId}
+          disabledCreateTaskMessage="Tasks are created when a patient has an open escalation."
+          onEscalationAction={escalationAction}
+          onTaskAction={taskAction}
+          onCreateTask={submitTask}
         />
       </section>
       <section className="section-card">

@@ -4,20 +4,17 @@ import { useRouter } from "next/navigation";
 import { useState } from "react";
 
 import type { EscalationStatus } from "../../types/patient";
+import type { ActionResult } from "./ActionFeedbackBanner";
 
 export type EscalationActionRequest = {
   type: "acknowledge" | "start" | "resolve";
   note?: string | null;
 };
 
-type ActionResult = {
-  success: boolean;
-  message?: string;
-};
-
 type Props = {
   status: EscalationStatus | null;
   onAction: (request: EscalationActionRequest) => Promise<ActionResult>;
+  onFeedback?: (result: ActionResult | null) => void;
 };
 
 const formatStatus = (status: EscalationStatus | null): string => {
@@ -30,10 +27,9 @@ const formatStatus = (status: EscalationStatus | null): string => {
     .join(" ");
 };
 
-export default function EscalationActionBar({ status, onAction }: Props) {
+export default function EscalationActionBar({ status, onAction, onFeedback }: Props) {
   const router = useRouter();
   const [resolutionNote, setResolutionNote] = useState("");
-  const [feedback, setFeedback] = useState<ActionResult | null>(null);
   const [isPending, setIsPending] = useState(false);
 
   const canAcknowledge = status === "open";
@@ -50,28 +46,19 @@ export default function EscalationActionBar({ status, onAction }: Props) {
         <p className="inline-helper">
           Latest escalation is already {formatStatus(status).toLowerCase()}.
         </p>
-        {feedback && (
-          <p
-            className={`form-feedback ${
-              feedback.success ? "form-feedback--success" : "form-feedback--error"
-            }`}
-          >
-            {feedback.message}
-          </p>
-        )}
       </div>
     );
   }
 
   const runAction = async (type: EscalationActionRequest["type"]) => {
-    setFeedback(null);
+    onFeedback?.(null);
     setIsPending(true);
     try {
       const result = await onAction({
         type,
         note: type === "resolve" ? resolutionNote.trim() || null : null,
       });
-      setFeedback(result);
+      onFeedback?.(result);
       if (result.success) {
         if (type === "resolve") {
           setResolutionNote("");
@@ -79,7 +66,7 @@ export default function EscalationActionBar({ status, onAction }: Props) {
         router.refresh();
       }
     } catch (error) {
-      setFeedback({
+      onFeedback?.({
         success: false,
         message: "Something went wrong while updating the escalation.",
       });
@@ -138,15 +125,6 @@ export default function EscalationActionBar({ status, onAction }: Props) {
             onChange={(event) => setResolutionNote(event.target.value)}
           />
         </div>
-      )}
-      {feedback && (
-        <p
-          className={`form-feedback ${
-            feedback.success ? "form-feedback--success" : "form-feedback--error"
-          }`}
-        >
-          {feedback.message}
-        </p>
       )}
     </div>
   );

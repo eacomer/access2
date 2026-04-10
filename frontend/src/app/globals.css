@@ -1929,3 +1929,28 @@ main.page {
 .form-feedback--muted {
   color: #64748b;
 }
+
+.action-feedback {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem;
+  padding: 0.75rem 1rem;
+  border-radius: 0.5rem;
+  margin: 0.75rem 0 1rem;
+  border: 1px solid transparent;
+}
+
+.action-feedback--success {
+  background-color: #ecfdf5;
+  border-color: #bbf7d0;
+}
+
+.action-feedback--error {
+  background-color: #fef2f2;
+  border-color: #fecaca;
+}
+
+.action-feedback__dismiss {
+  margin-left: auto;
+}

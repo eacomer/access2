@@ -4,6 +4,7 @@ import { useRouter } from "next/navigation";
 import { FormEvent, useState } from "react";
 
 import type { InterventionTaskPriority } from "../../types/patient";
+import type { ActionResult } from "./ActionFeedbackBanner";
 
 export type TaskFormValues = {
   title: string;
@@ -12,17 +13,13 @@ export type TaskFormValues = {
   dueAt?: string | null;
 };
 
-type ActionResult = {
-  success: boolean;
-  message?: string;
-};
-
 type Props = {
   patientName: string;
   contextLabel?: string;
   disabled?: boolean;
   disabledMessage?: string;
   onCreate: (values: TaskFormValues) => Promise<ActionResult>;
+  onFeedback?: (result: ActionResult | null) => void;
 };
 
 const createDefaultValues = (): TaskFormValues => ({
@@ -38,15 +35,15 @@ export default function CreateTaskForm({
   disabled = false,
   disabledMessage,
   onCreate,
+  onFeedback,
 }: Props) {
   const router = useRouter();
   const [values, setValues] = useState<TaskFormValues>(createDefaultValues);
-  const [feedback, setFeedback] = useState<ActionResult | null>(null);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
   const resetForm = () => {
     setValues(createDefaultValues());
-    setFeedback(null);
+    onFeedback?.(null);
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -54,7 +51,7 @@ export default function CreateTaskForm({
     if (disabled || !values.title.trim() || isSubmitting) {
       return;
     }
-    setFeedback(null);
+    onFeedback?.(null);
     setIsSubmitting(true);
     try {
       const result = await onCreate({
@@ -63,13 +60,13 @@ export default function CreateTaskForm({
         description: values.description?.trim() ? values.description.trim() : undefined,
         dueAt: values.dueAt && values.dueAt.length > 0 ? values.dueAt : null,
       });
-      setFeedback(result);
+      onFeedback?.(result);
       if (result.success) {
         resetForm();
         router.refresh();
       }
     } catch (error) {
-      setFeedback({
+      onFeedback?.({
         success: false,
         message: "Unable to create task. Please try again.",
       });
@@ -156,15 +153,6 @@ export default function CreateTaskForm({
           Cancel
         </button>
       </div>
-      {feedback && (
-        <p
-          className={`form-feedback ${
-            feedback.success ? "form-feedback--success" : "form-feedback--error"
-          }`}
-        >
-          {feedback.message}
-        </p>
-      )}
       {disabled && disabledMessage && (
         <p className="form-feedback form-feedback--muted">{disabledMessage}</p>
       )}
