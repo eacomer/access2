@@ -19,6 +19,11 @@ if TYPE_CHECKING:
     from app.models.intervention_task_outcome import InterventionTaskOutcome
 
 
+def enum_values(enum_cls: type[Enum]) -> list[str]:
+    """Return SAEnum values matching lowercase database enums."""
+    return [item.value for item in enum_cls]
+
+
 class InterventionTaskStatus(str, Enum):
     OPEN = "open"
     IN_PROGRESS = "in_progress"
@@ -82,14 +87,22 @@ class InterventionTask(IDTimestampMixin, Base):
     )
 
     status: Mapped[InterventionTaskStatus] = mapped_column(
-        SAEnum(InterventionTaskStatus, name="interventiontaskstatus"),
+        SAEnum(
+            InterventionTaskStatus,
+            name="interventiontaskstatus",
+            values_callable=enum_values,
+        ),
         nullable=False,
         default=InterventionTaskStatus.OPEN,
         server_default=InterventionTaskStatus.OPEN.value,
     )
 
     priority: Mapped[InterventionTaskPriority] = mapped_column(
-        SAEnum(InterventionTaskPriority, name="interventiontaskpriority"),
+        SAEnum(
+            InterventionTaskPriority,
+            name="interventiontaskpriority",
+            values_callable=enum_values,
+        ),
         nullable=False,
         default=InterventionTaskPriority.MEDIUM,
         server_default=InterventionTaskPriority.MEDIUM.value,
