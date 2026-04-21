@@ -1,6 +1,4 @@
 "use client";
-
-import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import type { InterventionTask, PatientInterventionTaskSummary } from "../../types/patient";
@@ -8,6 +6,7 @@ import type { ActionResult } from "./ActionFeedbackBanner";
 
 export type TaskActionRequest = {
   type: "start" | "complete" | "cancel";
+  taskId?: string | null;
   note?: string | null;
 };
 
@@ -29,8 +28,12 @@ const formatTaskStatus = (status: string | null | undefined): string => {
     .join(" ");
 };
 
-export default function TaskActionPanel({ task, taskSummary, onAction, onFeedback }: Props) {
-  const router = useRouter();
+export default function TaskActionPanel({
+  task,
+  taskSummary,
+  onAction,
+  onFeedback,
+}: Props) {
   const [completionNote, setCompletionNote] = useState("");
   const [isPending, setIsPending] = useState(false);
 
@@ -46,20 +49,23 @@ export default function TaskActionPanel({ task, taskSummary, onAction, onFeedbac
   const title = task?.title ?? taskSummary?.latest_active_task_title ?? "Intervention task";
 
   const runAction = async (type: TaskActionRequest["type"]) => {
+    const currentTask = task;
+    if (!currentTask) {
+      return;
+    }
+
     onFeedback?.(null);
     setIsPending(true);
     try {
       const result = await onAction({
         type,
+        taskId: currentTask.id,
         note: type === "complete" ? completionNote.trim() || null : null,
       });
-      onFeedback?.(result);
-      if (result.success) {
-        if (type === "complete") {
-          setCompletionNote("");
-        }
-        router.refresh();
+      if (result.success && type === "complete") {
+        setCompletionNote("");
       }
+      onFeedback?.(result);
     } catch (error) {
       onFeedback?.({
         success: false,

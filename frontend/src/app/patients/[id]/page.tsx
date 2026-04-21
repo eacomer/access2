@@ -2,6 +2,7 @@ import Link from "next/link";
 import { revalidatePath } from "next/cache";
 
 import StateNotice from "../../../components/StateNotice";
+import type { ActionResult } from "../../../components/patients/ActionFeedbackBanner";
 import { TaskFormValues } from "../../../components/patients/CreateTaskForm";
 import PatientActionControls from "../../../components/patients/PatientActionControls";
 import { EscalationActionRequest } from "../../../components/patients/EscalationActionBar";
@@ -44,6 +45,59 @@ type PageProps = {
 };
 
 export const dynamic = "force-dynamic";
+
+const revalidatePatientViews = ({
+  pagePath,
+  detailPath,
+}: {
+  pagePath: string;
+  detailPath: string;
+}) => {
+  revalidatePath("/patients");
+  revalidatePath(pagePath);
+  if (detailPath !== pagePath) {
+    revalidatePath(detailPath);
+  }
+};
+
+const buildTaskResult = (task: InterventionTask | null): Pick<
+  ActionResult,
+  | "taskId"
+  | "taskTitle"
+  | "taskDescription"
+  | "taskStatus"
+  | "taskPriority"
+  | "taskDueAt"
+  | "taskCompletedAt"
+  | "taskCompletedByUserId"
+  | "taskCompletionNote"
+  | "taskCreatedAt"
+  | "taskUpdatedAt"
+  | "taskPatientId"
+  | "taskOrganizationId"
+  | "taskEnrollmentId"
+  | "taskEscalationId"
+  | "taskAssignedUserId"
+  | "taskCreatedByUserId"
+> => ({
+  taskId: task?.id ?? null,
+  taskTitle: task?.title ?? null,
+  taskDescription: task?.description ?? null,
+  taskStatus: task?.status ?? null,
+  taskPriority: task?.priority ?? null,
+  taskDueAt: task?.due_at ?? null,
+  taskCompletedAt: task?.completed_at ?? null,
+  taskCompletedByUserId: task?.completed_by_user_id ?? null,
+  taskCompletionNote: task?.completion_note ?? null,
+  taskCreatedAt: task?.created_at ?? null,
+  taskUpdatedAt: task?.updated_at ?? null,
+  taskPatientId: task?.patient_id ?? null,
+  taskOrganizationId: task?.organization_id ?? null,
+  taskEnrollmentId: task?.enrollment_id ?? null,
+  taskEscalationId: task?.escalation_id ?? null,
+  taskAssignedUserId: task?.assigned_user_id ?? null,
+  taskCreatedByUserId: task?.created_by_user_id ?? null,
+});
 
 const normalizeArrayParam = (value?: string | string[]): string[] => {
   if (!value) {
@@ -372,7 +426,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
 
   const escalationAction = async (
     request: EscalationActionRequest,
-  ): Promise<{ success: boolean; message?: string }> => {
+  ): Promise<ActionResult> => {
     "use server";
 
     if (!activeEscalationId) {
@@ -381,7 +435,9 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
 
     try {
       if (request.type === "acknowledge") {
-        await acknowledgeEscalation(activeEscalationId, { authRedirectPath: detailRetryHref });
+        await acknowledgeEscalation(activeEscalationId, {
+          authRedirectPath: detailRetryHref,
+        });
       } else if (request.type === "start") {
         await updateEscalationStatus(
           activeEscalationId,
@@ -400,7 +456,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
           { authRedirectPath: detailRetryHref },
         );
       }
-      revalidatePath(pagePath);
+      revalidatePatientViews({ pagePath, detailPath: detailRetryHref });
       const successMessage =
         request.type === "resolve"
           ? "Escalation resolved."
@@ -419,39 +475,46 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
 
   const taskAction = async (
     request: TaskActionRequest,
-  ): Promise<{ success: boolean; message?: string }> => {
+  ): Promise<ActionResult> => {
     "use server";
 
-    if (!activeTaskId) {
+    const targetTaskId = request.taskId ?? activeTaskId;
+
+    if (!targetTaskId) {
       return { success: false, message: "No intervention task is available for this patient." };
     }
 
     try {
+      let updatedTask: InterventionTask | null = null;
       if (request.type === "start") {
-        await startInterventionTask(activeTaskId, { authRedirectPath: detailRetryHref });
+        updatedTask = await startInterventionTask(targetTaskId, { authRedirectPath: detailRetryHref });
       } else if (request.type === "cancel") {
-        await cancelInterventionTask(activeTaskId, { authRedirectPath: detailRetryHref });
+        await cancelInterventionTask(targetTaskId, {
+          authRedirectPath: detailRetryHref,
+        });
+        updatedTask = null;
       } else if (request.type === "complete") {
         const completionNote =
           request.note && request.note.trim().length > 0
             ? request.note.trim()
             : "Completed from patient detail workflow controls.";
         await completeInterventionTask(
-          activeTaskId,
+          targetTaskId,
           {
             completion_note: completionNote,
           },
           { authRedirectPath: detailRetryHref },
         );
+        updatedTask = null;
       }
-      revalidatePath(pagePath);
+      revalidatePatientViews({ pagePath, detailPath: detailRetryHref });
       const successMessage =
         request.type === "start"
           ? "Task started."
           : request.type === "cancel"
             ? "Task canceled."
             : "Task completed and documented.";
-      return { success: true, message: successMessage };
+      return { success: true, message: successMessage, ...buildTaskResult(updatedTask) };
     } catch (error) {
       console.error("Failed to update task", error);
       return {
@@ -463,7 +526,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
 
   const submitTask = async (
     payload: TaskFormValues,
-  ): Promise<{ success: boolean; message?: string }> => {
+  ): Promise<ActionResult> => {
     "use server";
 
     if (!activeEscalationId) {
@@ -473,7 +536,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
     const dueAtIso = payload.dueAt ? new Date(payload.dueAt).toISOString() : null;
 
     try {
-      await createInterventionTask(
+      const createdTask = await createInterventionTask(
         activeEscalationId,
         {
           title: payload.title,
@@ -483,8 +546,8 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
         },
         { authRedirectPath: detailRetryHref },
       );
-      revalidatePath(pagePath);
-      return { success: true, message: "Task created successfully." };
+      revalidatePatientViews({ pagePath, detailPath: detailRetryHref });
+      return { success: true, message: "Task created successfully.", ...buildTaskResult(createdTask) };
     } catch (error) {
       console.error("Failed to create task", error);
       return {
@@ -533,6 +596,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
           </div>
         </div>
         <PatientActionControls
+          patientId={patientId}
           escalationStatus={escalationStatus}
           task={activeTask}
           taskSummary={taskSummary}
