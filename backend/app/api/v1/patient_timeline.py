@@ -30,6 +30,7 @@ from app.services.patient_timeline_service import (
     PatientTimelineContextNotFoundError,
     PatientTimelineEventNotFoundError,
     build_patient_escalation_evidence,
+    build_patient_attention_summary,
     build_patient_task_summary,
     build_intervention_evidence_summary,
     derive_workflow_status_summary,
@@ -533,6 +534,12 @@ def get_patient_timeline_event_endpoint(
         context=context,
         patient=patient,
     )
+    attention_summary = build_patient_attention_summary(
+        escalation_evidence=evidence,
+        task_summary=task_summary,
+        workflow_status=workflow_status,
+        intervention_evidence_summary=intervention_evidence_summary,
+    )
 
     return PatientTimelineDetailResponse(
         item=item,
@@ -540,6 +547,7 @@ def get_patient_timeline_event_endpoint(
         task_summary=task_summary.as_dict(),
         workflow_status=workflow_status.as_dict(),
         intervention_evidence_summary=intervention_evidence_summary.as_dict(),
+        attention_summary=attention_summary.as_dict(),
     )
 
 

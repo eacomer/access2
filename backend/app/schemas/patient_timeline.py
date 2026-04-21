@@ -94,6 +94,7 @@ class PatientTimelineDetailResponse(BaseModel):
     task_summary: "PatientInterventionTaskSummary | None" = None
     workflow_status: "PatientWorkflowStatusSummary | None" = None
     intervention_evidence_summary: "PatientInterventionEvidenceSummary | None" = None
+    attention_summary: "PatientAttentionSummary | None" = None
 
 
 class PatientInterventionTaskSummary(BaseModel):
@@ -136,6 +137,14 @@ class PatientInterventionEvidenceSummary(BaseModel):
     recent_completed_interventions: list[PatientInterventionEvidenceSummaryItem] = Field(default_factory=list)
     current_open_work: list[PatientInterventionEvidenceSummaryItem] = Field(default_factory=list)
     evidence_event_count: int = Field(default=0, ge=0)
+
+
+class PatientAttentionSummary(BaseModel):
+    why_now: str
+    primary_driver: str | None = None
+    recommended_next_action: str
+    supporting_evidence: list[str] = Field(default_factory=list)
+    urgency_level: str | None = None
 
 
 class PatientTimelineFilterParams(BaseModel):

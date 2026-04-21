@@ -11,6 +11,7 @@ import PatientEvidenceSummary from "../../../components/patients/PatientEvidence
 import PatientInterventionEvidenceSummary from "../../../components/patients/PatientInterventionEvidenceSummary";
 import PatientRecentActivityStrip from "../../../components/patients/PatientRecentActivityStrip";
 import PatientWorkflowHeader from "../../../components/patients/PatientWorkflowHeader";
+import PatientWhyNowSummary from "../../../components/patients/PatientWhyNowSummary";
 import { TaskActionRequest } from "../../../components/patients/TaskActionPanel";
 import TimelineAppliedFilters from "../../../components/patients/TimelineAppliedFilters";
 import TimelineFilters from "../../../components/patients/TimelineFilters";
@@ -291,6 +292,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   const taskSummary = detail?.task_summary ?? worklistSummary?.task_summary ?? null;
   const workflowStatus = detail?.workflow_status ?? worklistSummary?.workflow_status ?? null;
   const interventionEvidenceSummary = detail?.intervention_evidence_summary ?? null;
+  const attentionSummary = detail?.attention_summary ?? null;
 
   let activeEscalation: PatientEscalation | null = null;
   if (activeEscalationId) {
@@ -588,6 +590,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
         />
       </div>
       <PatientEvidenceSummary evidence={escalationEvidence} summary={worklistSummary} />
+      <PatientWhyNowSummary summary={attentionSummary} />
       <PatientInterventionEvidenceSummary
         summary={interventionEvidenceSummary}
         workflowStatus={workflowStatus}

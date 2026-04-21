@@ -36,6 +36,14 @@ export interface PatientInterventionEvidenceSummary {
   evidence_event_count: number;
 }
 
+export interface PatientAttentionSummary {
+  why_now: string;
+  primary_driver: WorkflowPrimaryDriver | null;
+  recommended_next_action: string;
+  supporting_evidence: string[];
+  urgency_level: WorkflowSeverity | null;
+}
+
 export interface PatientInterventionTaskSummary {
   open_task_count: number;
   in_progress_task_count: number;
@@ -148,6 +156,7 @@ export interface PatientTimelineDetailResponse {
   task_summary?: PatientInterventionTaskSummary | null;
   workflow_status?: PatientWorkflowStatusSummary | null;
   intervention_evidence_summary?: PatientInterventionEvidenceSummary | null;
+  attention_summary?: PatientAttentionSummary | null;
 }
 
 export interface PatientEscalation {

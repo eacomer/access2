@@ -300,6 +300,23 @@ def _get_intervention_evidence_summary(
     return summary
 
 
+def _get_attention_summary(
+    client: TestClient,
+    headers: dict[str, str],
+    patient_id: str,
+    event_id: str | None = None,
+) -> dict:
+    payload = _get_timeline_detail_payload(
+        client,
+        headers,
+        patient_id,
+        event_id=event_id,
+    )
+    summary = payload.get("attention_summary")
+    assert summary is not None
+    return summary
+
+
 def _bootstrap_user_without_patient(
     client: TestClient,
     db_session: Session,
@@ -4598,3 +4615,113 @@ def test_patient_timeline_worklist_summary_surfaces_escalation_sla_events(
     row = payload["items"][0]
     assert row["latest_event_type"] == "escalation_sla_at_risk"
     assert row["latest_event_occurred_at"] == sla_due_at.replace(tzinfo=None).isoformat()
+
+
+def test_patient_attention_summary_recommends_task_for_open_escalation_without_active_task(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="attention-open-escalation")
+    _create_signal(client, env["headers"], env["patient_id"])
+
+    summary = _get_attention_summary(client, env["headers"], env["patient_id"])
+
+    assert summary["primary_driver"] == "escalation"
+    assert summary["urgency_level"] == "active"
+    assert summary["why_now"] == "There is an open escalation with no active intervention task."
+    assert summary["recommended_next_action"] == "Assign and start an outreach task."
+    assert any("open escalation" in item for item in summary["supporting_evidence"])
+
+
+def test_patient_attention_summary_recommends_follow_through_for_in_progress_task(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="attention-in-progress")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    task_id = _create_task(client, env["headers"], signal_payload["escalation"]["id"])
+
+    start_resp = client.post(
+        f"/api/v1/tasks/{task_id}/start",
+        headers=env["headers"],
+    )
+    assert start_resp.status_code == 200
+
+    summary = _get_attention_summary(client, env["headers"], env["patient_id"])
+
+    assert summary["primary_driver"] == "task"
+    assert summary["urgency_level"] == "active"
+    assert summary["why_now"] == "Active intervention work is already in progress."
+    assert summary["recommended_next_action"] == (
+        "Follow through on the current task and document the outcome."
+    )
+    assert any("task in progress" in item for item in summary["supporting_evidence"])
+
+
+def test_patient_attention_summary_prioritizes_overdue_task(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="attention-overdue-task")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    _create_task(
+        client,
+        env["headers"],
+        signal_payload["escalation"]["id"],
+        due_at=datetime.now(timezone.utc) - timedelta(hours=2),
+    )
+
+    summary = _get_attention_summary(client, env["headers"], env["patient_id"])
+
+    assert summary["primary_driver"] == "task"
+    assert summary["urgency_level"] == "overdue"
+    assert summary["why_now"] == "One or more active intervention tasks are overdue."
+    assert summary["recommended_next_action"] == (
+        "Complete immediate follow-up or update the task disposition."
+    )
+    assert any("task overdue" in item for item in summary["supporting_evidence"])
+
+
+def test_patient_attention_summary_summarizes_completed_workflow(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="attention-completed")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    task_id = _create_task(client, env["headers"], escalation_id)
+    _complete_task_with_outcome(client, env["headers"], task_id)
+    resolve_resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/resolve",
+        json={"resolution_notes": "Handled"},
+        headers=env["headers"],
+    )
+    assert resolve_resp.status_code == 200
+
+    summary = _get_attention_summary(client, env["headers"], env["patient_id"])
+
+    assert summary["primary_driver"] == "monitoring"
+    assert summary["urgency_level"] == "stable"
+    assert summary["why_now"] == (
+        "Recent intervention work is completed and no escalation is currently open."
+    )
+    assert summary["recommended_next_action"] == (
+        "Continue monitoring and review new timeline evidence as it arrives."
+    )
+    assert any("completed intervention" in item for item in summary["supporting_evidence"])
+
+
+def test_patient_attention_summary_handles_minimal_workflow_state(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="attention-minimal")
+    _create_care_update(client, env["headers"], env["patient_id"], summary="Routine note")
+
+    summary = _get_attention_summary(client, env["headers"], env["patient_id"])
+
+    assert summary["primary_driver"] == "monitoring"
+    assert summary["urgency_level"] == "stable"
+    assert summary["why_now"] == "No active escalation or intervention task is currently recorded."
+    assert summary["recommended_next_action"] == "Continue routine monitoring."
+    assert summary["supporting_evidence"] == ["1 timeline evidence event"]

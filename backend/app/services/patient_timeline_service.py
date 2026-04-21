@@ -279,6 +279,24 @@ class InterventionEvidenceSummary:
 
 
 @dataclass(frozen=True)
+class PatientAttentionSummary:
+    why_now: str
+    primary_driver: str | None
+    recommended_next_action: str
+    supporting_evidence: Tuple[str, ...] = ()
+    urgency_level: str | None = None
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "why_now": self.why_now,
+            "primary_driver": self.primary_driver,
+            "recommended_next_action": self.recommended_next_action,
+            "supporting_evidence": list(self.supporting_evidence),
+            "urgency_level": self.urgency_level,
+        }
+
+
+@dataclass(frozen=True)
 class PatientTimelineFilters:
     event_types: Tuple[str, ...] | None = None
     occurred_after: datetime | None = None
@@ -1363,6 +1381,116 @@ def build_intervention_evidence_summary(
     )
 
 
+def build_patient_attention_summary(
+    *,
+    escalation_evidence: EscalationEvidence | None = None,
+    task_summary: InterventionTaskSummary | None = None,
+    workflow_status: WorkflowStatusSummary | None = None,
+    intervention_evidence_summary: InterventionEvidenceSummary | None = None,
+) -> PatientAttentionSummary:
+    open_escalations = escalation_evidence.open_escalation_count if escalation_evidence else 0
+    overdue_escalations = escalation_evidence.overdue_escalation_count if escalation_evidence else 0
+    at_risk_escalations = escalation_evidence.at_risk_escalation_count if escalation_evidence else 0
+    highest_escalation_priority = (
+        escalation_evidence.highest_open_escalation_priority if escalation_evidence else None
+    )
+    open_tasks = task_summary.open_task_count if task_summary else 0
+    in_progress_tasks = task_summary.in_progress_task_count if task_summary else 0
+    overdue_tasks = task_summary.overdue_task_count if task_summary else 0
+    completed_tasks = (
+        intervention_evidence_summary.completed_tasks if intervention_evidence_summary else 0
+    )
+    total_evidence_events = (
+        intervention_evidence_summary.evidence_event_count if intervention_evidence_summary else 0
+    )
+    current_open_work = (
+        intervention_evidence_summary.current_open_work if intervention_evidence_summary else ()
+    )
+    recent_triggers = (
+        intervention_evidence_summary.recent_trigger_reasons
+        if intervention_evidence_summary
+        else ()
+    )
+
+    evidence: list[str] = []
+    if open_escalations:
+        evidence.append(_pluralize(open_escalations, "open escalation"))
+    if highest_escalation_priority:
+        evidence.append(f"Highest open escalation severity: {highest_escalation_priority}")
+    if overdue_escalations:
+        evidence.append(_pluralize(overdue_escalations, "escalation SLA overdue", "escalation SLAs overdue"))
+    elif at_risk_escalations:
+        evidence.append(_pluralize(at_risk_escalations, "escalation SLA at risk", "escalation SLAs at risk"))
+    if overdue_tasks:
+        evidence.append(_pluralize(overdue_tasks, "task overdue"))
+    if in_progress_tasks:
+        evidence.append(_pluralize(in_progress_tasks, "task in progress", "tasks in progress"))
+    elif open_tasks:
+        evidence.append(_pluralize(open_tasks, "open task"))
+    if recent_triggers:
+        latest_trigger = recent_triggers[0]
+        trigger_detail = latest_trigger.detail or latest_trigger.title
+        evidence.append(f"Recent trigger: {trigger_detail}")
+    for item in current_open_work:
+        if len(evidence) >= 4:
+            break
+        evidence.append(item.title)
+    if completed_tasks and not open_escalations and not open_tasks:
+        evidence.append(_pluralize(completed_tasks, "completed intervention"))
+    if not evidence and total_evidence_events:
+        evidence.append(_pluralize(total_evidence_events, "timeline evidence event"))
+
+    primary_driver = workflow_status.primary_driver if workflow_status else None
+
+    if overdue_tasks:
+        return PatientAttentionSummary(
+            why_now="One or more active intervention tasks are overdue.",
+            primary_driver="task",
+            recommended_next_action="Complete immediate follow-up or update the task disposition.",
+            supporting_evidence=tuple(evidence),
+            urgency_level="overdue",
+        )
+    if in_progress_tasks:
+        return PatientAttentionSummary(
+            why_now="Active intervention work is already in progress.",
+            primary_driver="task",
+            recommended_next_action="Follow through on the current task and document the outcome.",
+            supporting_evidence=tuple(evidence),
+            urgency_level="active",
+        )
+    if open_escalations and open_tasks == 0:
+        return PatientAttentionSummary(
+            why_now="There is an open escalation with no active intervention task.",
+            primary_driver="escalation",
+            recommended_next_action="Assign and start an outreach task.",
+            supporting_evidence=tuple(evidence),
+            urgency_level="urgent" if overdue_escalations or at_risk_escalations else "active",
+        )
+    if open_escalations:
+        return PatientAttentionSummary(
+            why_now="There is unresolved escalation work with an open task.",
+            primary_driver="escalation",
+            recommended_next_action="Start or complete the assigned intervention task.",
+            supporting_evidence=tuple(evidence),
+            urgency_level="urgent" if overdue_escalations or at_risk_escalations else "active",
+        )
+    if completed_tasks:
+        return PatientAttentionSummary(
+            why_now="Recent intervention work is completed and no escalation is currently open.",
+            primary_driver="monitoring",
+            recommended_next_action="Continue monitoring and review new timeline evidence as it arrives.",
+            supporting_evidence=tuple(evidence),
+            urgency_level="stable",
+        )
+    return PatientAttentionSummary(
+        why_now="No active escalation or intervention task is currently recorded.",
+        primary_driver=primary_driver or "monitoring",
+        recommended_next_action="Continue routine monitoring.",
+        supporting_evidence=tuple(evidence) if evidence else ("No active workflow evidence recorded.",),
+        urgency_level="stable",
+    )
+
+
 def summarize_intervention_tasks(
     tasks: Iterable[InterventionTask],
     *,
@@ -1400,18 +1528,19 @@ def summarize_intervention_tasks(
     )
 
 
+def _pluralize(count: int, singular: str, plural: str | None = None) -> str:
+    if count == 1:
+        return f"1 {singular}"
+    resolved = plural or f"{singular}s"
+    return f"{count} {resolved}"
+
+
 def derive_workflow_status_summary(
     *,
     task_summary: InterventionTaskSummary | None = None,
     escalation_summary: EscalationWorklistSummary | None = None,
     escalation_evidence: EscalationEvidence | None = None,
 ) -> WorkflowStatusSummary:
-    def _pluralize(count: int, singular: str, plural: str | None = None) -> str:
-        if count == 1:
-            return f"1 {singular}"
-        resolved = plural or f"{singular}s"
-        return f"{count} {resolved}"
-
     def _status(
         key: str,
         label: str,
