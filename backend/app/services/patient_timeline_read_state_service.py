@@ -501,6 +501,11 @@ def list_patient_timeline_worklist_summaries(
             recommended_timeframe=recommended_timeframe,
             staleness_indicator=staleness_indicator,
         )
+        ownership_labels = build_workflow_ownership_labels(
+            task_summary=task_summary,
+            open_escalation_count=escalation_summary.open_escalation_count,
+            completed_task_count=completed_task_count_map.get(patient.id, 0),
+        )
         summary_payload = escalation_summary.as_dict()
         task_summary_payload = task_summary.as_dict()
         items.append(
@@ -513,6 +518,7 @@ def list_patient_timeline_worklist_summaries(
                 "attention_reason": _compact_attention_reason(attention_summary),
                 "next_step": next_step,
                 "next_step_reason": _compact_next_step_reason(attention_summary),
+                **ownership_labels,
                 "care_gap_label": care_gap_label,
                 "blocking_issue_label": blocking_issue_label,
                 "resolution_target_label": resolution_target_label,
@@ -625,6 +631,11 @@ def _build_single_patient_worklist_summary(
         recommended_timeframe=recommended_timeframe,
         staleness_indicator=staleness_indicator,
     )
+    ownership_labels = build_workflow_ownership_labels(
+        task_summary=task_summary,
+        open_escalation_count=escalation_summary.open_escalation_count,
+        completed_task_count=completed_task_count_map.get(patient.id, 0),
+    )
     summary_payload = escalation_summary.as_dict()
     task_summary_payload = task_summary.as_dict()
     if has_unread_events is not None and payload["has_unread_events"] is not has_unread_events:
@@ -654,6 +665,7 @@ def _build_single_patient_worklist_summary(
                 "attention_reason": _compact_attention_reason(attention_summary),
                 "next_step": next_step,
                 "next_step_reason": _compact_next_step_reason(attention_summary),
+                **ownership_labels,
                 "care_gap_label": care_gap_label,
                 "blocking_issue_label": blocking_issue_label,
                 "resolution_target_label": resolution_target_label,
@@ -714,6 +726,38 @@ def _build_worklist_attention_summary(
         workflow_status=workflow_status,
         intervention_evidence_summary=intervention_evidence_summary,
     )
+
+
+def build_workflow_ownership_labels(
+    *,
+    task_summary: InterventionTaskSummary,
+    open_escalation_count: int,
+    completed_task_count: int = 0,
+) -> dict[str, str]:
+    if task_summary.in_progress_task_count > 0:
+        return {
+            "active_owner_label": "Assigned care team",
+            "waiting_on_label": "Task completion",
+        }
+    if task_summary.open_task_count > 0:
+        return {
+            "active_owner_label": "Care team queue",
+            "waiting_on_label": "Task start",
+        }
+    if open_escalation_count > 0:
+        return {
+            "active_owner_label": "Clinical review",
+            "waiting_on_label": "Task creation",
+        }
+    if completed_task_count > 0:
+        return {
+            "active_owner_label": "Monitoring",
+            "waiting_on_label": "Next signal or follow-up",
+        }
+    return {
+        "active_owner_label": "Routine monitoring",
+        "waiting_on_label": "No immediate action",
+    }
 
 
 def build_operational_status_snapshot(

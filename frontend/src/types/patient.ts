@@ -82,6 +82,8 @@ export interface PatientTimelineWorklistSummaryItem {
   attention_reason?: string | null;
   next_step?: string | null;
   next_step_reason?: string | null;
+  active_owner_label?: string | null;
+  waiting_on_label?: string | null;
   care_gap_label?: string | null;
   blocking_issue_label?: string | null;
   resolution_target_label?: string | null;
@@ -191,6 +193,8 @@ export interface PatientTimelineDetailResponse {
   resolution_target_label?: string | null;
   closure_readiness_label?: string | null;
   resolution_confidence_label?: string | null;
+  active_owner_label?: string | null;
+  waiting_on_label?: string | null;
 }
 
 export interface PatientEscalation {

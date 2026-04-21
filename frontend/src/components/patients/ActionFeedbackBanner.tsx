@@ -5,6 +5,23 @@ import { useMemo } from "react";
 export type ActionResult = {
   success: boolean;
   message?: string;
+  taskId?: string | null;
+  taskTitle?: string | null;
+  taskDescription?: string | null;
+  taskStatus?: string | null;
+  taskPriority?: string | null;
+  taskDueAt?: string | null;
+  taskCompletedAt?: string | null;
+  taskCompletedByUserId?: string | null;
+  taskCompletionNote?: string | null;
+  taskCreatedAt?: string | null;
+  taskUpdatedAt?: string | null;
+  taskPatientId?: string | null;
+  taskOrganizationId?: string | null;
+  taskEnrollmentId?: string | null;
+  taskEscalationId?: string | null;
+  taskAssignedUserId?: string | null;
+  taskCreatedByUserId?: string | null;
 };
 
 type Props = {

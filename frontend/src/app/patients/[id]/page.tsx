@@ -37,7 +37,12 @@ import {
 import { formatDueDate, formatEventType, pluralize } from "../../../lib/format";
 import { requireAuth } from "../../../lib/auth/session";
 import STATUS_LABELS, { FILTER_LABELS } from "../../../lib/statusLabels";
-import type { EscalationStatus, InterventionTask, PatientEscalation } from "../../../types/patient";
+import type {
+  EscalationStatus,
+  InterventionTask,
+  PatientEscalation,
+  PatientTimelineFilters,
+} from "../../../types/patient";
 
 type WorklistSummaryResponse = Awaited<ReturnType<typeof fetchWorklistSummary>>;
 type TimelineResponse = Awaited<ReturnType<typeof fetchPatientTimeline>>;
@@ -202,13 +207,13 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
     return query ? `${pagePath}?${query}` : pagePath;
   };
 
-  const timelineFilters = {
+  const timelineFilters: PatientTimelineFilters = {
     ...(eventTypeFilters.length ? { event_types: eventTypeFilters } : {}),
     ...(relatedEscalationFilter ? { related_escalation_id: relatedEscalationFilter } : {}),
     ...(includeOnlyOpenWork ? { include_only_open_work: true } : {}),
   };
 
-  const requestFilters = { ...timelineFilters };
+  const requestFilters: PatientTimelineFilters = { ...timelineFilters };
   if (cursorDirection === "newer" && cursorOccurredAt) {
     requestFilters.occurred_after = cursorOccurredAt;
   }
@@ -620,6 +625,8 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
         statusSnapshot={detailStatusSnapshot}
         careGapLabel={detailCareGapLabel}
         blockingIssueLabel={detailBlockingIssueLabel}
+        activeOwnerLabel={detail?.active_owner_label ?? worklistSummary?.active_owner_label ?? null}
+        waitingOnLabel={detail?.waiting_on_label ?? worklistSummary?.waiting_on_label ?? null}
         resolutionTargetLabel={detailResolutionTargetLabel}
         closureReadinessLabel={detailClosureReadinessLabel}
         resolutionConfidenceLabel={detailResolutionConfidenceLabel}
@@ -638,7 +645,6 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
           </div>
         </div>
         <PatientActionControls
-          patientId={patientId}
           escalationStatus={escalationStatus}
           task={activeTask}
           taskSummary={taskSummary}

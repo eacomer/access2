@@ -23,6 +23,9 @@ type Props = {
 
 type EmphasisTone = "info" | "warning" | "alert";
 
+const pluralizeWithOverride = (count: number, singular: string, plural: string): string =>
+  count === 1 ? `${count} ${singular}` : `${count} ${plural}`;
+
 const humanizeTaskStatus = (value?: string | null) => {
   if (!value) {
     return null;
@@ -174,12 +177,20 @@ const buildAttentionSummary = (summary: PatientTimelineWorklistSummaryItem): Att
 
   if (taskSummary) {
     if (taskSummary.overdue_task_count > 0) {
-      primary = pluralize(taskSummary.overdue_task_count, "task overdue", "tasks overdue");
+      primary = pluralizeWithOverride(
+        taskSummary.overdue_task_count,
+        "task overdue",
+        "tasks overdue",
+      );
       tone = "alert";
     } else if (taskSummary.open_task_count > 0) {
       primary =
         taskSummary.in_progress_task_count > 0
-          ? pluralize(taskSummary.in_progress_task_count, "task in progress", "tasks in progress")
+          ? pluralizeWithOverride(
+              taskSummary.in_progress_task_count,
+              "task in progress",
+              "tasks in progress",
+            )
           : pluralize(taskSummary.open_task_count, "open task");
       tone = "info";
     } else {
@@ -490,6 +501,8 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
   const compactAttentionReason = summary.attention_reason ?? attention.primary;
   const compactNextStep = summary.next_step ?? actionCue?.label ?? "Standing by";
   const compactNextStepReason = summary.next_step_reason ?? actionCue?.helper ?? null;
+  const compactActiveOwner = summary.active_owner_label ?? null;
+  const compactWaitingOn = summary.waiting_on_label ?? null;
   const compactCareGap = summary.care_gap_label ?? null;
   const compactBlockingIssue = summary.blocking_issue_label ?? null;
   const compactResolutionTarget = summary.resolution_target_label ?? null;
@@ -617,6 +630,12 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
           ) : null}
           {compactStatusSnapshot ? (
             <span className="worklist-topline-helper">{compactStatusSnapshot}</span>
+          ) : null}
+          {compactActiveOwner ? (
+            <span className="worklist-topline-helper">Owner: {compactActiveOwner}</span>
+          ) : null}
+          {compactWaitingOn ? (
+            <span className="worklist-topline-helper">Waiting on: {compactWaitingOn}</span>
           ) : null}
           {compactCareGap ? (
             <span className="worklist-topline-helper">Care gap: {compactCareGap}</span>

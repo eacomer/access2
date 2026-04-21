@@ -1,6 +1,15 @@
 {
-  "extends": [
-    "next/core-web-vitals",
-    "next/typescript"
-  ]
+  "root": true,
+  "parser": "eslint-config-next/parser",
+  "parserOptions": {
+    "ecmaVersion": "latest",
+    "sourceType": "module",
+    "requireConfigFile": false,
+    "babelOptions": {
+      "presets": ["next/babel"]
+    },
+    "ecmaFeatures": {
+      "jsx": true
+    }
+  }
 }

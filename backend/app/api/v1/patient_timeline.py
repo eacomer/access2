@@ -46,6 +46,7 @@ from app.services.patient_timeline_read_state_service import (
     build_operational_status_snapshot,
     build_resolution_confidence_label,
     build_resolution_target_label,
+    build_workflow_ownership_labels,
     get_patient_timeline_filter_snapshot,
     get_patient_timeline_inbox_summary,
     get_patient_timeline_filtered_read_state,
@@ -555,6 +556,11 @@ def get_patient_timeline_event_endpoint(
     resolution_target_label = build_resolution_target_label(attention_summary=attention_summary)
     closure_readiness_label = build_closure_readiness_label(attention_summary=attention_summary)
     resolution_confidence_label = build_resolution_confidence_label(attention_summary=attention_summary)
+    ownership_labels = build_workflow_ownership_labels(
+        task_summary=task_summary,
+        open_escalation_count=evidence.open_escalation_count,
+        completed_task_count=intervention_evidence_summary.completed_tasks,
+    )
 
     return PatientTimelineDetailResponse(
         item=item,
@@ -569,6 +575,7 @@ def get_patient_timeline_event_endpoint(
         resolution_target_label=resolution_target_label,
         closure_readiness_label=closure_readiness_label,
         resolution_confidence_label=resolution_confidence_label,
+        **ownership_labels,
     )
 
 

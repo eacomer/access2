@@ -101,6 +101,8 @@ class PatientTimelineDetailResponse(BaseModel):
     resolution_target_label: str | None = None
     closure_readiness_label: str | None = None
     resolution_confidence_label: str | None = None
+    active_owner_label: str | None = None
+    waiting_on_label: str | None = None
 
 
 class PatientInterventionTaskSummary(BaseModel):
@@ -316,6 +318,8 @@ class PatientTimelineWorklistSummaryItem(BaseModel):
     attention_reason: str | None = None
     next_step: str | None = None
     next_step_reason: str | None = None
+    active_owner_label: str | None = None
+    waiting_on_label: str | None = None
     care_gap_label: str | None = None
     blocking_issue_label: str | None = None
     resolution_target_label: str | None = None

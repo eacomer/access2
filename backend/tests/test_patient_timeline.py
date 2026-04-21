@@ -3236,6 +3236,8 @@ def test_patient_workflow_status_worklist_summary_includes_status(
     assert row["attention_reason"] == "Task overdue"
     assert row["next_step"] == "Update task disposition"
     assert row["next_step_reason"] == "Task is overdue and needs disposition"
+    assert row["active_owner_label"] == "Care team queue"
+    assert row["waiting_on_label"] == "Task start"
     assert row["care_gap_label"] == "Task disposition overdue"
     assert row["blocking_issue_label"] == "Task not updated"
     assert row["resolution_target_label"] == "Update or close the task"
@@ -3260,6 +3262,8 @@ def test_patient_worklist_attention_reason_open_escalation_without_task(
     assert row["attention_reason"] == "Open escalation, no active outreach"
     assert row["next_step"] == "Start outreach"
     assert row["next_step_reason"] == "Escalation is open and no active task exists"
+    assert row["active_owner_label"] == "Clinical review"
+    assert row["waiting_on_label"] == "Task creation"
     assert row["care_gap_label"] == "Outreach not started"
     assert row["blocking_issue_label"] == "No outreach started"
     assert row["resolution_target_label"] == "Start outreach and document action"
@@ -3286,10 +3290,15 @@ def test_patient_worklist_attention_reason_in_progress_task(
 
     payload = _get_worklist_summary(client, env["headers"])
     row = _find_worklist_item(payload, env["patient_id"])
+    detail_payload = _get_timeline_detail_payload(client, env["headers"], env["patient_id"])
 
     assert row["attention_reason"] == "Task in progress"
     assert row["next_step"] == "Continue active intervention"
     assert row["next_step_reason"] == "An intervention is already underway"
+    assert row["active_owner_label"] == "Assigned care team"
+    assert row["waiting_on_label"] == "Task completion"
+    assert detail_payload["active_owner_label"] == row["active_owner_label"]
+    assert detail_payload["waiting_on_label"] == row["waiting_on_label"]
     assert row["care_gap_label"] == "Intervention still in progress"
     assert row["blocking_issue_label"] == "Work not yet completed"
     assert row["resolution_target_label"] == "Complete the intervention"
@@ -3315,6 +3324,8 @@ def test_patient_worklist_blocking_issue_open_task_pending_work(
     assert row["attention_reason"] == "Open task needs start/completion"
     assert row["next_step"] == "Complete assigned task"
     assert row["next_step_reason"] == "Assigned task is still open"
+    assert row["active_owner_label"] == "Care team queue"
+    assert row["waiting_on_label"] == "Task start"
     assert row["care_gap_label"] == "Assigned intervention not completed"
     assert row["blocking_issue_label"] == "Assigned task still open"
     assert row["resolution_target_label"] == "Finish the assigned intervention"
@@ -3345,6 +3356,8 @@ def test_patient_worklist_attention_reason_recent_completion_monitor(
     assert row["attention_reason"] == "Recently completed, monitor"
     assert row["next_step"] == "Monitor recent completion"
     assert row["next_step_reason"] == "Work was completed recently; monitor for follow-up"
+    assert row["active_owner_label"] == "Monitoring"
+    assert row["waiting_on_label"] == "Next signal or follow-up"
     assert row["care_gap_label"] == "Monitoring follow-up pending"
     assert row["blocking_issue_label"] == "Follow-up window still open"
     assert row["resolution_target_label"] == "Confirm no new follow-up is needed"
@@ -3369,6 +3382,8 @@ def test_patient_worklist_next_step_reason_routine_monitoring(
     assert row["attention_reason"] == "Routine monitoring"
     assert row["next_step"] == "Routine monitoring"
     assert row["next_step_reason"] == "No urgent workflow driver is present"
+    assert row["active_owner_label"] == "Routine monitoring"
+    assert row["waiting_on_label"] == "No immediate action"
     assert row["care_gap_label"] == "No active care gap"
     assert row["blocking_issue_label"] == "No active blocker"
     assert row["resolution_target_label"] == "Continue routine monitoring"
@@ -4962,6 +4977,8 @@ def test_patient_attention_summary_handles_minimal_workflow_state(
     assert payload["resolution_target_label"] == "Continue routine monitoring"
     assert payload["closure_readiness_label"] == "Ready for routine monitoring"
     assert payload["resolution_confidence_label"] == "High confidence"
+    assert payload["active_owner_label"] == "Routine monitoring"
+    assert payload["waiting_on_label"] == "No immediate action"
     assert summary["why_now"] == "No active escalation or intervention task is currently recorded."
     assert summary["recommended_next_action"] == "Continue routine monitoring."
     assert summary["supporting_evidence"] == ["1 timeline evidence event"]

@@ -9,6 +9,8 @@ type Props = {
   resolutionTargetLabel?: string | null;
   closureReadinessLabel?: string | null;
   resolutionConfidenceLabel?: string | null;
+  activeOwnerLabel?: string | null;
+  waitingOnLabel?: string | null;
 };
 
 const badgeVariantForUrgency = (urgency?: string | null) => {
@@ -29,6 +31,8 @@ export default function PatientWhyNowSummary({
   resolutionTargetLabel,
   closureReadinessLabel,
   resolutionConfidenceLabel,
+  activeOwnerLabel,
+  waitingOnLabel,
 }: Props) {
   const evidence = summary?.supporting_evidence?.filter(Boolean) ?? [];
   const urgencyLabel = summary?.urgency_level ? formatEventType(summary.urgency_level) : "Stable";
@@ -65,6 +69,18 @@ export default function PatientWhyNowSummary({
           <div className="definition-item">
             <dt>Blocker</dt>
             <dd>{blockingIssueLabel}</dd>
+          </div>
+        ) : null}
+        {activeOwnerLabel ? (
+          <div className="definition-item">
+            <dt>Owner</dt>
+            <dd>{activeOwnerLabel}</dd>
+          </div>
+        ) : null}
+        {waitingOnLabel ? (
+          <div className="definition-item">
+            <dt>Waiting on</dt>
+            <dd>{waitingOnLabel}</dd>
           </div>
         ) : null}
         {resolutionTargetLabel ? (

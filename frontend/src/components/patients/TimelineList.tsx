@@ -1,4 +1,5 @@
 import Link from "next/link";
+import type { ReactElement } from "react";
 
 import { formatDateTime, formatDayGrouping, formatEventType, formatPriority } from "../../lib/format";
 import type { PatientTimelineItem } from "../../types/patient";
@@ -25,9 +26,9 @@ const MAX_METADATA_ENTRIES = 4;
 type EventCategory =
   | { id: "escalation"; label: string; tone?: "info" | "warning" | "alert" }
   | { id: "task"; label: string; tone?: "info" | "warning" | "alert" }
-  | { id: "care"; label: string }
-  | { id: "signal"; label: string }
-  | { id: "general"; label: string };
+  | { id: "care"; label: string; tone?: "info" | "warning" | "alert" }
+  | { id: "signal"; label: string; tone?: "info" | "warning" | "alert" }
+  | { id: "general"; label: string; tone?: "info" | "warning" | "alert" };
 
 type StatusTone = "info" | "warning" | "alert" | "positive";
 
@@ -308,7 +309,7 @@ export default function TimelineList({
     );
   }
 
-  const renderedEvents: JSX.Element[] = [];
+  const renderedEvents: ReactElement[] = [];
   let previousDayKey: string | null = null;
 
   events.forEach((event) => {

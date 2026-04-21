@@ -270,7 +270,6 @@ const buildChips = (
       id: "status",
       label: STATUS_LABELS.activeEscalation,
       value: status,
-      tone: evidence?.latest_open_escalation_status === "overdue" ? "alert" : undefined,
     });
   }
 
@@ -448,10 +447,10 @@ const buildInsightCards = (
   evidence: PatientEscalationEvidence | null,
   taskSummary: PatientInterventionTaskSummary | null,
   workflowStatus: PatientWorkflowStatusSummary | null,
+  latestEvent: PatientTimelineItem | null,
   queueViewName?: string,
   queueFilterSummary?: string | null,
   hasQueueReturnContext?: boolean,
-  latestEvent: PatientTimelineItem | null,
   activeEscalationStatus?: EscalationStatus | null,
 ): InsightCard[] => {
   const fallbackEscalationInsight = buildEscalationInsight(
@@ -505,10 +504,10 @@ export default function PatientWorkflowHeader({
     evidence,
     resolvedTaskSummary,
     resolvedWorkflowStatus,
+    latestEvent,
     queueViewName,
     queueFilterSummary,
     hasQueueReturnContext,
-    latestEvent,
     activeEscalationStatus,
   );
 
