@@ -2557,6 +2557,103 @@ def test_patient_timeline_worklist_summary_empty_org(
     payload = _get_worklist_summary(client, env["headers"])
     assert payload["total"] == 0
     assert payload["items"] == []
+    assert payload["impact_snapshot"] == {
+        "patients_needing_attention": 0,
+        "open_escalations": 0,
+        "tasks_in_progress": 0,
+        "completed_tasks_recently": 0,
+        "completed_tasks_recently_window_days": 7,
+        "operational_summary": "Queue is currently quiet.",
+    }
+
+
+def test_patient_timeline_worklist_summary_impact_snapshot_counts_mixed_queue(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-impact-mixed")
+    second_patient_id = create_patient_for_user(client, env["headers"], first_name="worklist-impact-second")
+    third_patient_id = create_patient_for_user(client, env["headers"], first_name="worklist-impact-third")
+
+    active_signal = _create_signal(client, env["headers"], env["patient_id"])
+    active_task_id = _create_task(
+        client,
+        env["headers"],
+        active_signal["escalation"]["id"],
+        title="Active outreach",
+    )
+    start_resp = client.post(f"/api/v1/tasks/{active_task_id}/start", headers=env["headers"])
+    assert start_resp.status_code == 200
+
+    completed_signal = _create_signal(client, env["headers"], second_patient_id)
+    completed_task_id = _create_task(
+        client,
+        env["headers"],
+        completed_signal["escalation"]["id"],
+        title="Completed outreach",
+    )
+    _complete_task_with_outcome(client, env["headers"], completed_task_id)
+    resolve_resp = client.post(
+        f"/api/v1/escalations/{completed_signal['escalation']['id']}/resolve",
+        json={"resolution_notes": "closed"},
+        headers=env["headers"],
+    )
+    assert resolve_resp.status_code == 200
+
+    _create_care_update(client, env["headers"], third_patient_id, summary="Routine update")
+
+    payload = _get_worklist_summary(client, env["headers"])
+    snapshot = payload["impact_snapshot"]
+
+    assert payload["total"] == 3
+    assert snapshot["patients_needing_attention"] == 1
+    assert snapshot["open_escalations"] == 1
+    assert snapshot["tasks_in_progress"] == 1
+    assert snapshot["completed_tasks_recently"] == 1
+    assert snapshot["completed_tasks_recently_window_days"] == 7
+    assert snapshot["operational_summary"] == "Queue has active work requiring follow-up."
+
+
+def test_patient_timeline_worklist_summary_impact_snapshot_recent_completed_window(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-impact-recent")
+    old_patient_id = create_patient_for_user(client, env["headers"], first_name="worklist-impact-old")
+
+    recent_signal = _create_signal(client, env["headers"], env["patient_id"])
+    recent_task_id = _create_task(client, env["headers"], recent_signal["escalation"]["id"])
+    _complete_task_with_outcome(client, env["headers"], recent_task_id)
+
+    old_signal = _create_signal(client, env["headers"], old_patient_id)
+    old_task_id = _create_task(client, env["headers"], old_signal["escalation"]["id"])
+    _complete_task_with_outcome(client, env["headers"], old_task_id)
+    old_task = db_session.get(InterventionTask, uuid.UUID(old_task_id))
+    assert old_task is not None
+    old_task.completed_at = datetime.now(timezone.utc) - timedelta(days=8)
+    db_session.add(old_task)
+    db_session.commit()
+
+    payload = _get_worklist_summary(client, env["headers"])
+
+    assert payload["impact_snapshot"]["completed_tasks_recently"] == 1
+
+
+def test_patient_timeline_worklist_summary_impact_snapshot_low_activity(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-impact-low")
+    _create_care_update(client, env["headers"], env["patient_id"], summary="Stable check-in")
+
+    payload = _get_worklist_summary(client, env["headers"])
+    snapshot = payload["impact_snapshot"]
+
+    assert snapshot["patients_needing_attention"] == 0
+    assert snapshot["open_escalations"] == 0
+    assert snapshot["tasks_in_progress"] == 0
+    assert snapshot["completed_tasks_recently"] == 0
+    assert snapshot["operational_summary"] == "Queue is currently quiet."
 
 
 def test_patient_timeline_worklist_summary_includes_patients_without_events(

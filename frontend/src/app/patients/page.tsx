@@ -7,6 +7,7 @@ import WorklistStateSummary from "../../components/patients/WorklistStateSummary
 import WorklistSummaryCard from "../../components/patients/WorklistSummaryCard";
 import WorklistHighlights from "../../components/patients/WorklistHighlights";
 import WorklistPaginationControls from "../../components/patients/WorklistPaginationControls";
+import PatientQueueImpactSnapshot from "../../components/patients/PatientQueueImpactSnapshot";
 import { fetchWorklistSummary } from "../../lib/api";
 import { requireAuth } from "../../lib/auth/session";
 import { pluralize } from "../../lib/format";
@@ -313,6 +314,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
         patientIdsText={patientIds.join(", ")}
         preservedParams={preservedParams}
       />
+      <PatientQueueImpactSnapshot snapshot={worklist.impact_snapshot} />
       <section className="worklist-context" aria-label="Queue review">
         <WorklistStateSummary
           primary={statePrimary}

@@ -1,7 +1,7 @@
 from __future__ import annotations
 
 import uuid
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Iterable, Sequence
 
 from sqlalchemy import (
@@ -21,7 +21,7 @@ from sqlalchemy.orm import Session
 from app.core.context import RequestContext
 from app.models.patient import Patient
 from app.models.care_update import CareUpdate
-from app.models.intervention_task import InterventionTask
+from app.models.intervention_task import InterventionTask, InterventionTaskStatus
 from app.models.intervention_task_outcome import InterventionTaskOutcome
 from app.models.patient_signal import PatientEscalation, PatientEscalationStatusEvent, PatientSignal
 from app.models.patient_timeline_read_state import PatientTimelineReadState
@@ -76,6 +76,8 @@ class PatientTimelineFilteredEventVisibilityError(PatientTimelineReadStateError)
 
 
 DEFAULT_SORT_TIMESTAMP = datetime(1970, 1, 1, tzinfo=timezone.utc)
+QUEUE_IMPACT_COMPLETED_TASK_WINDOW = timedelta(days=7)
+QUEUE_IMPACT_COMPLETED_TASK_WINDOW_DAYS = QUEUE_IMPACT_COMPLETED_TASK_WINDOW.days
 
 
 def get_patient_timeline_read_state(
@@ -342,6 +344,12 @@ def list_patient_timeline_worklist_summaries(
     )
 
     requested_patient_ids = tuple(dict.fromkeys(patient_ids or [])) if patient_ids else None
+    if requested_patient_ids is not None:
+        requested_patient_ids = _filter_worklist_patient_ids_to_context(
+            db=db,
+            context=context,
+            patient_ids=requested_patient_ids,
+        )
     effective_patient_ids: Sequence[uuid.UUID] | None = requested_patient_ids
     if derived_patient_id is not None:
         if effective_patient_ids is None:
@@ -349,7 +357,7 @@ def list_patient_timeline_worklist_summaries(
         else:
             effective_patient_ids = tuple(pid for pid in effective_patient_ids if pid == derived_patient_id)
     if effective_patient_ids is not None and len(effective_patient_ids) == 0:
-        return {"items": [], "total": 0}
+        return {"items": [], "total": 0, "impact_snapshot": _empty_queue_impact_snapshot()}
 
     if derived_patient_id is not None:
         return _build_single_patient_worklist_summary(
@@ -375,7 +383,25 @@ def list_patient_timeline_worklist_summaries(
     )
 
     if not page_rows:
-        return {"items": [], "total": total}
+        return {"items": [], "total": total, "impact_snapshot": _empty_queue_impact_snapshot()}
+
+    snapshot_patient_rows = page_rows
+    if total > len(page_rows):
+        snapshot_patient_rows, _snapshot_total = _fetch_worklist_patient_rows(
+            db=db,
+            context=context,
+            filters=scoped_filters,
+            has_unread_events=has_unread_events,
+            patient_ids=effective_patient_ids,
+            active_only=active_only,
+            skip=0,
+            limit=total,
+        )
+    impact_snapshot = _build_queue_impact_snapshot(
+        db=db,
+        context=context,
+        patient_ids=[row["patient_id"] for row in snapshot_patient_rows],
+    )
 
     patient_map = _load_patients_by_ids(db=db, patient_ids=[row["patient_id"] for row in page_rows])
     state_map = _load_read_states_for_patients(
@@ -450,7 +476,7 @@ def list_patient_timeline_worklist_summaries(
     if skipped_context_patients:
         total = max(total - skipped_context_patients, len(items))
 
-    return {"items": items, "total": total}
+    return {"items": items, "total": total, "impact_snapshot": impact_snapshot}
 
 
 def _build_single_patient_worklist_summary(
@@ -469,7 +495,7 @@ def _build_single_patient_worklist_summary(
         raise PatientTimelineContextNotFoundError("Patient not found for this context.")
     ensure_tenant_scoped_resource(context=context, resource=patient)
     if active_only and not patient.is_active:
-        return {"items": [], "total": 0}
+        return {"items": [], "total": 0, "impact_snapshot": _empty_queue_impact_snapshot()}
 
     state = _load_read_state(
         db=db,
@@ -505,15 +531,20 @@ def _build_single_patient_worklist_summary(
     summary_payload = escalation_summary.as_dict()
     task_summary_payload = task_summary.as_dict()
     if has_unread_events is not None and payload["has_unread_events"] is not has_unread_events:
-        return {"items": [], "total": 0}
+        return {"items": [], "total": 0, "impact_snapshot": _empty_queue_impact_snapshot()}
 
     total = 1
+    impact_snapshot = _build_queue_impact_snapshot(
+        db=db,
+        context=context,
+        patient_ids=[patient.id],
+    )
     if skip >= total:
-        return {"items": [], "total": total}
+        return {"items": [], "total": total, "impact_snapshot": impact_snapshot}
 
     bounded_limit = max(1, limit)
     if bounded_limit <= 0:
-        return {"items": [], "total": total}
+        return {"items": [], "total": total, "impact_snapshot": impact_snapshot}
 
     return {
         "items": [
@@ -526,6 +557,96 @@ def _build_single_patient_worklist_summary(
             }
         ],
         "total": total,
+        "impact_snapshot": impact_snapshot,
+    }
+
+
+def _empty_queue_impact_snapshot() -> dict:
+    return {
+        "patients_needing_attention": 0,
+        "open_escalations": 0,
+        "tasks_in_progress": 0,
+        "completed_tasks_recently": 0,
+        "completed_tasks_recently_window_days": QUEUE_IMPACT_COMPLETED_TASK_WINDOW_DAYS,
+        "operational_summary": "Queue is currently quiet.",
+    }
+
+
+def _build_queue_impact_snapshot(
+    *,
+    db: Session,
+    context: RequestContext,
+    patient_ids: Sequence[uuid.UUID],
+) -> dict:
+    unique_ids = list(dict.fromkeys(patient_ids))
+    if not unique_ids:
+        return _empty_queue_impact_snapshot()
+
+    recent_completed_since = datetime.now(timezone.utc) - QUEUE_IMPACT_COMPLETED_TASK_WINDOW
+
+    open_escalation_rows = db.execute(
+        select(PatientEscalation.patient_id)
+        .where(
+            PatientEscalation.organization_id == context.organization_id,
+            PatientEscalation.patient_id.in_(tuple(unique_ids)),
+            cast(PatientEscalation.status, String).in_(UNRESOLVED_ESCALATION_STATUS_VALUES),
+        )
+    ).all()
+    open_escalation_patient_ids = {row[0] for row in open_escalation_rows}
+
+    open_task_rows = db.execute(
+        select(InterventionTask.patient_id)
+        .where(
+            InterventionTask.organization_id == context.organization_id,
+            InterventionTask.patient_id.in_(tuple(unique_ids)),
+            cast(InterventionTask.status, String).in_(OPEN_TASK_STATUS_VALUES),
+        )
+    ).all()
+    open_task_patient_ids = {row[0] for row in open_task_rows}
+
+    tasks_in_progress = int(
+        db.execute(
+            select(func.count())
+            .select_from(InterventionTask)
+            .where(
+                InterventionTask.organization_id == context.organization_id,
+                InterventionTask.patient_id.in_(tuple(unique_ids)),
+                InterventionTask.status == InterventionTaskStatus.IN_PROGRESS,
+            )
+        ).scalar()
+        or 0
+    )
+    completed_tasks_recently = int(
+        db.execute(
+            select(func.count())
+            .select_from(InterventionTask)
+            .where(
+                InterventionTask.organization_id == context.organization_id,
+                InterventionTask.patient_id.in_(tuple(unique_ids)),
+                InterventionTask.status == InterventionTaskStatus.COMPLETED,
+                InterventionTask.completed_at.is_not(None),
+                InterventionTask.completed_at >= recent_completed_since,
+            )
+        ).scalar()
+        or 0
+    )
+
+    patients_needing_attention = len(open_escalation_patient_ids | open_task_patient_ids)
+    open_escalations = len(open_escalation_rows)
+    if patients_needing_attention > 0:
+        operational_summary = "Queue has active work requiring follow-up."
+    elif completed_tasks_recently > 0:
+        operational_summary = "Recent interventions completed; queue is currently stable."
+    else:
+        operational_summary = "Queue is currently quiet."
+
+    return {
+        "patients_needing_attention": patients_needing_attention,
+        "open_escalations": open_escalations,
+        "tasks_in_progress": tasks_in_progress,
+        "completed_tasks_recently": completed_tasks_recently,
+        "completed_tasks_recently_window_days": QUEUE_IMPACT_COMPLETED_TASK_WINDOW_DAYS,
+        "operational_summary": operational_summary,
     }
 
 
@@ -927,6 +1048,29 @@ def _resolve_patient_scope_from_filters(
     if escalation is not None:
         return escalation.patient_id
     return None
+
+
+def _filter_worklist_patient_ids_to_context(
+    *,
+    db: Session,
+    context: RequestContext,
+    patient_ids: Sequence[uuid.UUID],
+) -> tuple[uuid.UUID, ...]:
+    unique_ids = tuple(dict.fromkeys(patient_ids))
+    if not unique_ids:
+        return ()
+
+    found_ids = set(
+        db.execute(
+            select(Patient.id).where(
+                Patient.organization_id == context.organization_id,
+                Patient.id.in_(unique_ids),
+            )
+        ).scalars()
+    )
+    if not found_ids:
+        raise PatientTimelineContextNotFoundError("Patient not found for this context.")
+    return tuple(patient_id for patient_id in unique_ids if patient_id in found_ids)
 
 
 def _fetch_worklist_patient_rows(

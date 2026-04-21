@@ -73,9 +73,19 @@ export interface PatientTimelineWorklistSummaryItem {
   workflow_status?: PatientWorkflowStatusSummary | null;
 }
 
+export interface PatientQueueImpactSnapshot {
+  patients_needing_attention: number;
+  open_escalations: number;
+  tasks_in_progress: number;
+  completed_tasks_recently: number;
+  completed_tasks_recently_window_days: number;
+  operational_summary?: string | null;
+}
+
 export interface PatientTimelineWorklistSummaryResponse {
   items: PatientTimelineWorklistSummaryItem[];
   total: number;
+  impact_snapshot?: PatientQueueImpactSnapshot | null;
 }
 
 export interface PatientTimelineItem {

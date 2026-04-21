@@ -300,6 +300,16 @@ class PatientTimelineWorklistSummaryItem(BaseModel):
     workflow_status: PatientWorkflowStatusSummary | None = None
 
 
+class PatientQueueImpactSnapshot(BaseModel):
+    patients_needing_attention: int = Field(default=0, ge=0)
+    open_escalations: int = Field(default=0, ge=0)
+    tasks_in_progress: int = Field(default=0, ge=0)
+    completed_tasks_recently: int = Field(default=0, ge=0)
+    completed_tasks_recently_window_days: int = Field(default=7, ge=1)
+    operational_summary: str | None = None
+
+
 class PatientTimelineWorklistSummaryResponse(BaseModel):
     items: list[PatientTimelineWorklistSummaryItem]
     total: int = Field(default=0, ge=0)
+    impact_snapshot: PatientQueueImpactSnapshot = Field(default_factory=PatientQueueImpactSnapshot)
