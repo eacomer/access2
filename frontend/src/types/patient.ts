@@ -79,6 +79,7 @@ export interface PatientTimelineWorklistSummaryItem {
   latest_open_escalation_id: string | null;
   task_summary?: PatientInterventionTaskSummary | null;
   workflow_status?: PatientWorkflowStatusSummary | null;
+  attention_reason?: string | null;
 }
 
 export interface PatientQueueImpactSnapshot {

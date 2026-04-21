@@ -47,6 +47,8 @@ from app.services.patient_timeline_service import (
     UNRESOLVED_ESCALATION_STATUSES,
     UNRESOLVED_ESCALATION_STATUS_VALUES,
     EscalationWorklistSummary,
+    EscalationEvidence,
+    InterventionEvidenceSummary,
     InterventionTaskSummary,
     WorkflowStatusSummary,
     PatientTimelineContextMismatchError,
@@ -55,6 +57,7 @@ from app.services.patient_timeline_service import (
     PatientTimelineFilters,
     TimelineItemPayload,
     build_escalation_worklist_summary,
+    build_patient_attention_summary,
     compare_timeline_positions,
     derive_workflow_status_summary,
     get_due_state_reference_time,
@@ -418,6 +421,11 @@ def list_patient_timeline_worklist_summaries(
         db=db,
         patient_ids=list(patient_map.keys()),
     )
+    completed_task_count_map = _load_recent_completed_task_counts_for_patients(
+        db=db,
+        context=context,
+        patient_ids=list(patient_map.keys()),
+    )
 
     items: list[dict] = []
     skipped_context_patients = 0
@@ -461,6 +469,12 @@ def list_patient_timeline_worklist_summaries(
             task_summary=task_summary,
             escalation_summary=escalation_summary,
         )
+        attention_summary = _build_worklist_attention_summary(
+            escalation_summary=escalation_summary,
+            task_summary=task_summary,
+            workflow_status=workflow_status,
+            completed_task_count=completed_task_count_map.get(patient.id, 0),
+        )
         summary_payload = escalation_summary.as_dict()
         task_summary_payload = task_summary.as_dict()
         items.append(
@@ -470,6 +484,7 @@ def list_patient_timeline_worklist_summaries(
                 "patient_display_name": f"{patient.first_name} {patient.last_name}",
                 "task_summary": task_summary_payload,
                 "workflow_status": workflow_status.as_dict(),
+                "attention_reason": _compact_attention_reason(attention_summary),
             }
         )
 
@@ -528,6 +543,17 @@ def _build_single_patient_worklist_summary(
         task_summary=task_summary,
         escalation_summary=escalation_summary,
     )
+    completed_task_count_map = _load_recent_completed_task_counts_for_patients(
+        db=db,
+        context=context,
+        patient_ids=[patient.id],
+    )
+    attention_summary = _build_worklist_attention_summary(
+        escalation_summary=escalation_summary,
+        task_summary=task_summary,
+        workflow_status=workflow_status,
+        completed_task_count=completed_task_count_map.get(patient.id, 0),
+    )
     summary_payload = escalation_summary.as_dict()
     task_summary_payload = task_summary.as_dict()
     if has_unread_events is not None and payload["has_unread_events"] is not has_unread_events:
@@ -554,6 +580,7 @@ def _build_single_patient_worklist_summary(
                 "patient_display_name": f"{patient.first_name} {patient.last_name}",
                 "task_summary": task_summary_payload,
                 "workflow_status": workflow_status.as_dict(),
+                "attention_reason": _compact_attention_reason(attention_summary),
             }
         ],
         "total": total,
@@ -570,6 +597,55 @@ def _empty_queue_impact_snapshot() -> dict:
         "completed_tasks_recently_window_days": QUEUE_IMPACT_COMPLETED_TASK_WINDOW_DAYS,
         "operational_summary": "Queue is currently quiet.",
     }
+
+
+def _build_worklist_attention_summary(
+    *,
+    escalation_summary: EscalationWorklistSummary,
+    task_summary: InterventionTaskSummary,
+    workflow_status: WorkflowStatusSummary,
+    completed_task_count: int = 0,
+):
+    escalation_evidence = EscalationEvidence(
+        has_open_escalation=escalation_summary.open_escalation_count > 0,
+        open_escalation_count=escalation_summary.open_escalation_count,
+        overdue_escalation_count=escalation_summary.overdue_escalation_count,
+        at_risk_escalation_count=escalation_summary.at_risk_escalation_count,
+        highest_open_escalation_priority=escalation_summary.highest_escalation_priority,
+        next_open_escalation_sla_due_at=escalation_summary.next_escalation_sla_due_at,
+        latest_open_escalation_id=escalation_summary.latest_open_escalation_id,
+    )
+    intervention_evidence_summary = InterventionEvidenceSummary(
+        completed_tasks=completed_task_count,
+    )
+    return build_patient_attention_summary(
+        escalation_evidence=escalation_evidence,
+        task_summary=task_summary,
+        workflow_status=workflow_status,
+        intervention_evidence_summary=intervention_evidence_summary,
+    )
+
+
+def _compact_attention_reason(attention_summary) -> str:
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Task overdue"
+    if attention_summary.primary_driver == "task" and attention_summary.urgency_level == "active":
+        return "Task in progress"
+    if (
+        attention_summary.primary_driver == "escalation"
+        and attention_summary.recommended_next_action == "Assign and start an outreach task."
+    ):
+        return "Open escalation, no active outreach"
+    if attention_summary.primary_driver == "escalation":
+        return "Open task needs start/completion"
+    if (
+        attention_summary.primary_driver == "monitoring"
+        and attention_summary.urgency_level == "stable"
+        and attention_summary.recommended_next_action
+        == "Continue monitoring and review new timeline evidence as it arrives."
+    ):
+        return "Recently completed, monitor"
+    return "Routine monitoring"
 
 
 def _build_queue_impact_snapshot(
@@ -1697,3 +1773,34 @@ def _load_task_summaries_for_patients(
             reference_time=reference_time,
         )
     return summary_map
+
+
+def _load_recent_completed_task_counts_for_patients(
+    *,
+    db: Session,
+    context: RequestContext,
+    patient_ids: Sequence[uuid.UUID],
+) -> dict[uuid.UUID, int]:
+    unique_ids = list(dict.fromkeys(patient_ids))
+    if not unique_ids:
+        return {}
+
+    recent_completed_since = datetime.now(timezone.utc) - QUEUE_IMPACT_COMPLETED_TASK_WINDOW
+    rows = db.execute(
+        select(
+            InterventionTask.patient_id,
+            func.count().label("completed_count"),
+        )
+        .where(
+            InterventionTask.organization_id == context.organization_id,
+            InterventionTask.patient_id.in_(tuple(unique_ids)),
+            InterventionTask.status == InterventionTaskStatus.COMPLETED,
+            InterventionTask.completed_at.is_not(None),
+            InterventionTask.completed_at >= recent_completed_since,
+        )
+        .group_by(InterventionTask.patient_id)
+    ).all()
+    counts = {patient_id: 0 for patient_id in unique_ids}
+    for patient_id, completed_count in rows:
+        counts[patient_id] = int(completed_count or 0)
+    return counts

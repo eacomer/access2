@@ -3229,6 +3229,61 @@ def test_patient_workflow_status_worklist_summary_includes_status(
     assert status is not None
     assert status["status_key"] == "task_overdue"
     assert status["has_active_work"] is True
+    assert row["attention_reason"] == "Task overdue"
+
+
+def test_patient_worklist_attention_reason_open_escalation_without_task(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-attention-escalation")
+    _create_signal(client, env["headers"], env["patient_id"])
+
+    payload = _get_worklist_summary(client, env["headers"])
+    row = _find_worklist_item(payload, env["patient_id"])
+
+    assert row["attention_reason"] == "Open escalation, no active outreach"
+
+
+def test_patient_worklist_attention_reason_in_progress_task(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-attention-progress")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    task_id = _create_task(client, env["headers"], signal_payload["escalation"]["id"])
+    start_resp = client.post(
+        f"/api/v1/tasks/{task_id}/start",
+        headers=env["headers"],
+    )
+    assert start_resp.status_code == 200
+
+    payload = _get_worklist_summary(client, env["headers"])
+    row = _find_worklist_item(payload, env["patient_id"])
+
+    assert row["attention_reason"] == "Task in progress"
+
+
+def test_patient_worklist_attention_reason_recent_completion_monitor(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-attention-complete")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    task_id = _create_task(client, env["headers"], escalation_id)
+    _complete_task_with_outcome(client, env["headers"], task_id)
+    resolve_resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/resolve",
+        json={"resolution_notes": "Handled"},
+        headers=env["headers"],
+    )
+    assert resolve_resp.status_code == 200
+
+    payload = _get_worklist_summary(client, env["headers"])
+    row = _find_worklist_item(payload, env["patient_id"])
+
+    assert row["attention_reason"] == "Recently completed, monitor"
 
 
 def test_patient_workflow_status_worklist_cross_org_isolation(

@@ -487,6 +487,7 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
   const attentionChips = buildAttentionChips(summary);
   const recency = buildRecencyContext(summary);
   const actionCue = buildActionCue(summary);
+  const compactAttentionReason = summary.attention_reason ?? attention.primary;
   const latestActivityTimestamp =
     taskSummary?.latest_active_task_created_at ?? summary.latest_event_occurred_at ?? null;
   const latestEventSummary = latestActivityTimestamp
@@ -564,6 +565,9 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
           <span className={`badge ${badge.variant}`}>{badge.label}</span>
           {workflowBadges.length ? (
             <div className="worklist-headline-cues">
+              {summary.attention_reason ? (
+                <span className="badge badge--info">{summary.attention_reason}</span>
+              ) : null}
               {workflowBadges.slice(0, 2).map((item) => (
                 <span key={item.id} className={`badge${item.variant ? ` ${item.variant}` : ""}`}>
                   {item.content}
@@ -582,7 +586,7 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
               attention.tone ? ` worklist-topline-value--${attention.tone}` : ""
             }`}
           >
-            {attention.primary}
+            {compactAttentionReason}
           </span>
         </div>
         <div className="worklist-topline-item">

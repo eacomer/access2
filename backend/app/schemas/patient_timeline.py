@@ -307,6 +307,7 @@ class PatientTimelineWorklistSummaryItem(BaseModel):
     latest_open_escalation_id: UUID | None = None
     task_summary: PatientInterventionTaskSummary | None = None
     workflow_status: PatientWorkflowStatusSummary | None = None
+    attention_reason: str | None = None
 
 
 class PatientQueueImpactSnapshot(BaseModel):
