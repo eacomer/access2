@@ -40,6 +40,12 @@ from app.services.patient_timeline_service import (
     summarize_patient_timeline_events,
 )
 from app.services.patient_timeline_read_state_service import (
+    build_blocking_issue_label,
+    build_care_gap_label,
+    build_closure_readiness_label,
+    build_operational_status_snapshot,
+    build_resolution_confidence_label,
+    build_resolution_target_label,
     get_patient_timeline_filter_snapshot,
     get_patient_timeline_inbox_summary,
     get_patient_timeline_filtered_read_state,
@@ -540,6 +546,15 @@ def get_patient_timeline_event_endpoint(
         workflow_status=workflow_status,
         intervention_evidence_summary=intervention_evidence_summary,
     )
+    status_snapshot = build_operational_status_snapshot(
+        attention_summary=attention_summary,
+        task_summary=task_summary,
+    )
+    care_gap_label = build_care_gap_label(attention_summary=attention_summary)
+    blocking_issue_label = build_blocking_issue_label(attention_summary=attention_summary)
+    resolution_target_label = build_resolution_target_label(attention_summary=attention_summary)
+    closure_readiness_label = build_closure_readiness_label(attention_summary=attention_summary)
+    resolution_confidence_label = build_resolution_confidence_label(attention_summary=attention_summary)
 
     return PatientTimelineDetailResponse(
         item=item,
@@ -548,6 +563,12 @@ def get_patient_timeline_event_endpoint(
         workflow_status=workflow_status.as_dict(),
         intervention_evidence_summary=intervention_evidence_summary.as_dict(),
         attention_summary=attention_summary.as_dict(),
+        status_snapshot=status_snapshot,
+        care_gap_label=care_gap_label,
+        blocking_issue_label=blocking_issue_label,
+        resolution_target_label=resolution_target_label,
+        closure_readiness_label=closure_readiness_label,
+        resolution_confidence_label=resolution_confidence_label,
     )
 
 

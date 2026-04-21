@@ -3,6 +3,12 @@ import type { PatientAttentionSummary } from "../../types/patient";
 
 type Props = {
   summary: PatientAttentionSummary | null;
+  statusSnapshot?: string | null;
+  careGapLabel?: string | null;
+  blockingIssueLabel?: string | null;
+  resolutionTargetLabel?: string | null;
+  closureReadinessLabel?: string | null;
+  resolutionConfidenceLabel?: string | null;
 };
 
 const badgeVariantForUrgency = (urgency?: string | null) => {
@@ -15,7 +21,15 @@ const badgeVariantForUrgency = (urgency?: string | null) => {
   return "badge--positive";
 };
 
-export default function PatientWhyNowSummary({ summary }: Props) {
+export default function PatientWhyNowSummary({
+  summary,
+  statusSnapshot,
+  careGapLabel,
+  blockingIssueLabel,
+  resolutionTargetLabel,
+  closureReadinessLabel,
+  resolutionConfidenceLabel,
+}: Props) {
   const evidence = summary?.supporting_evidence?.filter(Boolean) ?? [];
   const urgencyLabel = summary?.urgency_level ? formatEventType(summary.urgency_level) : "Stable";
 
@@ -35,6 +49,42 @@ export default function PatientWhyNowSummary({ summary }: Props) {
       </div>
 
       <dl className="definition-list">
+        {statusSnapshot ? (
+          <div className="definition-item">
+            <dt>Status snapshot</dt>
+            <dd>{statusSnapshot}</dd>
+          </div>
+        ) : null}
+        {careGapLabel ? (
+          <div className="definition-item">
+            <dt>Care gap</dt>
+            <dd>{careGapLabel}</dd>
+          </div>
+        ) : null}
+        {blockingIssueLabel ? (
+          <div className="definition-item">
+            <dt>Blocker</dt>
+            <dd>{blockingIssueLabel}</dd>
+          </div>
+        ) : null}
+        {resolutionTargetLabel ? (
+          <div className="definition-item">
+            <dt>Done when</dt>
+            <dd>{resolutionTargetLabel}</dd>
+          </div>
+        ) : null}
+        {closureReadinessLabel ? (
+          <div className="definition-item">
+            <dt>Closure readiness</dt>
+            <dd>{closureReadinessLabel}</dd>
+          </div>
+        ) : null}
+        {resolutionConfidenceLabel ? (
+          <div className="definition-item">
+            <dt>Resolution confidence</dt>
+            <dd>{resolutionConfidenceLabel}</dd>
+          </div>
+        ) : null}
         <div className="definition-item">
           <dt>Why now</dt>
           <dd>{summary?.why_now ?? "No active workflow evidence is currently available."}</dd>

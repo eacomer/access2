@@ -80,6 +80,20 @@ export interface PatientTimelineWorklistSummaryItem {
   task_summary?: PatientInterventionTaskSummary | null;
   workflow_status?: PatientWorkflowStatusSummary | null;
   attention_reason?: string | null;
+  next_step?: string | null;
+  next_step_reason?: string | null;
+  care_gap_label?: string | null;
+  blocking_issue_label?: string | null;
+  resolution_target_label?: string | null;
+  closure_readiness_label?: string | null;
+  resolution_confidence_label?: string | null;
+  recommended_timeframe?: string | null;
+  workflow_age_label?: string | null;
+  recent_change_label?: string | null;
+  staleness_indicator?: string | null;
+  priority_band?: string | null;
+  priority_reason?: string | null;
+  status_snapshot?: string | null;
 }
 
 export interface PatientQueueImpactSnapshot {
@@ -89,6 +103,19 @@ export interface PatientQueueImpactSnapshot {
   completed_tasks_recently: number;
   completed_tasks_recently_window_days: number;
   operational_summary?: string | null;
+}
+
+export interface Patient {
+  id: string;
+  organization_id: string;
+  first_name: string;
+  last_name: string;
+  date_of_birth: string;
+  sex: string | null;
+  external_patient_id: string | null;
+  is_active: boolean;
+  created_at: string;
+  updated_at: string;
 }
 
 export interface PatientTimelineWorklistSummaryResponse {
@@ -158,6 +185,12 @@ export interface PatientTimelineDetailResponse {
   workflow_status?: PatientWorkflowStatusSummary | null;
   intervention_evidence_summary?: PatientInterventionEvidenceSummary | null;
   attention_summary?: PatientAttentionSummary | null;
+  status_snapshot?: string | null;
+  care_gap_label?: string | null;
+  blocking_issue_label?: string | null;
+  resolution_target_label?: string | null;
+  closure_readiness_label?: string | null;
+  resolution_confidence_label?: string | null;
 }
 
 export interface PatientEscalation {

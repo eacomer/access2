@@ -138,6 +138,7 @@ class EscalationWorklistSummary:
     highest_escalation_priority: str | None = None
     next_escalation_sla_due_at: datetime | None = None
     latest_open_escalation_id: UUID | None = None
+    latest_open_escalation_created_at: datetime | None = None
 
     def as_dict(self) -> Dict[str, Any]:
         return {
@@ -147,6 +148,7 @@ class EscalationWorklistSummary:
             "highest_escalation_priority": self.highest_escalation_priority,
             "next_escalation_sla_due_at": self.next_escalation_sla_due_at,
             "latest_open_escalation_id": self.latest_open_escalation_id,
+            "latest_open_escalation_created_at": self.latest_open_escalation_created_at,
         }
 
 
@@ -1224,6 +1226,7 @@ def build_escalation_worklist_summary(
         else None,
         next_escalation_sla_due_at=next_sla_due_at,
         latest_open_escalation_id=latest_open_escalation.id,
+        latest_open_escalation_created_at=latest_open_escalation.triggered_at,
     )
 
 

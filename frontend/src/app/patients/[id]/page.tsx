@@ -26,6 +26,7 @@ import {
   createInterventionTask,
   fetchEscalation,
   fetchInterventionTask,
+  fetchPatient,
   fetchPatientTimeline,
   fetchPatientTimelineEvent,
   fetchWorklistSummary,
@@ -40,6 +41,7 @@ import type { EscalationStatus, InterventionTask, PatientEscalation } from "../.
 
 type WorklistSummaryResponse = Awaited<ReturnType<typeof fetchWorklistSummary>>;
 type TimelineResponse = Awaited<ReturnType<typeof fetchPatientTimeline>>;
+type PatientResponse = Awaited<ReturnType<typeof fetchPatient>>;
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -223,10 +225,12 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   const resetPaginationQueryString = resetPaginationParams.toString();
   const isPaged = Boolean(cursorOccurredAt || cursorEventId);
 
+  let patient: PatientResponse | null = null;
   let worklist: WorklistSummaryResponse | null = null;
   let timeline: TimelineResponse | null = null;
   try {
-    [worklist, timeline] = await Promise.all([
+    [patient, worklist, timeline] = await Promise.all([
+      fetchPatient(patientId, { authRedirectPath: detailRetryHref }),
       fetchWorklistSummary({ patientIds: [patientId], limit: 1 }, { authRedirectPath: detailRetryHref }),
       fetchPatientTimeline(
         patientId,
@@ -263,7 +267,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
     );
   }
 
-  if (!worklist || !timeline) {
+  if (!patient || !worklist || !timeline) {
     return null;
   }
 
@@ -282,6 +286,11 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   const selectedEventTitleId = selectedEventId ? `timeline-${selectedEventId}-title` : null;
   const worklistSummary = worklist.items[0] ?? null;
   const patientName = worklistSummary?.patient_display_name ?? detail?.item.patient_id ?? patientId;
+  const validationScenarioPrefix = "validation-scenario:";
+  const validationScenario =
+    patient.external_patient_id?.startsWith(validationScenarioPrefix)
+      ? patient.external_patient_id.slice(validationScenarioPrefix.length).split(":")[0]
+      : null;
   const escalationIdFromDetail = detail?.item.related_escalation_id;
   const escalationIdFromEvidence =
     detail?.escalation_evidence?.latest_open_escalation_id ??
@@ -293,6 +302,16 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   const workflowStatus = detail?.workflow_status ?? worklistSummary?.workflow_status ?? null;
   const interventionEvidenceSummary = detail?.intervention_evidence_summary ?? null;
   const attentionSummary = detail?.attention_summary ?? null;
+  const detailStatusSnapshot = detail?.status_snapshot ?? worklistSummary?.status_snapshot ?? null;
+  const detailCareGapLabel = detail?.care_gap_label ?? worklistSummary?.care_gap_label ?? null;
+  const detailBlockingIssueLabel =
+    detail?.blocking_issue_label ?? worklistSummary?.blocking_issue_label ?? null;
+  const detailResolutionTargetLabel =
+    detail?.resolution_target_label ?? worklistSummary?.resolution_target_label ?? null;
+  const detailClosureReadinessLabel =
+    detail?.closure_readiness_label ?? worklistSummary?.closure_readiness_label ?? null;
+  const detailResolutionConfidenceLabel =
+    detail?.resolution_confidence_label ?? worklistSummary?.resolution_confidence_label ?? null;
 
   let activeEscalation: PatientEscalation | null = null;
   if (activeEscalationId) {
@@ -566,6 +585,12 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
       <Link href={queueReturnHref} className="back-link">
         {queueReturnLabel}
       </Link>
+      {validationScenario ? (
+        <div className="timeline-arrival-context">
+          <p className="worklist-context-label">Manual validation</p>
+          <p className="timeline-arrival-context-body">Validation scenario: {validationScenario}</p>
+        </div>
+      ) : null}
       <div className="patient-workflow-overview">
         <PatientWorkflowHeader
           patientName={patientName}
@@ -590,7 +615,15 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
         />
       </div>
       <PatientEvidenceSummary evidence={escalationEvidence} summary={worklistSummary} />
-      <PatientWhyNowSummary summary={attentionSummary} />
+      <PatientWhyNowSummary
+        summary={attentionSummary}
+        statusSnapshot={detailStatusSnapshot}
+        careGapLabel={detailCareGapLabel}
+        blockingIssueLabel={detailBlockingIssueLabel}
+        resolutionTargetLabel={detailResolutionTargetLabel}
+        closureReadinessLabel={detailClosureReadinessLabel}
+        resolutionConfidenceLabel={detailResolutionConfidenceLabel}
+      />
       <PatientInterventionEvidenceSummary
         summary={interventionEvidenceSummary}
         workflowStatus={workflowStatus}

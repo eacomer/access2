@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 from datetime import date, datetime
+from enum import Enum
 from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -9,7 +10,17 @@ from app.models.intervention_task import InterventionTaskPriority
 from app.models.patient_signal import EscalationSeverity, SignalType
 
 
+class WorkflowBootstrapScenario(str, Enum):
+    DEFAULT = "default"
+    OVERDUE_TASK = "overdue_task"
+    IN_PROGRESS_TASK = "in_progress_task"
+    OPEN_ESCALATION_NO_TASK = "open_escalation_no_task"
+    RECENT_COMPLETION = "recent_completion"
+    ROUTINE = "routine"
+
+
 class WorkflowBootstrapCreateRequest(BaseModel):
+    scenario: WorkflowBootstrapScenario = WorkflowBootstrapScenario.DEFAULT
     first_name: str = Field(..., min_length=1, max_length=255)
     last_name: str = Field(..., min_length=1, max_length=255)
     date_of_birth: date
@@ -39,14 +50,15 @@ class WorkflowBootstrapCreateRequest(BaseModel):
 class WorkflowBootstrapCreateResponse(BaseModel):
     organization_id: UUID
     patient_id: UUID
-    signal_id: UUID
-    escalation_id: UUID
-    status_event_id: UUID
+    signal_id: UUID | None
+    escalation_id: UUID | None
+    status_event_id: UUID | None
     task_id: UUID | None
     patient_full_name: str
-    signal_type: SignalType
-    escalation_type: str
-    escalation_severity: EscalationSeverity
+    signal_type: SignalType | None
+    escalation_type: str | None
+    escalation_severity: EscalationSeverity | None
     task_created: bool
+    scenario: WorkflowBootstrapScenario
 
     model_config = ConfigDict(from_attributes=True)

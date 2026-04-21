@@ -488,6 +488,20 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
   const recency = buildRecencyContext(summary);
   const actionCue = buildActionCue(summary);
   const compactAttentionReason = summary.attention_reason ?? attention.primary;
+  const compactNextStep = summary.next_step ?? actionCue?.label ?? "Standing by";
+  const compactNextStepReason = summary.next_step_reason ?? actionCue?.helper ?? null;
+  const compactCareGap = summary.care_gap_label ?? null;
+  const compactBlockingIssue = summary.blocking_issue_label ?? null;
+  const compactResolutionTarget = summary.resolution_target_label ?? null;
+  const compactClosureReadiness = summary.closure_readiness_label ?? null;
+  const compactResolutionConfidence = summary.resolution_confidence_label ?? null;
+  const compactRecommendedTimeframe = summary.recommended_timeframe ?? null;
+  const compactWorkflowAge = summary.workflow_age_label ?? null;
+  const compactRecentChange = summary.recent_change_label ?? null;
+  const compactStaleness = summary.staleness_indicator ?? null;
+  const compactPriorityBand = summary.priority_band ?? null;
+  const compactPriorityReason = summary.priority_reason ?? null;
+  const compactStatusSnapshot = summary.status_snapshot ?? null;
   const latestActivityTimestamp =
     taskSummary?.latest_active_task_created_at ?? summary.latest_event_occurred_at ?? null;
   const latestEventSummary = latestActivityTimestamp
@@ -596,8 +610,47 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
               actionCue?.tone ? ` worklist-action-pill--${actionCue.tone}` : ""
             }`}
           >
-            {actionCue?.label ?? "Standing by"}
+            {compactNextStep}
           </span>
+          {compactNextStepReason ? (
+            <span className="worklist-topline-helper">{compactNextStepReason}</span>
+          ) : null}
+          {compactStatusSnapshot ? (
+            <span className="worklist-topline-helper">{compactStatusSnapshot}</span>
+          ) : null}
+          {compactCareGap ? (
+            <span className="worklist-topline-helper">Care gap: {compactCareGap}</span>
+          ) : null}
+          {compactBlockingIssue ? (
+            <span className="worklist-topline-helper">Blocker: {compactBlockingIssue}</span>
+          ) : null}
+          {compactResolutionTarget ? (
+            <span className="worklist-topline-helper">Done: {compactResolutionTarget}</span>
+          ) : null}
+          {compactClosureReadiness ? (
+            <span className="worklist-topline-helper">Closure: {compactClosureReadiness}</span>
+          ) : null}
+          {compactResolutionConfidence ? (
+            <span className="worklist-topline-helper">Confidence: {compactResolutionConfidence}</span>
+          ) : null}
+          {compactRecommendedTimeframe ? (
+            <span className="worklist-topline-helper">Timeframe: {compactRecommendedTimeframe}</span>
+          ) : null}
+          {compactWorkflowAge ? (
+            <span className="worklist-topline-helper">Age: {compactWorkflowAge}</span>
+          ) : null}
+          {compactRecentChange ? (
+            <span className="worklist-topline-helper">{compactRecentChange}</span>
+          ) : null}
+          {compactStaleness ? (
+            <span className="worklist-topline-helper">Staleness: {compactStaleness}</span>
+          ) : null}
+          {compactPriorityBand ? (
+            <span className="worklist-topline-helper">Priority: {compactPriorityBand}</span>
+          ) : null}
+          {compactPriorityReason ? (
+            <span className="worklist-topline-helper">{compactPriorityReason}</span>
+          ) : null}
         </div>
         <div className="worklist-topline-item">
           <span className="worklist-topline-label">Latest</span>

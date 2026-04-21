@@ -475,6 +475,32 @@ def list_patient_timeline_worklist_summaries(
             workflow_status=workflow_status,
             completed_task_count=completed_task_count_map.get(patient.id, 0),
         )
+        workflow_age_label = _workflow_age_label(
+            task_summary=task_summary,
+            escalation_summary=escalation_summary,
+        )
+        recent_change_label = _recent_change_label(
+            task_summary=task_summary,
+            escalation_summary=escalation_summary,
+        )
+        staleness_indicator = _staleness_indicator(workflow_age_label)
+        recommended_timeframe = _recommended_timeframe(attention_summary)
+        next_step = _compact_next_step(attention_summary)
+        care_gap_label = _care_gap_label(attention_summary)
+        blocking_issue_label = _blocking_issue_label(attention_summary)
+        resolution_target_label = _resolution_target_label(attention_summary)
+        closure_readiness_label = _closure_readiness_label(attention_summary)
+        resolution_confidence_label = _resolution_confidence_label(attention_summary)
+        priority_band = _priority_band(
+            task_summary=task_summary,
+            recommended_timeframe=recommended_timeframe,
+            staleness_indicator=staleness_indicator,
+        )
+        priority_reason = _priority_reason(
+            task_summary=task_summary,
+            recommended_timeframe=recommended_timeframe,
+            staleness_indicator=staleness_indicator,
+        )
         summary_payload = escalation_summary.as_dict()
         task_summary_payload = task_summary.as_dict()
         items.append(
@@ -485,6 +511,25 @@ def list_patient_timeline_worklist_summaries(
                 "task_summary": task_summary_payload,
                 "workflow_status": workflow_status.as_dict(),
                 "attention_reason": _compact_attention_reason(attention_summary),
+                "next_step": next_step,
+                "next_step_reason": _compact_next_step_reason(attention_summary),
+                "care_gap_label": care_gap_label,
+                "blocking_issue_label": blocking_issue_label,
+                "resolution_target_label": resolution_target_label,
+                "closure_readiness_label": closure_readiness_label,
+                "resolution_confidence_label": resolution_confidence_label,
+                "recommended_timeframe": recommended_timeframe,
+                "workflow_age_label": workflow_age_label,
+                "recent_change_label": recent_change_label,
+                "staleness_indicator": staleness_indicator,
+                "priority_band": priority_band,
+                "priority_reason": priority_reason,
+                "status_snapshot": _status_snapshot(
+                    priority_band=priority_band,
+                    priority_reason=priority_reason,
+                    next_step=next_step,
+                    recommended_timeframe=recommended_timeframe,
+                ),
             }
         )
 
@@ -554,6 +599,32 @@ def _build_single_patient_worklist_summary(
         workflow_status=workflow_status,
         completed_task_count=completed_task_count_map.get(patient.id, 0),
     )
+    workflow_age_label = _workflow_age_label(
+        task_summary=task_summary,
+        escalation_summary=escalation_summary,
+    )
+    recent_change_label = _recent_change_label(
+        task_summary=task_summary,
+        escalation_summary=escalation_summary,
+    )
+    staleness_indicator = _staleness_indicator(workflow_age_label)
+    recommended_timeframe = _recommended_timeframe(attention_summary)
+    next_step = _compact_next_step(attention_summary)
+    care_gap_label = _care_gap_label(attention_summary)
+    blocking_issue_label = _blocking_issue_label(attention_summary)
+    resolution_target_label = _resolution_target_label(attention_summary)
+    closure_readiness_label = _closure_readiness_label(attention_summary)
+    resolution_confidence_label = _resolution_confidence_label(attention_summary)
+    priority_band = _priority_band(
+        task_summary=task_summary,
+        recommended_timeframe=recommended_timeframe,
+        staleness_indicator=staleness_indicator,
+    )
+    priority_reason = _priority_reason(
+        task_summary=task_summary,
+        recommended_timeframe=recommended_timeframe,
+        staleness_indicator=staleness_indicator,
+    )
     summary_payload = escalation_summary.as_dict()
     task_summary_payload = task_summary.as_dict()
     if has_unread_events is not None and payload["has_unread_events"] is not has_unread_events:
@@ -581,6 +652,25 @@ def _build_single_patient_worklist_summary(
                 "task_summary": task_summary_payload,
                 "workflow_status": workflow_status.as_dict(),
                 "attention_reason": _compact_attention_reason(attention_summary),
+                "next_step": next_step,
+                "next_step_reason": _compact_next_step_reason(attention_summary),
+                "care_gap_label": care_gap_label,
+                "blocking_issue_label": blocking_issue_label,
+                "resolution_target_label": resolution_target_label,
+                "closure_readiness_label": closure_readiness_label,
+                "resolution_confidence_label": resolution_confidence_label,
+                "recommended_timeframe": recommended_timeframe,
+                "workflow_age_label": workflow_age_label,
+                "recent_change_label": recent_change_label,
+                "staleness_indicator": staleness_indicator,
+                "priority_band": priority_band,
+                "priority_reason": priority_reason,
+                "status_snapshot": _status_snapshot(
+                    priority_band=priority_band,
+                    priority_reason=priority_reason,
+                    next_step=next_step,
+                    recommended_timeframe=recommended_timeframe,
+                ),
             }
         ],
         "total": total,
@@ -626,6 +716,52 @@ def _build_worklist_attention_summary(
     )
 
 
+def build_operational_status_snapshot(
+    *,
+    attention_summary,
+    task_summary: InterventionTaskSummary,
+    staleness_indicator: str | None = None,
+) -> str:
+    recommended_timeframe = _recommended_timeframe(attention_summary)
+    next_step = _compact_next_step(attention_summary)
+    priority_band = _priority_band(
+        task_summary=task_summary,
+        recommended_timeframe=recommended_timeframe,
+        staleness_indicator=staleness_indicator,
+    )
+    priority_reason = _priority_reason(
+        task_summary=task_summary,
+        recommended_timeframe=recommended_timeframe,
+        staleness_indicator=staleness_indicator,
+    )
+    return _status_snapshot(
+        priority_band=priority_band,
+        priority_reason=priority_reason,
+        next_step=next_step,
+        recommended_timeframe=recommended_timeframe,
+    )
+
+
+def build_care_gap_label(*, attention_summary) -> str:
+    return _care_gap_label(attention_summary)
+
+
+def build_blocking_issue_label(*, attention_summary) -> str:
+    return _blocking_issue_label(attention_summary)
+
+
+def build_resolution_target_label(*, attention_summary) -> str:
+    return _resolution_target_label(attention_summary)
+
+
+def build_closure_readiness_label(*, attention_summary) -> str:
+    return _closure_readiness_label(attention_summary)
+
+
+def build_resolution_confidence_label(*, attention_summary) -> str:
+    return _resolution_confidence_label(attention_summary)
+
+
 def _compact_attention_reason(attention_summary) -> str:
     if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
         return "Task overdue"
@@ -646,6 +782,277 @@ def _compact_attention_reason(attention_summary) -> str:
     ):
         return "Recently completed, monitor"
     return "Routine monitoring"
+
+
+def _compact_next_step(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Update task disposition"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "Continue active intervention"
+    if recommended_action == "Assign and start an outreach task.":
+        return "Start outreach"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Complete assigned task"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "Monitor recent completion"
+    return "Routine monitoring"
+
+
+def _compact_next_step_reason(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Task is overdue and needs disposition"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "An intervention is already underway"
+    if recommended_action == "Assign and start an outreach task.":
+        return "Escalation is open and no active task exists"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Assigned task is still open"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "Work was completed recently; monitor for follow-up"
+    return "No urgent workflow driver is present"
+
+
+def _care_gap_label(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Task disposition overdue"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "Intervention still in progress"
+    if recommended_action == "Assign and start an outreach task.":
+        return "Outreach not started"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Assigned intervention not completed"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "Monitoring follow-up pending"
+    return "No active care gap"
+
+
+def _blocking_issue_label(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Task not updated"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "Work not yet completed"
+    if recommended_action == "Assign and start an outreach task.":
+        return "No outreach started"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Assigned task still open"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "Follow-up window still open"
+    return "No active blocker"
+
+
+def _resolution_target_label(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Update or close the task"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "Complete the intervention"
+    if recommended_action == "Assign and start an outreach task.":
+        return "Start outreach and document action"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Finish the assigned intervention"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "Confirm no new follow-up is needed"
+    return "Continue routine monitoring"
+
+
+def _closure_readiness_label(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Not ready for closure"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "Not ready for closure"
+    if recommended_action == "Assign and start an outreach task.":
+        return "Not ready for closure"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Not ready for closure"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "Near closure"
+    return "Ready for routine monitoring"
+
+
+def _resolution_confidence_label(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Low confidence"
+    if recommended_action == "Assign and start an outreach task.":
+        return "Low confidence"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Low confidence"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "Moderate confidence"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "High confidence"
+    return "High confidence"
+
+
+def _recommended_timeframe(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Today"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "Today"
+    if recommended_action == "Assign and start an outreach task.":
+        return "Within 24 hours"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Within 24 hours"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "This week"
+    return "Routine"
+
+
+def _workflow_age_label(
+    *,
+    task_summary: InterventionTaskSummary,
+    escalation_summary: EscalationWorklistSummary,
+    reference_time: datetime | None = None,
+) -> str | None:
+    source_timestamp = (
+        task_summary.latest_active_task_created_at
+        or escalation_summary.latest_open_escalation_created_at
+    )
+    if source_timestamp is None:
+        return None
+
+    reference = _normalize_age_datetime(reference_time or datetime.now(timezone.utc))
+    opened_at = _normalize_age_datetime(source_timestamp)
+    age_days = max(0, (reference - opened_at).days)
+    if age_days < 1:
+        return "New today"
+    if age_days <= 3:
+        return "1–3 days open"
+    if age_days <= 7:
+        return "4–7 days open"
+    return "Over 7 days open"
+
+
+def _recent_change_label(
+    *,
+    task_summary: InterventionTaskSummary,
+    escalation_summary: EscalationWorklistSummary,
+    reference_time: datetime | None = None,
+) -> str | None:
+    source_timestamp = (
+        task_summary.latest_active_task_created_at
+        or escalation_summary.latest_open_escalation_created_at
+    )
+    if source_timestamp is None:
+        return None
+
+    reference = _normalize_age_datetime(reference_time or datetime.now(timezone.utc))
+    changed_at = _normalize_age_datetime(source_timestamp)
+    day_delta = (reference.date() - changed_at.date()).days
+    if day_delta == 0:
+        return "Updated today"
+    if day_delta == 1:
+        return "Updated yesterday"
+    return None
+
+
+def _staleness_indicator(workflow_age_label: str | None) -> str | None:
+    if workflow_age_label in {"New today", "1–3 days open"}:
+        return "Fresh"
+    if workflow_age_label == "4–7 days open":
+        return "Aging"
+    if workflow_age_label == "Over 7 days open":
+        return "Stale"
+    return None
+
+
+def _priority_band(
+    *,
+    task_summary: InterventionTaskSummary,
+    recommended_timeframe: str,
+    staleness_indicator: str | None,
+) -> str:
+    if (
+        task_summary.overdue_task_count > 0
+        or recommended_timeframe == "Today"
+        or staleness_indicator == "Stale"
+    ):
+        return "High"
+    if (
+        task_summary.in_progress_task_count > 0
+        or recommended_timeframe == "Within 24 hours"
+        or staleness_indicator == "Aging"
+    ):
+        return "Medium"
+    return "Low"
+
+
+def _priority_reason(
+    *,
+    task_summary: InterventionTaskSummary,
+    recommended_timeframe: str,
+    staleness_indicator: str | None,
+) -> str:
+    if task_summary.overdue_task_count > 0:
+        return "Task is overdue"
+    if recommended_timeframe == "Today":
+        return "Action is due today"
+    if staleness_indicator == "Stale":
+        return "Workflow has become stale"
+    if task_summary.in_progress_task_count > 0:
+        return "Work is already in progress"
+    if recommended_timeframe == "Within 24 hours":
+        return "Action is needed within 24 hours"
+    if staleness_indicator == "Aging":
+        return "Workflow is aging"
+    if recommended_timeframe == "This week":
+        return "Work was completed recently"
+    return "No urgent workflow driver is present"
+
+
+def _status_snapshot(
+    *,
+    priority_band: str,
+    priority_reason: str,
+    next_step: str,
+    recommended_timeframe: str,
+) -> str:
+    normalized_reason = priority_reason[:1].lower() + priority_reason[1:]
+    if recommended_timeframe == "Today":
+        if "today" in normalized_reason:
+            return f"{priority_band} priority: {normalized_reason}"
+        return f"{priority_band} priority: {normalized_reason} today"
+    if recommended_timeframe == "Within 24 hours":
+        return f"{priority_band} priority: {normalized_reason}"
+    if recommended_timeframe == "This week":
+        return f"{priority_band} priority: {normalized_reason}, {next_step.lower()} this week"
+    return f"{priority_band} priority: {normalized_reason}"
+
+
+def _normalize_age_datetime(value: datetime) -> datetime:
+    if value.tzinfo is None:
+        return value.replace(tzinfo=timezone.utc)
+    return value.astimezone(timezone.utc)
 
 
 def _build_queue_impact_snapshot(

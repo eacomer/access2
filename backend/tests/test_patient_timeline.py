@@ -3234,6 +3234,17 @@ def test_patient_workflow_status_worklist_summary_includes_status(
     assert status["status_key"] == "task_overdue"
     assert status["has_active_work"] is True
     assert row["attention_reason"] == "Task overdue"
+    assert row["next_step"] == "Update task disposition"
+    assert row["next_step_reason"] == "Task is overdue and needs disposition"
+    assert row["care_gap_label"] == "Task disposition overdue"
+    assert row["blocking_issue_label"] == "Task not updated"
+    assert row["resolution_target_label"] == "Update or close the task"
+    assert row["closure_readiness_label"] == "Not ready for closure"
+    assert row["resolution_confidence_label"] == "Low confidence"
+    assert row["recommended_timeframe"] == "Today"
+    assert row["priority_band"] == "High"
+    assert row["priority_reason"] == "Task is overdue"
+    assert row["status_snapshot"] == "High priority: task is overdue today"
 
 
 def test_patient_worklist_attention_reason_open_escalation_without_task(
@@ -3247,6 +3258,17 @@ def test_patient_worklist_attention_reason_open_escalation_without_task(
     row = _find_worklist_item(payload, env["patient_id"])
 
     assert row["attention_reason"] == "Open escalation, no active outreach"
+    assert row["next_step"] == "Start outreach"
+    assert row["next_step_reason"] == "Escalation is open and no active task exists"
+    assert row["care_gap_label"] == "Outreach not started"
+    assert row["blocking_issue_label"] == "No outreach started"
+    assert row["resolution_target_label"] == "Start outreach and document action"
+    assert row["closure_readiness_label"] == "Not ready for closure"
+    assert row["resolution_confidence_label"] == "Low confidence"
+    assert row["recommended_timeframe"] == "Within 24 hours"
+    assert row["priority_band"] == "Medium"
+    assert row["priority_reason"] == "Action is needed within 24 hours"
+    assert row["status_snapshot"] == "Medium priority: action is needed within 24 hours"
 
 
 def test_patient_worklist_attention_reason_in_progress_task(
@@ -3266,6 +3288,39 @@ def test_patient_worklist_attention_reason_in_progress_task(
     row = _find_worklist_item(payload, env["patient_id"])
 
     assert row["attention_reason"] == "Task in progress"
+    assert row["next_step"] == "Continue active intervention"
+    assert row["next_step_reason"] == "An intervention is already underway"
+    assert row["care_gap_label"] == "Intervention still in progress"
+    assert row["blocking_issue_label"] == "Work not yet completed"
+    assert row["resolution_target_label"] == "Complete the intervention"
+    assert row["closure_readiness_label"] == "Not ready for closure"
+    assert row["resolution_confidence_label"] == "Moderate confidence"
+    assert row["recommended_timeframe"] == "Today"
+    assert row["priority_band"] == "High"
+    assert row["priority_reason"] == "Action is due today"
+    assert row["status_snapshot"] == "High priority: action is due today"
+
+
+def test_patient_worklist_blocking_issue_open_task_pending_work(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-blocking-open-task")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    _create_task(client, env["headers"], signal_payload["escalation"]["id"], title="Assigned outreach")
+
+    payload = _get_worklist_summary(client, env["headers"])
+    row = _find_worklist_item(payload, env["patient_id"])
+
+    assert row["attention_reason"] == "Open task needs start/completion"
+    assert row["next_step"] == "Complete assigned task"
+    assert row["next_step_reason"] == "Assigned task is still open"
+    assert row["care_gap_label"] == "Assigned intervention not completed"
+    assert row["blocking_issue_label"] == "Assigned task still open"
+    assert row["resolution_target_label"] == "Finish the assigned intervention"
+    assert row["closure_readiness_label"] == "Not ready for closure"
+    assert row["resolution_confidence_label"] == "Low confidence"
+    assert row["recommended_timeframe"] == "Within 24 hours"
 
 
 def test_patient_worklist_attention_reason_recent_completion_monitor(
@@ -3288,6 +3343,99 @@ def test_patient_worklist_attention_reason_recent_completion_monitor(
     row = _find_worklist_item(payload, env["patient_id"])
 
     assert row["attention_reason"] == "Recently completed, monitor"
+    assert row["next_step"] == "Monitor recent completion"
+    assert row["next_step_reason"] == "Work was completed recently; monitor for follow-up"
+    assert row["care_gap_label"] == "Monitoring follow-up pending"
+    assert row["blocking_issue_label"] == "Follow-up window still open"
+    assert row["resolution_target_label"] == "Confirm no new follow-up is needed"
+    assert row["closure_readiness_label"] == "Near closure"
+    assert row["resolution_confidence_label"] == "High confidence"
+    assert row["recommended_timeframe"] == "This week"
+    assert row["priority_band"] == "Low"
+    assert row["priority_reason"] == "Work was completed recently"
+    assert row["status_snapshot"] == "Low priority: work was completed recently, monitor recent completion this week"
+
+
+def test_patient_worklist_next_step_reason_routine_monitoring(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-next-step-routine")
+    _create_care_update(client, env["headers"], env["patient_id"], summary="Routine note")
+
+    payload = _get_worklist_summary(client, env["headers"])
+    row = _find_worklist_item(payload, env["patient_id"])
+
+    assert row["attention_reason"] == "Routine monitoring"
+    assert row["next_step"] == "Routine monitoring"
+    assert row["next_step_reason"] == "No urgent workflow driver is present"
+    assert row["care_gap_label"] == "No active care gap"
+    assert row["blocking_issue_label"] == "No active blocker"
+    assert row["resolution_target_label"] == "Continue routine monitoring"
+    assert row["closure_readiness_label"] == "Ready for routine monitoring"
+    assert row["resolution_confidence_label"] == "High confidence"
+    assert row["recommended_timeframe"] == "Routine"
+    assert row["priority_band"] == "Low"
+    assert row["priority_reason"] == "No urgent workflow driver is present"
+    assert row["status_snapshot"] == "Low priority: no urgent workflow driver is present"
+
+
+@pytest.mark.parametrize(
+    ("days_old", "expected_label", "expected_staleness", "expected_priority_band", "expected_priority_reason"),
+    [
+        (0, "New today", "Fresh", "Medium", "Action is needed within 24 hours"),
+        (1, "1–3 days open", "Fresh", "Medium", "Action is needed within 24 hours"),
+        (2, "1–3 days open", "Fresh", "Medium", "Action is needed within 24 hours"),
+        (5, "4–7 days open", "Aging", "Medium", "Action is needed within 24 hours"),
+        (8, "Over 7 days open", "Stale", "High", "Workflow has become stale"),
+    ],
+)
+def test_patient_worklist_workflow_age_label_for_open_task(
+    client: TestClient,
+    db_session: Session,
+    days_old: int,
+    expected_label: str,
+    expected_staleness: str,
+    expected_priority_band: str,
+    expected_priority_reason: str,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug=f"worklist-age-{days_old}")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    task_id = _create_task(client, env["headers"], signal_payload["escalation"]["id"])
+    task = db_session.get(InterventionTask, uuid.UUID(task_id))
+    assert task is not None
+    task.created_at = datetime.now(timezone.utc) - timedelta(days=days_old)
+    db_session.commit()
+
+    payload = _get_worklist_summary(client, env["headers"])
+    row = _find_worklist_item(payload, env["patient_id"])
+
+    assert row["workflow_age_label"] == expected_label
+    if days_old == 0:
+        assert row["recent_change_label"] == "Updated today"
+    elif days_old == 1:
+        assert row["recent_change_label"] == "Updated yesterday"
+    else:
+        assert row["recent_change_label"] is None
+    assert row["staleness_indicator"] == expected_staleness
+    assert row["priority_band"] == expected_priority_band
+    assert row["priority_reason"] == expected_priority_reason
+
+
+def test_patient_worklist_staleness_indicator_omitted_without_age_source(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-staleness-none")
+    _create_care_update(client, env["headers"], env["patient_id"], summary="Routine note")
+
+    payload = _get_worklist_summary(client, env["headers"])
+    row = _find_worklist_item(payload, env["patient_id"])
+
+    assert row["workflow_age_label"] is None
+    assert row["staleness_indicator"] is None
+    assert row["priority_band"] == "Low"
+    assert row["priority_reason"] == "No urgent workflow driver is present"
 
 
 def test_patient_workflow_status_worklist_cross_org_isolation(
@@ -4684,9 +4832,16 @@ def test_patient_attention_summary_recommends_task_for_open_escalation_without_a
     _create_signal(client, env["headers"], env["patient_id"])
 
     summary = _get_attention_summary(client, env["headers"], env["patient_id"])
+    payload = _get_timeline_detail_payload(client, env["headers"], env["patient_id"])
 
     assert summary["primary_driver"] == "escalation"
     assert summary["urgency_level"] == "active"
+    assert payload["status_snapshot"] == "Medium priority: action is needed within 24 hours"
+    assert payload["care_gap_label"] == "Outreach not started"
+    assert payload["blocking_issue_label"] == "No outreach started"
+    assert payload["resolution_target_label"] == "Start outreach and document action"
+    assert payload["closure_readiness_label"] == "Not ready for closure"
+    assert payload["resolution_confidence_label"] == "Low confidence"
     assert summary["why_now"] == "There is an open escalation with no active intervention task."
     assert summary["recommended_next_action"] == "Assign and start an outreach task."
     assert any("open escalation" in item for item in summary["supporting_evidence"])
@@ -4707,9 +4862,15 @@ def test_patient_attention_summary_recommends_follow_through_for_in_progress_tas
     assert start_resp.status_code == 200
 
     summary = _get_attention_summary(client, env["headers"], env["patient_id"])
+    payload = _get_timeline_detail_payload(client, env["headers"], env["patient_id"])
 
     assert summary["primary_driver"] == "task"
     assert summary["urgency_level"] == "active"
+    assert payload["care_gap_label"] == "Intervention still in progress"
+    assert payload["blocking_issue_label"] == "Work not yet completed"
+    assert payload["resolution_target_label"] == "Complete the intervention"
+    assert payload["closure_readiness_label"] == "Not ready for closure"
+    assert payload["resolution_confidence_label"] == "Moderate confidence"
     assert summary["why_now"] == "Active intervention work is already in progress."
     assert summary["recommended_next_action"] == (
         "Follow through on the current task and document the outcome."
@@ -4731,9 +4892,16 @@ def test_patient_attention_summary_prioritizes_overdue_task(
     )
 
     summary = _get_attention_summary(client, env["headers"], env["patient_id"])
+    payload = _get_timeline_detail_payload(client, env["headers"], env["patient_id"])
 
     assert summary["primary_driver"] == "task"
     assert summary["urgency_level"] == "overdue"
+    assert payload["status_snapshot"] == "High priority: task is overdue today"
+    assert payload["care_gap_label"] == "Task disposition overdue"
+    assert payload["blocking_issue_label"] == "Task not updated"
+    assert payload["resolution_target_label"] == "Update or close the task"
+    assert payload["closure_readiness_label"] == "Not ready for closure"
+    assert payload["resolution_confidence_label"] == "Low confidence"
     assert summary["why_now"] == "One or more active intervention tasks are overdue."
     assert summary["recommended_next_action"] == (
         "Complete immediate follow-up or update the task disposition."
@@ -4758,9 +4926,15 @@ def test_patient_attention_summary_summarizes_completed_workflow(
     assert resolve_resp.status_code == 200
 
     summary = _get_attention_summary(client, env["headers"], env["patient_id"])
+    payload = _get_timeline_detail_payload(client, env["headers"], env["patient_id"])
 
     assert summary["primary_driver"] == "monitoring"
     assert summary["urgency_level"] == "stable"
+    assert payload["care_gap_label"] == "Monitoring follow-up pending"
+    assert payload["blocking_issue_label"] == "Follow-up window still open"
+    assert payload["resolution_target_label"] == "Confirm no new follow-up is needed"
+    assert payload["closure_readiness_label"] == "Near closure"
+    assert payload["resolution_confidence_label"] == "High confidence"
     assert summary["why_now"] == (
         "Recent intervention work is completed and no escalation is currently open."
     )
@@ -4778,9 +4952,16 @@ def test_patient_attention_summary_handles_minimal_workflow_state(
     _create_care_update(client, env["headers"], env["patient_id"], summary="Routine note")
 
     summary = _get_attention_summary(client, env["headers"], env["patient_id"])
+    payload = _get_timeline_detail_payload(client, env["headers"], env["patient_id"])
 
     assert summary["primary_driver"] == "monitoring"
     assert summary["urgency_level"] == "stable"
+    assert payload["status_snapshot"] == "Low priority: no urgent workflow driver is present"
+    assert payload["care_gap_label"] == "No active care gap"
+    assert payload["blocking_issue_label"] == "No active blocker"
+    assert payload["resolution_target_label"] == "Continue routine monitoring"
+    assert payload["closure_readiness_label"] == "Ready for routine monitoring"
+    assert payload["resolution_confidence_label"] == "High confidence"
     assert summary["why_now"] == "No active escalation or intervention task is currently recorded."
     assert summary["recommended_next_action"] == "Continue routine monitoring."
     assert summary["supporting_evidence"] == ["1 timeline evidence event"]

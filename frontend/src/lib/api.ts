@@ -11,6 +11,7 @@ import type {
   PatientTimelineListResponse,
   PatientTimelineWorklistSummaryResponse,
   PatientTimelineFilters,
+  Patient,
   EscalationStatus,
   InterventionTask,
   InterventionTaskCreateRequest,
@@ -167,6 +168,15 @@ export async function fetchPatientTimeline(
   return apiFetch<PatientTimelineListResponse>(`/patients/${patientId}/timeline`, {
     query,
     auth: { redirectPath: requestOptions.authRedirectPath },
+  });
+}
+
+export async function fetchPatient(
+  patientId: string,
+  options: AuthenticatedRequestOptions = {},
+): Promise<Patient> {
+  return apiFetch<Patient>(`/patients/${patientId}`, {
+    auth: { redirectPath: options.authRedirectPath },
   });
 }
 
