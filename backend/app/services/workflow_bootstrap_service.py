@@ -1,10 +1,12 @@
 from __future__ import annotations
 
 from datetime import datetime, timedelta, timezone
+from uuid import uuid4
 
 from sqlalchemy.orm import Session
 
 from app.models.intervention_task import InterventionTask
+from app.models.intervention_task import InterventionTaskStatus
 from app.models.patient import Patient
 from app.models.patient_signal import (
     EscalationStatus,
@@ -16,6 +18,7 @@ from app.models.user import User
 from app.schemas.admin_workflow import (
     WorkflowBootstrapCreateRequest,
     WorkflowBootstrapCreateResponse,
+    WorkflowBootstrapScenario,
 )
 
 
@@ -27,9 +30,24 @@ def create_workflow_bootstrap(
 ) -> WorkflowBootstrapCreateResponse:
     now = datetime.now(timezone.utc)
     recorded_at = _coerce_datetime(payload.recorded_at, fallback=now)
+    scenario = payload.scenario
+
+    if scenario == WorkflowBootstrapScenario.OVERDUE_TASK:
+        recorded_at = _scenario_datetime(payload.recorded_at, now - timedelta(days=3))
+    elif scenario == WorkflowBootstrapScenario.RECENT_COMPLETION:
+        recorded_at = _scenario_datetime(payload.recorded_at, now - timedelta(hours=6))
+    elif scenario == WorkflowBootstrapScenario.ROUTINE:
+        recorded_at = _scenario_datetime(payload.recorded_at, now - timedelta(days=14))
+
     sla_due_at = _coerce_optional_datetime(payload.escalation_sla_due_at)
     if sla_due_at is None:
-        sla_due_at = recorded_at + timedelta(hours=24)
+        sla_due_at = recorded_at + timedelta(
+            hours=48 if scenario != WorkflowBootstrapScenario.DEFAULT else 24
+        )
+
+    external_patient_id = _clean_optional(payload.external_patient_id)
+    if scenario != WorkflowBootstrapScenario.DEFAULT:
+        external_patient_id = f"validation-scenario:{scenario.value}:{uuid4().hex[:8]}"
 
     patient = Patient(
         organization_id=current_user.organization_id,
@@ -37,10 +55,27 @@ def create_workflow_bootstrap(
         last_name=payload.last_name.strip(),
         date_of_birth=payload.date_of_birth,
         sex=_clean_optional(payload.sex, lower=True),
-        external_patient_id=_clean_optional(payload.external_patient_id),
+        external_patient_id=external_patient_id,
     )
     db.add(patient)
     db.flush()
+
+    if scenario == WorkflowBootstrapScenario.ROUTINE:
+        db.commit()
+        return WorkflowBootstrapCreateResponse(
+            organization_id=current_user.organization_id,
+            patient_id=patient.id,
+            signal_id=None,
+            escalation_id=None,
+            status_event_id=None,
+            task_id=None,
+            patient_full_name=f"{patient.first_name} {patient.last_name}",
+            signal_type=None,
+            escalation_type=None,
+            escalation_severity=None,
+            task_created=False,
+            scenario=scenario,
+        )
 
     signal = PatientSignal(
         organization_id=current_user.organization_id,
@@ -83,11 +118,26 @@ def create_workflow_bootstrap(
     db.add(status_event)
     db.flush()
 
+    create_task = payload.create_open_task
+    if scenario == WorkflowBootstrapScenario.OPEN_ESCALATION_NO_TASK:
+        create_task = False
+    elif scenario in {
+        WorkflowBootstrapScenario.OVERDUE_TASK,
+        WorkflowBootstrapScenario.IN_PROGRESS_TASK,
+        WorkflowBootstrapScenario.RECENT_COMPLETION,
+    }:
+        create_task = True
+
     task = None
-    if payload.create_open_task:
+    if create_task:
         task_due_at = _coerce_optional_datetime(payload.task_due_at)
         if task_due_at is None:
-            task_due_at = recorded_at + timedelta(hours=8)
+            if scenario == WorkflowBootstrapScenario.OVERDUE_TASK:
+                task_due_at = now - timedelta(days=1)
+            elif scenario == WorkflowBootstrapScenario.RECENT_COMPLETION:
+                task_due_at = recorded_at + timedelta(hours=1)
+            else:
+                task_due_at = recorded_at + timedelta(hours=8)
 
         title = (
             payload.task_title.strip()
@@ -110,6 +160,33 @@ def create_workflow_bootstrap(
         db.add(task)
         db.flush()
 
+        if scenario == WorkflowBootstrapScenario.IN_PROGRESS_TASK:
+            task.status = InterventionTaskStatus.IN_PROGRESS
+            db.add(task)
+            db.flush()
+        elif scenario == WorkflowBootstrapScenario.RECENT_COMPLETION:
+            task.status = InterventionTaskStatus.COMPLETED
+            task.completed_at = now - timedelta(minutes=30)
+            task.completed_by_user_id = current_user.id
+            task.completion_note = "Manual validation recent completion"
+            escalation.status = EscalationStatus.RESOLVED
+            escalation.resolved_at = task.completed_at
+            escalation.resolution_notes = "Manual validation recent completion"
+            db.add(task)
+            db.add(escalation)
+            db.add(
+                PatientEscalationStatusEvent(
+                    organization_id=current_user.organization_id,
+                    patient_id=patient.id,
+                    escalation_id=escalation.id,
+                    status=EscalationStatus.RESOLVED,
+                    occurred_at=task.completed_at,
+                    note="Manual validation recent completion",
+                    actor_user_id=current_user.id,
+                )
+            )
+            db.flush()
+
     db.commit()
 
     return WorkflowBootstrapCreateResponse(
@@ -124,6 +201,7 @@ def create_workflow_bootstrap(
         escalation_type=escalation.escalation_type,
         escalation_severity=escalation.severity,
         task_created=task is not None,
+        scenario=scenario,
     )
 
 
@@ -150,3 +228,7 @@ def _coerce_optional_datetime(value: datetime | None) -> datetime | None:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+def _scenario_datetime(value: datetime | None, fallback: datetime) -> datetime:
+    return _coerce_datetime(value, fallback=fallback)
