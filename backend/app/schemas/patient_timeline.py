@@ -93,6 +93,7 @@ class PatientTimelineDetailResponse(BaseModel):
     escalation_evidence: PatientEscalationEvidence | None = None
     task_summary: "PatientInterventionTaskSummary | None" = None
     workflow_status: "PatientWorkflowStatusSummary | None" = None
+    intervention_evidence_summary: "PatientInterventionEvidenceSummary | None" = None
 
 
 class PatientInterventionTaskSummary(BaseModel):
@@ -114,6 +115,27 @@ class PatientWorkflowStatusSummary(BaseModel):
     primary_driver: str
     severity: str | None = None
     detail: str | None = None
+
+
+class PatientInterventionEvidenceSummaryItem(BaseModel):
+    title: str
+    status: str | None = None
+    occurred_at: datetime | None = None
+    detail: str | None = None
+
+
+class PatientInterventionEvidenceSummary(BaseModel):
+    total_escalations: int = Field(default=0, ge=0)
+    open_escalations: int = Field(default=0, ge=0)
+    total_tasks: int = Field(default=0, ge=0)
+    open_tasks: int = Field(default=0, ge=0)
+    in_progress_tasks: int = Field(default=0, ge=0)
+    completed_tasks: int = Field(default=0, ge=0)
+    canceled_tasks: int = Field(default=0, ge=0)
+    recent_trigger_reasons: list[PatientInterventionEvidenceSummaryItem] = Field(default_factory=list)
+    recent_completed_interventions: list[PatientInterventionEvidenceSummaryItem] = Field(default_factory=list)
+    current_open_work: list[PatientInterventionEvidenceSummaryItem] = Field(default_factory=list)
+    evidence_event_count: int = Field(default=0, ge=0)
 
 
 class PatientTimelineFilterParams(BaseModel):

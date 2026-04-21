@@ -283,6 +283,23 @@ def _get_workflow_status(
     return status
 
 
+def _get_intervention_evidence_summary(
+    client: TestClient,
+    headers: dict[str, str],
+    patient_id: str,
+    event_id: str | None = None,
+) -> dict:
+    payload = _get_timeline_detail_payload(
+        client,
+        headers,
+        patient_id,
+        event_id=event_id,
+    )
+    summary = payload.get("intervention_evidence_summary")
+    assert summary is not None
+    return summary
+
+
 def _bootstrap_user_without_patient(
     client: TestClient,
     db_session: Session,
@@ -1064,6 +1081,115 @@ def test_patient_workflow_status_detail_escalation_overdue(
     status = _get_workflow_status(client, env["headers"], env["patient_id"])
     assert status["status_key"] == "escalation_overdue"
     assert status["primary_driver"] == "escalation"
+
+
+def test_patient_timeline_detail_includes_intervention_evidence_summary(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="intervention-evidence-summary")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    _create_task(
+        client,
+        env["headers"],
+        escalation_id,
+        title="Open outreach",
+    )
+    in_progress_task_id = _create_task(
+        client,
+        env["headers"],
+        escalation_id,
+        title="In progress review",
+    )
+    start_resp = client.post(
+        f"/api/v1/tasks/{in_progress_task_id}/start",
+        headers=env["headers"],
+    )
+    assert start_resp.status_code == 200
+    completed_task_id = _create_task(
+        client,
+        env["headers"],
+        escalation_id,
+        title="Completed med review",
+    )
+    _complete_task_with_outcome(client, env["headers"], completed_task_id)
+    canceled_task_id = _create_task(
+        client,
+        env["headers"],
+        escalation_id,
+        title="Canceled duplicate outreach",
+    )
+    cancel_resp = client.post(
+        f"/api/v1/tasks/{canceled_task_id}/cancel",
+        headers=env["headers"],
+    )
+    assert cancel_resp.status_code == 200
+    _create_care_update(
+        client,
+        env["headers"],
+        env["patient_id"],
+        summary="Documented patient outreach",
+    )
+
+    summary = _get_intervention_evidence_summary(
+        client,
+        env["headers"],
+        env["patient_id"],
+    )
+
+    assert summary["total_escalations"] == 1
+    assert summary["open_escalations"] == 1
+    assert summary["total_tasks"] == 4
+    assert summary["open_tasks"] == 1
+    assert summary["in_progress_tasks"] == 1
+    assert summary["completed_tasks"] == 1
+    assert summary["canceled_tasks"] == 1
+    assert summary["evidence_event_count"] == 7
+    assert summary["recent_trigger_reasons"][0]["title"].startswith("Escalation:")
+    completed_titles = {
+        item["title"] for item in summary["recent_completed_interventions"]
+    }
+    assert "Documented patient outreach" in completed_titles
+    assert any(
+        item["title"] == "Open outreach" and item["status"] == "open"
+        for item in summary["current_open_work"]
+    )
+    assert any(
+        item["title"] == "In progress review" and item["status"] == "in_progress"
+        for item in summary["current_open_work"]
+    )
+
+
+def test_patient_timeline_detail_intervention_evidence_summary_minimal_state(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="intervention-evidence-minimal")
+    _create_care_update(
+        client,
+        env["headers"],
+        env["patient_id"],
+        summary="General care note",
+    )
+
+    summary = _get_intervention_evidence_summary(
+        client,
+        env["headers"],
+        env["patient_id"],
+    )
+
+    assert summary["total_escalations"] == 0
+    assert summary["open_escalations"] == 0
+    assert summary["total_tasks"] == 0
+    assert summary["open_tasks"] == 0
+    assert summary["in_progress_tasks"] == 0
+    assert summary["completed_tasks"] == 0
+    assert summary["canceled_tasks"] == 0
+    assert summary["recent_trigger_reasons"] == []
+    assert summary["current_open_work"] == []
+    assert summary["evidence_event_count"] == 1
+    assert summary["recent_completed_interventions"][0]["title"] == "General care note"
 
 
 def test_patient_timeline_since_returns_only_newer_items(

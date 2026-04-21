@@ -15,6 +15,27 @@ export interface PatientWorkflowStatusSummary {
   detail?: string | null;
 }
 
+export interface PatientInterventionEvidenceSummaryItem {
+  title: string;
+  status: string | null;
+  occurred_at: string | null;
+  detail: string | null;
+}
+
+export interface PatientInterventionEvidenceSummary {
+  total_escalations: number;
+  open_escalations: number;
+  total_tasks: number;
+  open_tasks: number;
+  in_progress_tasks: number;
+  completed_tasks: number;
+  canceled_tasks: number;
+  recent_trigger_reasons: PatientInterventionEvidenceSummaryItem[];
+  recent_completed_interventions: PatientInterventionEvidenceSummaryItem[];
+  current_open_work: PatientInterventionEvidenceSummaryItem[];
+  evidence_event_count: number;
+}
+
 export interface PatientInterventionTaskSummary {
   open_task_count: number;
   in_progress_task_count: number;
@@ -116,6 +137,7 @@ export interface PatientTimelineDetailResponse {
   escalation_evidence: PatientEscalationEvidence | null;
   task_summary?: PatientInterventionTaskSummary | null;
   workflow_status?: PatientWorkflowStatusSummary | null;
+  intervention_evidence_summary?: PatientInterventionEvidenceSummary | null;
 }
 
 export interface PatientEscalation {

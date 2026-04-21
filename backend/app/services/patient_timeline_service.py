@@ -229,6 +229,56 @@ class WorkflowStatusSummary:
 
 
 @dataclass(frozen=True)
+class InterventionEvidenceSummaryItem:
+    title: str
+    status: str | None = None
+    occurred_at: datetime | None = None
+    detail: str | None = None
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "title": self.title,
+            "status": self.status,
+            "occurred_at": self.occurred_at,
+            "detail": self.detail,
+        }
+
+
+@dataclass(frozen=True)
+class InterventionEvidenceSummary:
+    total_escalations: int = 0
+    open_escalations: int = 0
+    total_tasks: int = 0
+    open_tasks: int = 0
+    in_progress_tasks: int = 0
+    completed_tasks: int = 0
+    canceled_tasks: int = 0
+    recent_trigger_reasons: Tuple[InterventionEvidenceSummaryItem, ...] = ()
+    recent_completed_interventions: Tuple[InterventionEvidenceSummaryItem, ...] = ()
+    current_open_work: Tuple[InterventionEvidenceSummaryItem, ...] = ()
+    evidence_event_count: int = 0
+
+    def as_dict(self) -> Dict[str, Any]:
+        return {
+            "total_escalations": self.total_escalations,
+            "open_escalations": self.open_escalations,
+            "total_tasks": self.total_tasks,
+            "open_tasks": self.open_tasks,
+            "in_progress_tasks": self.in_progress_tasks,
+            "completed_tasks": self.completed_tasks,
+            "canceled_tasks": self.canceled_tasks,
+            "recent_trigger_reasons": [
+                item.as_dict() for item in self.recent_trigger_reasons
+            ],
+            "recent_completed_interventions": [
+                item.as_dict() for item in self.recent_completed_interventions
+            ],
+            "current_open_work": [item.as_dict() for item in self.current_open_work],
+            "evidence_event_count": self.evidence_event_count,
+        }
+
+
+@dataclass(frozen=True)
 class PatientTimelineFilters:
     event_types: Tuple[str, ...] | None = None
     occurred_after: datetime | None = None
@@ -1232,6 +1282,87 @@ def build_patient_task_summary(
     return summarize_intervention_tasks(tasks, reference_time=reference_time)
 
 
+def build_intervention_evidence_summary(
+    db: Session,
+    *,
+    context: RequestContext,
+    patient: Patient,
+) -> InterventionEvidenceSummary:
+    ensure_tenant_scoped_resource(context=context, resource=patient)
+
+    dataset = _collect_patient_events(db=db, patient=patient)
+    escalations = list(_load_escalations(db=db, patient=patient))
+    tasks = list(_load_tasks(db=db, patient=patient))
+
+    sorted_events = sorted(dataset.events, key=_timeline_sort_key, reverse=True)
+    trigger_events = [
+        event for event in sorted_events if event["event_type"] == EVENT_TYPE_ESCALATION
+    ][:3]
+    completed_events = [
+        event
+        for event in sorted_events
+        if event["event_type"] in (EVENT_TYPE_TASK_OUTCOME, EVENT_TYPE_CARE_UPDATE)
+    ][:3]
+    open_work_events = [
+        event
+        for event in sorted_events
+        if _is_intervention_summary_open_work_item(
+            event,
+            dataset.task_status_index,
+            dataset.escalation_status_index,
+        )
+        and event["event_type"]
+        in (
+            EVENT_TYPE_ESCALATION,
+            EVENT_TYPE_TASK_CREATED,
+            EVENT_TYPE_TASK_DUE_UPCOMING,
+            EVENT_TYPE_TASK_DUE_OVERDUE,
+            EVENT_TYPE_ESCALATION_SLA_AT_RISK,
+            EVENT_TYPE_ESCALATION_SLA_OVERDUE,
+        )
+    ][:3]
+    evidence_events = [
+        event
+        for event in dataset.events
+        if event["event_type"]
+        in (
+            EVENT_TYPE_ESCALATION,
+            EVENT_TYPE_ESCALATION_STATUS,
+            EVENT_TYPE_TASK_CREATED,
+            EVENT_TYPE_TASK_OUTCOME,
+            EVENT_TYPE_CARE_UPDATE,
+            EVENT_TYPE_TASK_DUE_UPCOMING,
+            EVENT_TYPE_TASK_DUE_OVERDUE,
+            EVENT_TYPE_ESCALATION_SLA_AT_RISK,
+            EVENT_TYPE_ESCALATION_SLA_OVERDUE,
+        )
+    ]
+
+    return InterventionEvidenceSummary(
+        total_escalations=len(escalations),
+        open_escalations=sum(
+            1 for escalation in escalations if escalation.status in UNRESOLVED_ESCALATION_STATUSES
+        ),
+        total_tasks=len(tasks),
+        open_tasks=sum(1 for task in tasks if task.status == InterventionTaskStatus.OPEN),
+        in_progress_tasks=sum(
+            1 for task in tasks if task.status == InterventionTaskStatus.IN_PROGRESS
+        ),
+        completed_tasks=sum(
+            1 for task in tasks if task.status == InterventionTaskStatus.COMPLETED
+        ),
+        canceled_tasks=sum(
+            1 for task in tasks if task.status == InterventionTaskStatus.CANCELLED
+        ),
+        recent_trigger_reasons=tuple(_summary_item_from_event(event) for event in trigger_events),
+        recent_completed_interventions=tuple(
+            _summary_item_from_event(event) for event in completed_events
+        ),
+        current_open_work=tuple(_summary_item_from_event(event) for event in open_work_events),
+        evidence_event_count=len(evidence_events),
+    )
+
+
 def summarize_intervention_tasks(
     tasks: Iterable[InterventionTask],
     *,
@@ -1381,6 +1512,31 @@ def _timeline_sort_key(item: TimelineItemPayload) -> Tuple[datetime, str]:
         _normalize_datetime(item["occurred_at"]),
         item["event_id"],
     )
+
+
+def _summary_item_from_event(event: TimelineItemPayload) -> InterventionEvidenceSummaryItem:
+    return InterventionEvidenceSummaryItem(
+        title=event["display_title"],
+        status=event.get("status"),
+        occurred_at=event["occurred_at"],
+        detail=event.get("display_text"),
+    )
+
+
+def _is_intervention_summary_open_work_item(
+    item: TimelineItemPayload,
+    task_status_index: Dict[UUID, str],
+    escalation_status_index: Dict[UUID, str],
+) -> bool:
+    related_task_id = item.get("related_task_id")
+    if related_task_id is not None:
+        return task_status_index.get(related_task_id) in OPEN_TASK_STATUS_VALUES
+
+    related_escalation_id = item.get("related_escalation_id")
+    if related_escalation_id is not None:
+        return escalation_status_index.get(related_escalation_id) in UNRESOLVED_ESCALATION_STATUS_VALUES
+
+    return False
 
 
 def compare_timeline_positions(
