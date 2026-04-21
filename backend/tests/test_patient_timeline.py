@@ -995,6 +995,10 @@ def test_patient_timeline_detail_task_summary_overdue_and_in_progress(
         title="Upcoming",
         due_at=future_due_at,
     )
+    open_task = db_session.get(InterventionTask, uuid.UUID(open_task_id))
+    assert open_task is not None
+    open_task.created_at = datetime.now(timezone.utc) + timedelta(seconds=1)
+    db_session.commit()
 
     summary = _get_task_summary(client, env["headers"], env["patient_id"])
     assert summary["open_task_count"] == 2
