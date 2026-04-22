@@ -307,6 +307,17 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   const workflowStatus = detail?.workflow_status ?? worklistSummary?.workflow_status ?? null;
   const interventionEvidenceSummary = detail?.intervention_evidence_summary ?? null;
   const attentionSummary = detail?.attention_summary ?? null;
+  const resolvedAttentionSummary =
+    attentionSummary ??
+    (worklistSummary
+      ? {
+          why_now: worklistSummary.attention_reason ?? "No active workflow evidence is currently available.",
+          primary_driver: workflowStatus?.primary_driver ?? null,
+          recommended_next_action: worklistSummary.next_step ?? "Continue routine monitoring.",
+          supporting_evidence: worklistSummary.next_step_reason ? [worklistSummary.next_step_reason] : [],
+          urgency_level: workflowStatus?.severity ?? null,
+        }
+      : null);
   const detailStatusSnapshot = detail?.status_snapshot ?? worklistSummary?.status_snapshot ?? null;
   const detailCareGapLabel = detail?.care_gap_label ?? worklistSummary?.care_gap_label ?? null;
   const detailBlockingIssueLabel =
@@ -621,7 +632,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
       </div>
       <PatientEvidenceSummary evidence={escalationEvidence} summary={worklistSummary} />
       <PatientWhyNowSummary
-        summary={attentionSummary}
+        summary={resolvedAttentionSummary}
         statusSnapshot={detailStatusSnapshot}
         careGapLabel={detailCareGapLabel}
         blockingIssueLabel={detailBlockingIssueLabel}
