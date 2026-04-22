@@ -405,6 +405,47 @@ def test_admin_can_create_patient_detail_task(
     assert created_task_title in intervention_summary.text
 
 
+def test_admin_create_task_requires_title_before_submit(
+    browser,
+    wait,
+    base_url,
+    submit_bootstrap_enabled,
+):
+    if not submit_bootstrap_enabled:
+        pytest.skip(
+            "Set ACCESS2_E2E_SUBMIT_BOOTSTRAP=1 or pass --e2e-submit-bootstrap "
+            "to run this data-creating browser test."
+        )
+
+    login_as_admin(browser, wait, base_url)
+    create_workflow_bootstrap(
+        browser,
+        wait,
+        base_url,
+        scenario="open_escalation_no_task",
+        task_title="Unused bootstrap task title",
+        last_name="InvalidTask",
+    )
+
+    task_panel = wait_for_test_id(wait, "patient-task-action-panel")
+    assert "No active task is available" in task_panel.text
+
+    title_input = find_by_test_id_or_id(browser, wait, "patient-create-task-title", "task-title")
+    assert title_input.get_attribute("value") == ""
+    create_form = title_input.find_element(By.XPATH, "./ancestor::form")
+    create_submit = create_form.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
+    assert not create_submit.is_enabled()
+    assert not browser.find_elements(*by_test_id("patient-action-feedback"))
+
+    unchanged_task_panel = browser.find_element(*by_test_id("patient-task-action-panel"))
+    assert "No active task is available" in unchanged_task_panel.text
+    assert browser.find_element(*by_test_id("patient-create-task-form")).is_displayed()
+    assert not browser.find_element(*by_test_id("patient-create-task-submit")).is_enabled()
+
+    title_input.send_keys("Selenium now valid task")
+    wait.until(lambda driver: driver.find_element(*by_test_id("patient-create-task-submit")).is_enabled())
+
+
 def test_admin_worklist_refreshes_after_patient_detail_task_creation(
     browser,
     wait,
