@@ -76,15 +76,18 @@ export default function EscalationActionBar({ status, onAction, onFeedback }: Pr
   };
 
   return (
-    <div className="action-panel">
+    <div className="action-panel" data-testid="patient-escalation-action-panel">
       <div>
-        <p className="inline-helper">Current status: {formatStatus(status)}</p>
+        <p className="inline-helper" data-testid="patient-escalation-status">
+          Current status: {formatStatus(status)}
+        </p>
       </div>
       <div className="action-bar">
         {canAcknowledge && (
           <button
             type="button"
             className="button button--subtle"
+            data-testid="patient-escalation-acknowledge"
             disabled={isPending}
             onClick={() => runAction("acknowledge")}
           >
@@ -95,6 +98,7 @@ export default function EscalationActionBar({ status, onAction, onFeedback }: Pr
           <button
             type="button"
             className="button button--primary"
+            data-testid="patient-escalation-start"
             disabled={isPending}
             onClick={() => runAction("start")}
           >
@@ -105,6 +109,7 @@ export default function EscalationActionBar({ status, onAction, onFeedback }: Pr
           <button
             type="button"
             className="button button--danger"
+            data-testid="patient-escalation-resolve"
             disabled={isPending}
             onClick={() => runAction("resolve")}
           >

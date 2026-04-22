@@ -109,7 +109,7 @@ export default function PatientEvidenceSummary({ evidence, summary }: Props) {
     : "All escalation updates reviewed";
 
   return (
-    <section className="section-card">
+    <section className="section-card" data-testid="patient-escalation-summary">
       <div className="section-header">
         <div>
           <p className="eyebrow">Operational snapshot</p>
@@ -120,7 +120,7 @@ export default function PatientEvidenceSummary({ evidence, summary }: Props) {
       <dl className="definition-list">
         <div className="definition-item">
           <dt>Active status</dt>
-          <dd>{formatStatus(evidence, summary)}</dd>
+          <dd data-testid="patient-escalation-summary-status">{formatStatus(evidence, summary)}</dd>
         </div>
         <div className="definition-item">
           <dt>Priority</dt>

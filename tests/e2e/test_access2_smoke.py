@@ -329,3 +329,54 @@ def test_admin_can_create_patient_detail_task(
     )
     intervention_summary = browser.find_element(*by_test_id("patient-intervention-summary"))
     assert created_task_title in intervention_summary.text
+
+
+def test_admin_can_start_patient_detail_escalation(
+    browser,
+    wait,
+    base_url,
+    submit_bootstrap_enabled,
+):
+    if not submit_bootstrap_enabled:
+        pytest.skip(
+            "Set ACCESS2_E2E_SUBMIT_BOOTSTRAP=1 or pass --e2e-submit-bootstrap "
+            "to run this data-creating browser test."
+        )
+
+    login_as_admin(browser, wait, base_url)
+    create_workflow_bootstrap(
+        browser,
+        wait,
+        base_url,
+        scenario="open_escalation_no_task",
+        task_title="Unused bootstrap task title",
+        last_name="StartEscalation",
+    )
+
+    escalation_panel = wait_for_test_id(wait, "patient-escalation-action-panel")
+    assert "Current status: Open" in escalation_panel.text
+    assert browser.find_element(*by_test_id("patient-escalation-start")).is_displayed()
+    assert browser.find_element(*by_test_id("patient-escalation-acknowledge")).is_displayed()
+
+    browser.find_element(*by_test_id("patient-escalation-start")).click()
+
+    feedback = wait_for_action_feedback(browser, wait)
+    assert "Escalation marked as in progress." in feedback.text
+
+    wait.until(
+        lambda driver: "Current status: In Progress"
+        in driver.find_element(*by_test_id("patient-escalation-action-panel")).text
+    )
+    refreshed_panel = browser.find_element(*by_test_id("patient-escalation-action-panel"))
+    assert "Current status: In Progress" in refreshed_panel.text
+    assert not browser.find_elements(*by_test_id("patient-escalation-start"))
+    assert not browser.find_elements(*by_test_id("patient-escalation-acknowledge"))
+    assert browser.find_element(*by_test_id("patient-escalation-resolve")).is_displayed()
+
+    wait.until(
+        lambda driver: "In Progress"
+        in driver.find_element(*by_test_id("patient-escalation-summary-status")).text
+    )
+    escalation_summary = browser.find_element(*by_test_id("patient-escalation-summary"))
+    assert "Active status" in escalation_summary.text
+    assert "In Progress" in escalation_summary.text
