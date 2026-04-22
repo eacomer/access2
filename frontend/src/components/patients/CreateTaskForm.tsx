@@ -41,9 +41,11 @@ export default function CreateTaskForm({
   const [values, setValues] = useState<TaskFormValues>(createDefaultValues);
   const [isSubmitting, setIsSubmitting] = useState(false);
 
-  const resetForm = () => {
+  const resetForm = ({ clearFeedback = true }: { clearFeedback?: boolean } = {}) => {
     setValues(createDefaultValues());
-    onFeedback?.(null);
+    if (clearFeedback) {
+      onFeedback?.(null);
+    }
   };
 
   const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
@@ -62,8 +64,8 @@ export default function CreateTaskForm({
       });
       onFeedback?.(result);
       if (result.success) {
-        resetForm();
-        router.refresh();
+        resetForm({ clearFeedback: false });
+        window.setTimeout(() => router.refresh(), 1000);
       }
     } catch (error) {
       onFeedback?.({
@@ -82,7 +84,7 @@ export default function CreateTaskForm({
   const isSubmitDisabled = disabled || !values.title.trim() || isSubmitting;
 
   return (
-    <form className="form-stack" onSubmit={handleSubmit}>
+    <form className="form-stack" onSubmit={handleSubmit} data-testid="patient-create-task-form">
       <p className="inline-helper">
         New intervention task for {patientName}
         {contextLabel ? ` · ${contextLabel}` : ""}
@@ -93,6 +95,7 @@ export default function CreateTaskForm({
           id="task-title"
           className="form-control"
           type="text"
+          data-testid="patient-create-task-title"
           placeholder="Example: Call patient to confirm medication plan"
           value={values.title}
           disabled={disabled || isSubmitting}
@@ -106,6 +109,7 @@ export default function CreateTaskForm({
           <select
             id="task-priority"
             className="form-control"
+            data-testid="patient-create-task-priority"
             value={values.priority}
             disabled={disabled || isSubmitting}
             onChange={(event) => setField("priority", event.target.value as InterventionTaskPriority)}
@@ -122,6 +126,7 @@ export default function CreateTaskForm({
             id="task-due-at"
             className="form-control"
             type="datetime-local"
+            data-testid="patient-create-task-due-at"
             value={values.dueAt ?? ""}
             disabled={disabled || isSubmitting}
             onChange={(event) => setField("dueAt", event.target.value || null)}
@@ -133,6 +138,7 @@ export default function CreateTaskForm({
         <textarea
           id="task-description"
           className="form-control"
+          data-testid="patient-create-task-description"
           rows={2}
           placeholder="Add any quick context to keep the queue actionable"
           value={values.description ?? ""}
@@ -141,7 +147,12 @@ export default function CreateTaskForm({
         />
       </div>
       <div className="form-footer">
-        <button type="submit" className="button button--primary" disabled={isSubmitDisabled}>
+        <button
+          type="submit"
+          className="button button--primary"
+          disabled={isSubmitDisabled}
+          data-testid="patient-create-task-submit"
+        >
           Create task
         </button>
         <button

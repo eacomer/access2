@@ -62,11 +62,54 @@ def set_input_value(browser, test_id, value):
     )
 
 
-def create_overdue_task_bootstrap(browser, wait, base_url, task_title):
-    scenario = "overdue_task"
-    first_name = "Selenium"
-    last_name = "OverdueTask"
+def find_by_test_id_or_id(browser, wait, test_id, element_id):
+    return wait.until(
+        lambda driver: (
+            driver.find_elements(*by_test_id(test_id))
+            or driver.find_elements(By.ID, element_id)
+            or False
+        )[0]
+    )
 
+
+def wait_for_action_feedback(browser, wait):
+    def find_feedback(driver):
+        elements = (
+            driver.find_elements(*by_test_id("patient-action-feedback"))
+            or driver.find_elements(By.CSS_SELECTOR, ".action-feedback")
+        )
+        return elements[0] if elements else False
+
+    try:
+        return wait.until(find_feedback)
+    except TimeoutException as exc:
+        feedback = [
+            element.text.strip()
+            for element in browser.find_elements(By.CSS_SELECTOR, ".form-feedback")
+            if element.text.strip()
+        ]
+        task_panel_text = ""
+        panels = browser.find_elements(*by_test_id("patient-task-action-panel"))
+        if panels:
+            task_panel_text = panels[0].text
+        raise AssertionError(
+            "Patient action feedback did not render. "
+            f"URL={browser.current_url}. "
+            f"Feedback={feedback or ['no visible form feedback']}. "
+            f"Task panel={task_panel_text!r}"
+        ) from exc
+
+
+def create_workflow_bootstrap(
+    browser,
+    wait,
+    base_url,
+    *,
+    scenario,
+    task_title,
+    first_name="Selenium",
+    last_name="OverdueTask",
+):
     browser.get(f"{base_url}/admin/workflow-bootstrap")
     wait_for_test_id(wait, "workflow-bootstrap-form")
 
@@ -76,7 +119,7 @@ def create_overdue_task_bootstrap(browser, wait, base_url, task_title):
     browser.find_element(*by_test_id("workflow-bootstrap-last-name")).send_keys(last_name)
     set_input_value(browser, "workflow-bootstrap-date-of-birth", "1975-01-15")
     browser.find_element(*by_test_id("workflow-bootstrap-signal-notes")).send_keys(
-        "Selenium overdue task scenario signal note."
+        f"Selenium {scenario} scenario signal note."
     )
     task_title_input = browser.find_element(*by_test_id("workflow-bootstrap-task-title"))
     task_title_input.clear()
@@ -110,6 +153,16 @@ def create_overdue_task_bootstrap(browser, wait, base_url, task_title):
         "last_name": last_name,
         "task_title": task_title,
     }
+
+
+def create_overdue_task_bootstrap(browser, wait, base_url, task_title):
+    return create_workflow_bootstrap(
+        browser,
+        wait,
+        base_url,
+        scenario="overdue_task",
+        task_title=task_title,
+    )
 
 
 def test_login_page_loads(browser, wait, base_url):
@@ -200,7 +253,7 @@ def test_admin_can_complete_patient_detail_task(
     )
     browser.find_element(*by_test_id("patient-task-complete")).click()
 
-    feedback = wait.until(EC.visibility_of_element_located(by_test_id("patient-action-feedback")))
+    feedback = wait_for_action_feedback(browser, wait)
     assert "Task completed and documented." in feedback.text
 
     wait.until(
@@ -216,3 +269,63 @@ def test_admin_can_complete_patient_detail_task(
     )
     intervention_summary = browser.find_element(*by_test_id("patient-intervention-summary"))
     assert "1 completed task" in intervention_summary.text
+
+
+def test_admin_can_create_patient_detail_task(
+    browser,
+    wait,
+    base_url,
+    submit_bootstrap_enabled,
+):
+    if not submit_bootstrap_enabled:
+        pytest.skip(
+            "Set ACCESS2_E2E_SUBMIT_BOOTSTRAP=1 or pass --e2e-submit-bootstrap "
+            "to run this data-creating browser test."
+        )
+
+    login_as_admin(browser, wait, base_url)
+    created_task_title = "Selenium created detail task"
+    create_workflow_bootstrap(
+        browser,
+        wait,
+        base_url,
+        scenario="open_escalation_no_task",
+        task_title="Unused bootstrap task title",
+        last_name="CreateTask",
+    )
+
+    task_panel = wait_for_test_id(wait, "patient-task-action-panel")
+    assert "No active task is available" in task_panel.text
+
+    title_input = find_by_test_id_or_id(browser, wait, "patient-create-task-title", "task-title")
+    create_form = title_input.find_element(By.XPATH, "./ancestor::form")
+    assert "New intervention task" in create_form.text
+    title_input.send_keys(created_task_title)
+    find_by_test_id_or_id(
+        browser,
+        wait,
+        "patient-create-task-description",
+        "task-description",
+    ).send_keys(
+        "Created by Selenium from patient detail."
+    )
+    create_submit = create_form.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
+    assert create_submit.is_enabled()
+    create_submit.click()
+
+    feedback = wait_for_action_feedback(browser, wait)
+    assert "Task created successfully." in feedback.text
+
+    wait.until(
+        lambda driver: created_task_title
+        in driver.find_element(*by_test_id("patient-task-action-panel")).text
+    )
+    refreshed_task_panel = browser.find_element(*by_test_id("patient-task-action-panel"))
+    assert "Current status: Open" in refreshed_task_panel.text
+
+    wait.until(
+        lambda driver: "1 open task"
+        in driver.find_element(*by_test_id("patient-intervention-summary")).text
+    )
+    intervention_summary = browser.find_element(*by_test_id("patient-intervention-summary"))
+    assert created_task_title in intervention_summary.text
