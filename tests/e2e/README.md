@@ -74,6 +74,12 @@ To run only the guarded patient-detail escalation-action workflow:
 python -m pytest tests/e2e/test_access2_smoke.py::test_admin_can_start_patient_detail_escalation --e2e-submit-bootstrap
 ```
 
+To run only the guarded worklist refresh after patient-detail task creation workflow:
+
+```powershell
+python -m pytest tests/e2e/test_access2_smoke.py::test_admin_worklist_refreshes_after_patient_detail_task_creation --e2e-submit-bootstrap
+```
+
 Equivalent environment variables:
 
 - `ACCESS2_E2E_BASE_URL`
@@ -86,6 +92,6 @@ Equivalent environment variables:
 - Admin login succeeds and lands on `/patients`.
 - Authenticated admin can load `/admin/workflow-bootstrap`.
 - Optional workflow bootstrap submission verifies success feedback.
-- Optional patient-detail mutation tests verify task completion, task creation, and escalation start refresh behavior.
+- Optional patient-detail mutation tests verify task completion, task creation, escalation start refresh behavior, and worklist refresh after detail-page task creation.
 
 These tests assume the frontend and backend are already running; they do not start or seed services.

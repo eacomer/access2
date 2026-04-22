@@ -1,3 +1,5 @@
+from urllib.parse import urlparse
+
 import pytest
 from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
@@ -70,6 +72,47 @@ def find_by_test_id_or_id(browser, wait, test_id, element_id):
             or False
         )[0]
     )
+
+
+def current_patient_id(browser):
+    path_segments = [segment for segment in urlparse(browser.current_url).path.split("/") if segment]
+    assert len(path_segments) >= 2 and path_segments[-2] == "patients"
+    return path_segments[-1]
+
+
+def find_worklist_patient_card(driver, patient_id):
+    selectors = [
+        f'[data-testid="worklist-patient-card"][data-patient-id="{patient_id}"]',
+        f'a.worklist-card[href*="/patients/{patient_id}"]',
+    ]
+    return next(
+        (
+            element
+            for selector in selectors
+            for element in driver.find_elements(By.CSS_SELECTOR, selector)
+        ),
+        False,
+    )
+
+
+def wait_for_worklist_patient_card(wait, patient_id):
+    try:
+        return wait.until(lambda driver: find_worklist_patient_card(driver, patient_id))
+    except TimeoutException as exc:
+        driver = wait._driver
+        cards = [
+            element.text.strip()
+            for element in (
+                driver.find_elements(*by_test_id("worklist-patient-card"))
+                or driver.find_elements(By.CSS_SELECTOR, "a.worklist-card")
+            )
+            if element.text.strip()
+        ]
+        raise AssertionError(
+            "Filtered worklist did not render the expected patient card. "
+            f"URL={driver.current_url}. patient_id={patient_id}. "
+            f"Rendered cards={cards or ['no worklist patient cards rendered']}"
+        ) from exc
 
 
 def wait_for_action_feedback(browser, wait):
@@ -329,6 +372,72 @@ def test_admin_can_create_patient_detail_task(
     )
     intervention_summary = browser.find_element(*by_test_id("patient-intervention-summary"))
     assert created_task_title in intervention_summary.text
+
+
+def test_admin_worklist_refreshes_after_patient_detail_task_creation(
+    browser,
+    wait,
+    base_url,
+    submit_bootstrap_enabled,
+):
+    if not submit_bootstrap_enabled:
+        pytest.skip(
+            "Set ACCESS2_E2E_SUBMIT_BOOTSTRAP=1 or pass --e2e-submit-bootstrap "
+            "to run this data-creating browser test."
+        )
+
+    login_as_admin(browser, wait, base_url)
+    created_task_title = "Selenium worklist refresh task"
+    create_workflow_bootstrap(
+        browser,
+        wait,
+        base_url,
+        scenario="open_escalation_no_task",
+        task_title="Unused bootstrap task title",
+        last_name="WorklistRefresh",
+    )
+    patient_id = current_patient_id(browser)
+
+    task_panel = wait_for_test_id(wait, "patient-task-action-panel")
+    assert "No active task is available" in task_panel.text
+
+    title_input = find_by_test_id_or_id(browser, wait, "patient-create-task-title", "task-title")
+    create_form = title_input.find_element(By.XPATH, "./ancestor::form")
+    title_input.send_keys(created_task_title)
+    find_by_test_id_or_id(
+        browser,
+        wait,
+        "patient-create-task-description",
+        "task-description",
+    ).send_keys(
+        "Created by Selenium to verify worklist refresh."
+    )
+    create_submit = create_form.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
+    assert create_submit.is_enabled()
+    create_submit.click()
+
+    feedback = wait_for_action_feedback(browser, wait)
+    assert "Task created successfully." in feedback.text
+    wait.until(
+        lambda driver: created_task_title
+        in driver.find_element(*by_test_id("patient-task-action-panel")).text
+    )
+
+    browser.get(f"{base_url}/patients?patient_ids={patient_id}&active_only=0")
+    wait_for_test_id(wait, "patients-page")
+    wait_for_worklist_patient_card(wait, patient_id)
+
+    wait.until(
+        lambda driver: (
+            (card := find_worklist_patient_card(driver, patient_id))
+            and created_task_title in card.text
+        )
+    )
+    refreshed_card = wait_for_worklist_patient_card(wait, patient_id)
+    assert created_task_title in refreshed_card.text
+    assert "1 open task" in refreshed_card.text
+    assert "Open task needs start/completion" in refreshed_card.text
+    assert "Active task context" in refreshed_card.text
 
 
 def test_admin_can_start_patient_detail_escalation(

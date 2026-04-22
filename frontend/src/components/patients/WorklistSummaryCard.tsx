@@ -580,6 +580,8 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
     <Link
       href={detailLink.href}
       className="card card-link worklist-card worklist-card--triage"
+      data-testid="worklist-patient-card"
+      data-patient-id={summary.patient_id}
       aria-label={`${detailLink.helper} for ${summary.patient_display_name}`}
     >
       <header className="worklist-card-headline">
@@ -609,6 +611,7 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
         <div className="worklist-topline-item">
           <span className="worklist-topline-label">Reason</span>
           <span
+            data-testid="worklist-card-reason"
             className={`worklist-topline-value${
               attention.tone ? ` worklist-topline-value--${attention.tone}` : ""
             }`}
@@ -619,6 +622,7 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
         <div className="worklist-topline-item">
           <span className="worklist-topline-label">Action</span>
           <span
+            data-testid="worklist-card-action"
             className={`worklist-action-pill${
               actionCue?.tone ? ` worklist-action-pill--${actionCue.tone}` : ""
             }`}
@@ -741,7 +745,7 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
         </div>
 
         <div className="worklist-triage-block worklist-triage-block--metrics">
-          <p className="worklist-triage-label">
+          <p className="worklist-triage-label" data-testid="worklist-card-metric-label">
             {taskSummary ? "Task pulse" : "Escalation pulse"}
           </p>
           <div className="worklist-metric-row">
