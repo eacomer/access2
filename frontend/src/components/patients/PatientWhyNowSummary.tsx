@@ -38,7 +38,7 @@ export default function PatientWhyNowSummary({
   const urgencyLabel = summary?.urgency_level ? formatEventType(summary.urgency_level) : "Stable";
 
   return (
-    <section className="section-card">
+    <section className="section-card" data-testid="patient-why-now-summary">
       <div className="section-header">
         <div>
           <p className="eyebrow">Why now</p>

@@ -255,7 +255,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   } catch (error) {
     console.error(`Failed to load timeline for patient ${patientId}`, error);
     return (
-      <main className="page">
+      <main className="page" data-testid="patient-detail-page">
         <Link href={queueReturnHref} className="back-link">
           {queueReturnLabel}
         </Link>
@@ -597,12 +597,12 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   };
 
   return (
-    <main className="page">
+    <main className="page" data-testid="patient-detail-page">
       <Link href={queueReturnHref} className="back-link">
         {queueReturnLabel}
       </Link>
       {validationScenario ? (
-        <div className="timeline-arrival-context">
+        <div className="timeline-arrival-context" data-testid="patient-validation-scenario">
           <p className="worklist-context-label">Manual validation</p>
           <p className="timeline-arrival-context-body">Validation scenario: {validationScenario}</p>
         </div>

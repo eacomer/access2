@@ -6,6 +6,7 @@ import { FormEvent, useMemo, useState } from "react";
 import type {
   WorkflowBootstrapCreateResponse,
   WorkflowBootstrapEscalationSeverity,
+  WorkflowBootstrapScenario,
   WorkflowBootstrapSignalType,
 } from "../../types/admin";
 import type { InterventionTaskPriority } from "../../types/patient";
@@ -14,6 +15,7 @@ export type WorkflowBootstrapFormValues = {
   firstName: string;
   lastName: string;
   dateOfBirth: string;
+  scenario: WorkflowBootstrapScenario;
   signalType: WorkflowBootstrapSignalType;
   signalNotes?: string;
   escalationSeverity: WorkflowBootstrapEscalationSeverity;
@@ -55,10 +57,20 @@ const PRIORITY_OPTIONS: Array<{ value: InterventionTaskPriority; label: string }
   { value: "urgent", label: "Urgent" },
 ];
 
+const SCENARIO_OPTIONS: Array<{ value: WorkflowBootstrapScenario; label: string }> = [
+  { value: "default", label: "Default" },
+  { value: "overdue_task", label: "Overdue task" },
+  { value: "in_progress_task", label: "In-progress task" },
+  { value: "open_escalation_no_task", label: "Open escalation, no task" },
+  { value: "recent_completion", label: "Recent completion" },
+  { value: "routine", label: "Routine monitoring" },
+];
+
 const createDefaultValues = (): WorkflowBootstrapFormValues => ({
   firstName: "",
   lastName: "",
   dateOfBirth: "",
+  scenario: "default",
   signalType: "missed_check_in",
   signalNotes: "",
   escalationSeverity: "medium",
@@ -140,6 +152,7 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
           firstName: "",
           lastName: "",
           dateOfBirth: "",
+          scenario: "default",
           signalNotes: "",
           taskDescription: "",
           taskDueAt: null,
@@ -157,6 +170,24 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
 
   return (
     <form className="form-stack" onSubmit={handleSubmit} data-testid="workflow-bootstrap-form">
+      <div className="form-field">
+        <label htmlFor="scenario">Validation scenario</label>
+        <select
+          id="scenario"
+          className="form-control"
+          data-testid="workflow-bootstrap-scenario"
+          value={values.scenario}
+          disabled={isSubmitting}
+          onChange={(event) => setField("scenario", event.target.value as WorkflowBootstrapScenario)}
+        >
+          {SCENARIO_OPTIONS.map((option) => (
+            <option key={option.value} value={option.value}>
+              {option.label}
+            </option>
+          ))}
+        </select>
+        <p className="inline-helper">Use default for ad hoc cases or a named scenario for QA.</p>
+      </div>
       <div className="form-field">
         <label htmlFor="first-name">First name</label>
         <input
@@ -365,7 +396,11 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
             </div>
           </div>
           <div>
-            <Link href={`/patients/${result.response.patient_id}`} className="button button--ghost">
+            <Link
+              href={`/patients/${result.response.patient_id}`}
+              className="button button--ghost"
+              data-testid="workflow-bootstrap-patient-link"
+            >
               Open patient detail
             </Link>
           </div>

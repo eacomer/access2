@@ -50,6 +50,18 @@ The workflow bootstrap submit test is scaffolded but skipped by default because 
 python -m pytest tests/e2e --e2e-submit-bootstrap
 ```
 
+To run only the deterministic submit-to-patient-detail workflow:
+
+```powershell
+python -m pytest tests/e2e/test_access2_smoke.py::test_admin_can_submit_workflow_bootstrap --e2e-submit-bootstrap
+```
+
+To run only the guarded patient-detail mutation workflow:
+
+```powershell
+python -m pytest tests/e2e/test_access2_smoke.py::test_admin_can_complete_patient_detail_task --e2e-submit-bootstrap
+```
+
 Equivalent environment variables:
 
 - `ACCESS2_E2E_BASE_URL`

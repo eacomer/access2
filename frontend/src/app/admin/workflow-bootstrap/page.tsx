@@ -16,6 +16,7 @@ export default async function WorkflowBootstrapPage() {
     "use server";
 
     const payload: WorkflowBootstrapCreateRequest = {
+      scenario: values.scenario,
       first_name: values.firstName,
       last_name: values.lastName,
       date_of_birth: values.dateOfBirth,

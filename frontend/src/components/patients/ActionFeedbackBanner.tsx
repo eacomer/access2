@@ -51,7 +51,7 @@ export default function ActionFeedbackBanner({ feedback, onDismiss }: Props) {
   const feedbackClass = resolvedFeedback.success ? "form-feedback--success" : "form-feedback--error";
 
   return (
-    <div className={`action-feedback ${toneClass}`} role="status">
+    <div className={`action-feedback ${toneClass}`} role="status" data-testid="patient-action-feedback">
       <p className={`form-feedback ${feedbackClass}`}>{resolvedFeedback.message}</p>
       {onDismiss ? (
         <button

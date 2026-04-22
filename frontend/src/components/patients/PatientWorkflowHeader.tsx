@@ -512,7 +512,7 @@ export default function PatientWorkflowHeader({
   );
 
   return (
-    <section className="page-header patient-workflow-header">
+    <section className="page-header patient-workflow-header" data-testid="patient-workflow-header">
       <div
         aria-label="Patient detail controls"
         style={{

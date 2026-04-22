@@ -1,5 +1,13 @@
 import type { InterventionTaskPriority } from "./patient";
 
+export type WorkflowBootstrapScenario =
+  | "default"
+  | "overdue_task"
+  | "in_progress_task"
+  | "open_escalation_no_task"
+  | "recent_completion"
+  | "routine";
+
 export type WorkflowBootstrapSignalType =
   | "symptom_score"
   | "blood_pressure_systolic"
@@ -11,6 +19,7 @@ export type WorkflowBootstrapSignalType =
 export type WorkflowBootstrapEscalationSeverity = "low" | "medium" | "high" | (string & {});
 
 export interface WorkflowBootstrapCreateRequest {
+  scenario?: WorkflowBootstrapScenario;
   first_name: string;
   last_name: string;
   date_of_birth: string;
@@ -47,4 +56,5 @@ export interface WorkflowBootstrapCreateResponse {
   escalation_type: string;
   escalation_severity: WorkflowBootstrapEscalationSeverity;
   task_created: boolean;
+  scenario: WorkflowBootstrapScenario;
 }

@@ -49,7 +49,7 @@ export default function PatientInterventionEvidenceSummary({
 }: Props) {
   if (!summary) {
     return (
-      <section className="section-card">
+      <section className="section-card" data-testid="patient-intervention-summary">
         <div className="section-header">
           <div>
             <p className="eyebrow">Intervention evidence</p>
@@ -78,7 +78,7 @@ export default function PatientInterventionEvidenceSummary({
     .join(" · ");
 
   return (
-    <section className="section-card">
+    <section className="section-card" data-testid="patient-intervention-summary">
       <div className="section-header">
         <div>
           <p className="eyebrow">Intervention evidence</p>

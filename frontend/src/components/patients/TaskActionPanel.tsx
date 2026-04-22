@@ -1,4 +1,5 @@
 "use client";
+import { useRouter } from "next/navigation";
 import { useMemo, useState } from "react";
 
 import type { InterventionTask, PatientInterventionTaskSummary } from "../../types/patient";
@@ -34,6 +35,7 @@ export default function TaskActionPanel({
   onAction,
   onFeedback,
 }: Props) {
+  const router = useRouter();
   const [completionNote, setCompletionNote] = useState("");
   const [isPending, setIsPending] = useState(false);
 
@@ -66,6 +68,9 @@ export default function TaskActionPanel({
         setCompletionNote("");
       }
       onFeedback?.(result);
+      if (result.success) {
+        router.refresh();
+      }
     } catch (error) {
       onFeedback?.({
         success: false,
@@ -78,7 +83,7 @@ export default function TaskActionPanel({
 
   if (!task) {
     return (
-      <div className="action-panel">
+      <div className="action-panel" data-testid="patient-task-action-panel">
         <p className="inline-helper">
           No active task is available. Create a task or wait for workflow assignments.
         </p>
@@ -87,7 +92,7 @@ export default function TaskActionPanel({
   }
 
   return (
-    <div className="action-panel" style={{ marginTop: "1rem" }}>
+    <div className="action-panel" style={{ marginTop: "1rem" }} data-testid="patient-task-action-panel">
       <div>
         <p className="inline-helper">
           Latest task: <strong>{title}</strong>
@@ -101,6 +106,7 @@ export default function TaskActionPanel({
               <button
                 type="button"
                 className="button button--primary"
+                data-testid="patient-task-start"
                 disabled={isPending}
                 onClick={() => runAction("start")}
               >
@@ -111,6 +117,7 @@ export default function TaskActionPanel({
               <button
                 type="button"
                 className="button button--danger"
+                data-testid="patient-task-complete"
                 disabled={isPending}
                 onClick={() => runAction("complete")}
               >
@@ -121,6 +128,7 @@ export default function TaskActionPanel({
               <button
                 type="button"
                 className="button button--ghost"
+                data-testid="patient-task-cancel"
                 disabled={isPending}
                 onClick={() => runAction("cancel")}
               >
@@ -134,6 +142,7 @@ export default function TaskActionPanel({
               <textarea
                 id="task-completion-note"
                 className="form-control"
+                data-testid="patient-task-completion-note"
                 rows={2}
                 placeholder="Record the outcome of this task"
                 value={completionNote}
