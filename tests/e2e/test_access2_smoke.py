@@ -143,6 +143,29 @@ def wait_for_action_feedback(browser, wait):
         ) from exc
 
 
+def wait_for_resolved_escalation_detail(browser, wait):
+    try:
+        wait.until(
+            lambda driver: "No active escalation"
+            in driver.find_element(*by_test_id("patient-escalation-summary")).text
+        )
+    except TimeoutException as exc:
+        panel_text = ""
+        summary_text = ""
+        panels = browser.find_elements(*by_test_id("patient-escalation-action-panel"))
+        summaries = browser.find_elements(*by_test_id("patient-escalation-summary"))
+        if panels:
+            panel_text = panels[0].text
+        if summaries:
+            summary_text = summaries[0].text
+        raise AssertionError(
+            "Resolved escalation detail state did not render. "
+            f"URL={browser.current_url}. "
+            f"Escalation panel={panel_text!r}. "
+            f"Escalation summary={summary_text!r}."
+        ) from exc
+
+
 def create_workflow_bootstrap(
     browser,
     wait,
@@ -179,6 +202,13 @@ def create_workflow_bootstrap(
 
     success = wait_for_bootstrap_success(browser, wait)
     assert f"Workflow bootstrap created for {first_name} {last_name}" in success.text
+    escalation_id_elements = browser.find_elements(*by_test_id("workflow-bootstrap-escalation-id"))
+    if escalation_id_elements:
+        escalation_id = escalation_id_elements[0].text.strip()
+    else:
+        success_codes = success.find_elements(By.TAG_NAME, "code")
+        assert len(success_codes) >= 3
+        escalation_id = success_codes[2].text.strip()
 
     patient_link = wait.until(
         EC.element_to_be_clickable(by_test_id("workflow-bootstrap-patient-link"))
@@ -195,6 +225,7 @@ def create_workflow_bootstrap(
         "first_name": first_name,
         "last_name": last_name,
         "task_title": task_title,
+        "escalation_id": escalation_id,
     }
 
 
@@ -489,3 +520,70 @@ def test_admin_can_start_patient_detail_escalation(
     escalation_summary = browser.find_element(*by_test_id("patient-escalation-summary"))
     assert "Active status" in escalation_summary.text
     assert "In Progress" in escalation_summary.text
+
+
+def test_admin_can_resolve_escalation_and_worklist_refreshes(
+    browser,
+    wait,
+    base_url,
+    submit_bootstrap_enabled,
+):
+    if not submit_bootstrap_enabled:
+        pytest.skip(
+            "Set ACCESS2_E2E_SUBMIT_BOOTSTRAP=1 or pass --e2e-submit-bootstrap "
+            "to run this data-creating browser test."
+        )
+
+    login_as_admin(browser, wait, base_url)
+    created = create_workflow_bootstrap(
+        browser,
+        wait,
+        base_url,
+        scenario="open_escalation_no_task",
+        task_title="Unused bootstrap task title",
+        last_name="ResolveEscalation",
+    )
+    patient_id = current_patient_id(browser)
+    browser.get(f"{base_url}/patients/{patient_id}?related_escalation_id={created['escalation_id']}")
+    wait_for_test_id(wait, "patient-detail-page")
+
+    escalation_panel = wait_for_test_id(wait, "patient-escalation-action-panel")
+    assert "Current status: Open" in escalation_panel.text
+    assert browser.find_element(*by_test_id("patient-escalation-resolve")).is_displayed()
+
+    browser.find_element(By.ID, "resolution-note").send_keys(
+        "Resolved by Selenium escalation resolution E2E."
+    )
+    browser.find_element(*by_test_id("patient-escalation-resolve")).click()
+
+    feedback = wait_for_action_feedback(browser, wait)
+    assert "Escalation resolved." in feedback.text
+
+    browser.refresh()
+    wait_for_test_id(wait, "patient-detail-page")
+
+    wait_for_resolved_escalation_detail(browser, wait)
+    assert not browser.find_elements(*by_test_id("patient-escalation-resolve"))
+    assert not browser.find_elements(*by_test_id("patient-escalation-start"))
+    assert not browser.find_elements(*by_test_id("patient-escalation-acknowledge"))
+    escalation_summary = browser.find_element(*by_test_id("patient-escalation-summary"))
+    assert "All clear" in escalation_summary.text
+    assert "No active escalation" in escalation_summary.text
+    assert "No open escalation work right now" in escalation_summary.text
+
+    browser.get(f"{base_url}/patients?patient_ids={patient_id}&active_only=0")
+    wait_for_test_id(wait, "patients-page")
+    wait_for_worklist_patient_card(wait, patient_id)
+
+    wait.until(
+        lambda driver: (
+            (card := find_worklist_patient_card(driver, patient_id))
+            and "No active escalation" in card.text
+        )
+    )
+    refreshed_card = wait_for_worklist_patient_card(wait, patient_id)
+    assert "No active escalation" in refreshed_card.text
+    assert "Monitoring" in refreshed_card.text
+    assert "Routine monitoring" in refreshed_card.text
+    assert "No active escalations or tasks" in refreshed_card.text
+    assert "Active escalation" not in refreshed_card.text

@@ -236,7 +236,10 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   try {
     [patient, worklist, timeline] = await Promise.all([
       fetchPatient(patientId, { authRedirectPath: detailRetryHref }),
-      fetchWorklistSummary({ patientIds: [patientId], limit: 1 }, { authRedirectPath: detailRetryHref }),
+      fetchWorklistSummary(
+        { patientIds: [patientId], limit: 1, activeOnly: false },
+        { authRedirectPath: detailRetryHref },
+      ),
       fetchPatientTimeline(
         patientId,
         {
@@ -301,7 +304,8 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
     detail?.escalation_evidence?.latest_open_escalation_id ??
     worklistSummary?.latest_open_escalation_id ??
     null;
-  const activeEscalationId = escalationIdFromDetail ?? escalationIdFromEvidence ?? null;
+  const activeEscalationId =
+    escalationIdFromDetail ?? relatedEscalationFilter ?? escalationIdFromEvidence ?? null;
   const escalationEvidence = detail?.escalation_evidence ?? null;
   const taskSummary = detail?.task_summary ?? worklistSummary?.task_summary ?? null;
   const workflowStatus = detail?.workflow_status ?? worklistSummary?.workflow_status ?? null;

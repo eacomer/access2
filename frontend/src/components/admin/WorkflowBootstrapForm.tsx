@@ -383,7 +383,9 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
             <div>
               <p className="eyebrow">Escalation ID</p>
               <p>
-                <code>{result.response.escalation_id}</code>
+                <code data-testid="workflow-bootstrap-escalation-id">
+                  {result.response.escalation_id}
+                </code>
               </p>
             </div>
             <div>

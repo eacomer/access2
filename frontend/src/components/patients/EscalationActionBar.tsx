@@ -42,8 +42,8 @@ export default function EscalationActionBar({ status, onAction, onFeedback }: Pr
 
   if (status === "resolved" || status === "canceled") {
     return (
-      <div>
-        <p className="inline-helper">
+      <div className="action-panel" data-testid="patient-escalation-action-panel">
+        <p className="inline-helper" data-testid="patient-escalation-status">
           Latest escalation is already {formatStatus(status).toLowerCase()}.
         </p>
       </div>
@@ -62,6 +62,8 @@ export default function EscalationActionBar({ status, onAction, onFeedback }: Pr
       if (result.success) {
         if (type === "resolve") {
           setResolutionNote("");
+          window.location.replace(window.location.href);
+          return;
         }
         router.refresh();
       }
