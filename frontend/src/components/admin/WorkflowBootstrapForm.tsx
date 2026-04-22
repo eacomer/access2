@@ -156,13 +156,14 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
   };
 
   return (
-    <form className="form-stack" onSubmit={handleSubmit}>
+    <form className="form-stack" onSubmit={handleSubmit} data-testid="workflow-bootstrap-form">
       <div className="form-field">
         <label htmlFor="first-name">First name</label>
         <input
           id="first-name"
           className="form-control"
           type="text"
+          data-testid="workflow-bootstrap-first-name"
           value={values.firstName}
           onChange={(event) => setField("firstName", event.target.value)}
           disabled={isSubmitting}
@@ -175,6 +176,7 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
           id="last-name"
           className="form-control"
           type="text"
+          data-testid="workflow-bootstrap-last-name"
           value={values.lastName}
           onChange={(event) => setField("lastName", event.target.value)}
           disabled={isSubmitting}
@@ -188,6 +190,7 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
             id="date-of-birth"
             className="form-control"
             type="date"
+            data-testid="workflow-bootstrap-date-of-birth"
             value={values.dateOfBirth}
             onChange={(event) => setField("dateOfBirth", event.target.value)}
             disabled={isSubmitting}
@@ -199,6 +202,7 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
           <select
             id="signal-type"
             className="form-control"
+            data-testid="workflow-bootstrap-signal-type"
             value={values.signalType}
             disabled={isSubmitting}
             onChange={(event) => setField("signalType", event.target.value as WorkflowBootstrapSignalType)}
@@ -215,6 +219,7 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
           <select
             id="escalation-severity"
             className="form-control"
+            data-testid="workflow-bootstrap-escalation-severity"
             value={values.escalationSeverity}
             disabled={isSubmitting}
             onChange={(event) =>
@@ -234,6 +239,7 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
         <textarea
           id="signal-notes"
           className="form-control"
+          data-testid="workflow-bootstrap-signal-notes"
           rows={2}
           value={values.signalNotes ?? ""}
           disabled={isSubmitting}
@@ -245,6 +251,7 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
         <label>
           <input
             type="checkbox"
+            data-testid="workflow-bootstrap-create-open-task"
             checked={values.createOpenTask}
             disabled={isSubmitting}
             onChange={(event) => setField("createOpenTask", event.target.checked)}
@@ -261,6 +268,7 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
               id="task-title"
               className="form-control"
               type="text"
+              data-testid="workflow-bootstrap-task-title"
               value={values.taskTitle ?? ""}
               disabled={isSubmitting}
               placeholder="Example: Call patient to review escalated signal"
@@ -273,6 +281,7 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
             <textarea
               id="task-description"
               className="form-control"
+              data-testid="workflow-bootstrap-task-description"
               rows={2}
               value={values.taskDescription ?? ""}
               disabled={isSubmitting}
@@ -286,6 +295,7 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
               <select
                 id="task-priority"
                 className="form-control"
+                data-testid="workflow-bootstrap-task-priority"
                 value={values.taskPriority}
                 disabled={isSubmitting}
                 onChange={(event) => setField("taskPriority", event.target.value as InterventionTaskPriority)}
@@ -322,7 +332,7 @@ export default function WorkflowBootstrapForm({ onSubmit }: Props) {
         </p>
       ) : null}
       {result?.success && result.response ? (
-        <div style={successPanelStyle} aria-live="polite">
+        <div style={successPanelStyle} aria-live="polite" data-testid="workflow-bootstrap-success">
           <p className="inline-helper">
             Workflow bootstrap created for <strong>{result.response.patient_full_name}</strong>.
           </p>

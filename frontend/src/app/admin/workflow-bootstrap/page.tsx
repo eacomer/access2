@@ -49,7 +49,7 @@ export default async function WorkflowBootstrapPage() {
   };
 
   return (
-    <main className="page">
+    <main className="page" data-testid="workflow-bootstrap-page">
       <section className="section-card">
         <div className="section-header">
           <div>

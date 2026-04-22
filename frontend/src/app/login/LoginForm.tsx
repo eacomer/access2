@@ -13,7 +13,12 @@ function SubmitButton() {
   const { pending } = useFormStatus();
 
   return (
-    <button className="button button--primary" type="submit" disabled={pending}>
+    <button
+      className="button button--primary"
+      type="submit"
+      disabled={pending}
+      data-testid="login-submit"
+    >
       {pending ? "Signing in..." : "Sign in"}
     </button>
   );
@@ -21,7 +26,7 @@ function SubmitButton() {
 
 export default function LoginForm({ nextPath, errorMessage }: Props) {
   return (
-    <form className="form-stack" action={loginAction}>
+    <form className="form-stack" action={loginAction} data-testid="login-form">
       {nextPath ? <input type="hidden" name="next" value={nextPath} /> : null}
 
       <div className="form-field">
@@ -31,6 +36,7 @@ export default function LoginForm({ nextPath, errorMessage }: Props) {
           name="email"
           type="email"
           className="form-control"
+          data-testid="login-email"
           placeholder="care@access.example"
           required
           autoComplete="email"
@@ -44,6 +50,7 @@ export default function LoginForm({ nextPath, errorMessage }: Props) {
           name="password"
           type="password"
           className="form-control"
+          data-testid="login-password"
           placeholder="••••••••"
           required
           autoComplete="current-password"

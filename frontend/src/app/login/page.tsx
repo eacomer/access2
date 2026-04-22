@@ -20,7 +20,11 @@ export default async function LoginPage({ searchParams }: PageProps) {
   const sanitizedNext = sanitizeReturnPath(requestedNext ?? undefined);
 
   return (
-    <main className="page" style={{ minHeight: "100vh", display: "flex", alignItems: "center" }}>
+    <main
+      className="page"
+      style={{ minHeight: "100vh", display: "flex", alignItems: "center" }}
+      data-testid="login-page"
+    >
       <section className="section-card" style={{ maxWidth: "420px", margin: "0 auto", width: "100%" }}>
         <div className="page-header">
           <p className="eyebrow">Access platform</p>

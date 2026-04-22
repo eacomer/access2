@@ -229,7 +229,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
     ];
 
     return (
-      <main className="page">
+      <main className="page" data-testid="patients-page">
         <WorklistHeader
           title={headerTitle}
           subtitle={headerSubtitle}
@@ -301,7 +301,7 @@ export default async function PatientsPage({ searchParams }: PageProps) {
       : "Queue is quiet right now.";
 
   return (
-    <main className="page">
+    <main className="page" data-testid="patients-page">
       <WorklistHeader
         title={headerTitle}
         subtitle={headerSubtitle}
