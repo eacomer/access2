@@ -20,6 +20,7 @@ from app.models.intervention_task_outcome import (
     InterventionTaskOutcome,
     InterventionTaskOutcomeStatus,
 )
+from app.models.outcome import Outcome, OutcomeType
 from app.models.patient_timeline_read_state import PatientTimelineReadState
 from app.models.user import User
 
@@ -42,5 +43,7 @@ __all__ = [
     "InterventionTaskPriority",
     "InterventionTaskOutcome",
     "InterventionTaskOutcomeStatus",
+    "Outcome",
+    "OutcomeType",
     "PatientTimelineReadState",
 ]

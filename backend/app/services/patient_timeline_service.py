@@ -12,6 +12,7 @@ from app.core.context import RequestContext
 from app.models.care_update import CareUpdate
 from app.models.intervention_task import InterventionTask, InterventionTaskStatus
 from app.models.intervention_task_outcome import InterventionTaskOutcome
+from app.models.outcome import Outcome
 from app.models.patient import Patient
 from app.models.patient_signal import (
     EscalationSeverity,
@@ -31,6 +32,7 @@ SOURCE_ESCALATION_SLA_AT_RISK = "escalation_sla_at_risk"
 SOURCE_ESCALATION_SLA_OVERDUE = "escalation_sla_overdue"
 SOURCE_TASK = "intervention_task"
 SOURCE_TASK_OUTCOME = "intervention_task_outcome"
+SOURCE_OUTCOME = "outcome"
 SOURCE_CARE_UPDATE = "care_update"
 SOURCE_TASK_DUE_UPCOMING = "intervention_task_due_upcoming"
 SOURCE_TASK_DUE_OVERDUE = "intervention_task_overdue"
@@ -42,6 +44,7 @@ EVENT_TYPE_ESCALATION_SLA_AT_RISK = "escalation_sla_at_risk"
 EVENT_TYPE_ESCALATION_SLA_OVERDUE = "escalation_sla_overdue"
 EVENT_TYPE_TASK_CREATED = "intervention_task_created"
 EVENT_TYPE_TASK_OUTCOME = "intervention_task_outcome_logged"
+EVENT_TYPE_OUTCOME = "outcome"
 EVENT_TYPE_CARE_UPDATE = "care_update_logged"
 EVENT_TYPE_TASK_DUE_UPCOMING = "intervention_task_due_upcoming"
 EVENT_TYPE_TASK_DUE_OVERDUE = "intervention_task_due_overdue"
@@ -52,6 +55,7 @@ ALL_SOURCE_KINDS = (
     SOURCE_TASK,
     SOURCE_ESCALATION_STATUS,
     SOURCE_TASK_OUTCOME,
+    SOURCE_OUTCOME,
     SOURCE_CARE_UPDATE,
     SOURCE_TASK_DUE_UPCOMING,
     SOURCE_TASK_DUE_OVERDUE,
@@ -65,6 +69,7 @@ ALL_EVENT_TYPES = (
     EVENT_TYPE_TASK_CREATED,
     EVENT_TYPE_ESCALATION_STATUS,
     EVENT_TYPE_TASK_OUTCOME,
+    EVENT_TYPE_OUTCOME,
     EVENT_TYPE_CARE_UPDATE,
     EVENT_TYPE_TASK_DUE_UPCOMING,
     EVENT_TYPE_TASK_DUE_OVERDUE,
@@ -82,6 +87,7 @@ ESCALATION_EVIDENCE_EVENT_TYPES = (
 TASK_RELATED_EVENT_TYPES = (
     EVENT_TYPE_TASK_CREATED,
     EVENT_TYPE_TASK_OUTCOME,
+    EVENT_TYPE_OUTCOME,
     EVENT_TYPE_CARE_UPDATE,
     EVENT_TYPE_TASK_DUE_UPCOMING,
     EVENT_TYPE_TASK_DUE_OVERDUE,
@@ -481,6 +487,7 @@ def _collect_patient_events(*, db: Session, patient: Patient) -> PatientTimeline
     status_events = list(_load_escalation_status_events(db=db, patient=patient))
     tasks = list(_load_tasks(db=db, patient=patient))
     task_outcomes = list(_load_task_outcomes(db=db, patient=patient))
+    outcomes = list(_load_outcomes(db=db, patient=patient))
     care_updates = list(_load_care_updates(db=db, patient=patient))
 
     events.extend(_normalize_signal(signal) for signal in signals)
@@ -488,6 +495,7 @@ def _collect_patient_events(*, db: Session, patient: Patient) -> PatientTimeline
     events.extend(_normalize_escalation_status_event(event) for event in status_events)
     events.extend(_normalize_task(task) for task in tasks)
     events.extend(_normalize_task_outcome(outcome) for outcome in task_outcomes)
+    events.extend(_normalize_outcome(outcome) for outcome in outcomes)
     events.extend(_normalize_care_update(update) for update in care_updates)
     events.extend(_derive_task_due_events(tasks, reference_time=task_reference_time))
     events.extend(_derive_escalation_sla_events(escalations, reference_time=sla_reference_time))
@@ -743,6 +751,9 @@ def get_patient_timeline_event(
     elif source_kind == SOURCE_TASK_OUTCOME:
         loader = _load_task_outcome_by_id
         normalizer = _normalize_task_outcome
+    elif source_kind == SOURCE_OUTCOME:
+        loader = _load_outcome_by_id
+        normalizer = _normalize_outcome
     elif source_kind == SOURCE_CARE_UPDATE:
         loader = _load_care_update_by_id
         normalizer = _normalize_care_update
@@ -789,6 +800,11 @@ def _load_task_outcomes(*, db: Session, patient: Patient) -> Iterable[Interventi
     return db.execute(stmt).scalars().all()
 
 
+def _load_outcomes(*, db: Session, patient: Patient) -> Iterable[Outcome]:
+    stmt = select(Outcome).where(Outcome.patient_id == patient.id)
+    return db.execute(stmt).scalars().all()
+
+
 def _load_care_updates(*, db: Session, patient: Patient) -> Iterable[CareUpdate]:
     stmt = select(CareUpdate).where(CareUpdate.patient_id == patient.id)
     return db.execute(stmt).scalars().all()
@@ -808,6 +824,10 @@ def _load_task_by_id(db: Session, source_id: UUID) -> InterventionTask | None:
 
 def _load_task_outcome_by_id(db: Session, source_id: UUID) -> InterventionTaskOutcome | None:
     return db.get(InterventionTaskOutcome, source_id)
+
+
+def _load_outcome_by_id(db: Session, source_id: UUID) -> Outcome | None:
+    return db.get(Outcome, source_id)
 
 
 def _load_care_update_by_id(db: Session, source_id: UUID) -> CareUpdate | None:
@@ -1142,6 +1162,49 @@ def _normalize_task_outcome(outcome: InterventionTaskOutcome) -> TimelineItemPay
         "authored_by_user_id": None,
         "actor_user_id": outcome.completed_by_user_id,
         "related_escalation_id": outcome.escalation_id,
+        "related_task_id": outcome.intervention_task_id,
+        "related_outcome_id": outcome.id,
+        "metadata": metadata,
+    }
+
+
+def _normalize_outcome(outcome: Outcome) -> TimelineItemPayload:
+    value_text = None
+    if outcome.value_numeric is not None:
+        value_text = f"{outcome.value_numeric:g}"
+        if outcome.unit:
+            value_text = f"{value_text} {outcome.unit}"
+    elif outcome.value_text:
+        value_text = outcome.value_text
+
+    metadata = {
+        "type": outcome.type.value,
+        "metric_name": outcome.metric_name,
+        "value_numeric": outcome.value_numeric,
+        "value_text": outcome.value_text,
+        "unit": outcome.unit,
+        "source": outcome.source,
+        "signal_id": str(outcome.signal_id) if outcome.signal_id else None,
+        "intervention_task_id": str(outcome.intervention_task_id)
+        if outcome.intervention_task_id
+        else None,
+    }
+
+    return {
+        "event_id": _compose_event_id(SOURCE_OUTCOME, outcome.id),
+        "event_type": EVENT_TYPE_OUTCOME,
+        "occurred_at": outcome.observed_at,
+        "patient_id": outcome.patient_id,
+        "organization_id": outcome.organization_id,
+        "source_id": outcome.id,
+        "source_kind": SOURCE_OUTCOME,
+        "display_title": f"Outcome: {outcome.metric_name}",
+        "display_text": value_text,
+        "status": None,
+        "priority": None,
+        "authored_by_user_id": None,
+        "actor_user_id": None,
+        "related_escalation_id": None,
         "related_task_id": outcome.intervention_task_id,
         "related_outcome_id": outcome.id,
         "metadata": metadata,
