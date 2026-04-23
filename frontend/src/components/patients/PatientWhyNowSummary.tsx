@@ -4,13 +4,20 @@ import type { PatientAttentionSummary } from "../../types/patient";
 type Props = {
   summary: PatientAttentionSummary | null;
   statusSnapshot?: string | null;
+  statusSnapshotReasonLabel?: string | null;
   careGapLabel?: string | null;
   blockingIssueLabel?: string | null;
   resolutionTargetLabel?: string | null;
   closureReadinessLabel?: string | null;
+  closureReadinessReasonLabel?: string | null;
   resolutionConfidenceLabel?: string | null;
+  resolutionConfidenceReasonLabel?: string | null;
   activeOwnerLabel?: string | null;
   waitingOnLabel?: string | null;
+  nextStepReasonDetailLabel?: string | null;
+  lastOperationalChangeLabel?: string | null;
+  lastOperationalChangeReasonLabel?: string | null;
+  recommendedTimeframeReasonLabel?: string | null;
 };
 
 const badgeVariantForUrgency = (urgency?: string | null) => {
@@ -26,13 +33,20 @@ const badgeVariantForUrgency = (urgency?: string | null) => {
 export default function PatientWhyNowSummary({
   summary,
   statusSnapshot,
+  statusSnapshotReasonLabel,
   careGapLabel,
   blockingIssueLabel,
   resolutionTargetLabel,
   closureReadinessLabel,
+  closureReadinessReasonLabel,
   resolutionConfidenceLabel,
+  resolutionConfidenceReasonLabel,
   activeOwnerLabel,
   waitingOnLabel,
+  nextStepReasonDetailLabel,
+  lastOperationalChangeLabel,
+  lastOperationalChangeReasonLabel,
+  recommendedTimeframeReasonLabel,
 }: Props) {
   const evidence = summary?.supporting_evidence?.filter(Boolean) ?? [];
   const urgencyLabel = summary?.urgency_level ? formatEventType(summary.urgency_level) : "Stable";
@@ -59,6 +73,12 @@ export default function PatientWhyNowSummary({
             <dd>{statusSnapshot}</dd>
           </div>
         ) : null}
+        {statusSnapshotReasonLabel ? (
+          <div className="definition-item">
+            <dt>Status reason</dt>
+            <dd>{statusSnapshotReasonLabel}</dd>
+          </div>
+        ) : null}
         {careGapLabel ? (
           <div className="definition-item">
             <dt>Care gap</dt>
@@ -83,6 +103,30 @@ export default function PatientWhyNowSummary({
             <dd>{waitingOnLabel}</dd>
           </div>
         ) : null}
+        {nextStepReasonDetailLabel ? (
+          <div className="definition-item">
+            <dt>Next step detail</dt>
+            <dd>{nextStepReasonDetailLabel}</dd>
+          </div>
+        ) : null}
+        {lastOperationalChangeLabel ? (
+          <div className="definition-item">
+            <dt>Latest workflow change</dt>
+            <dd>{lastOperationalChangeLabel}</dd>
+          </div>
+        ) : null}
+        {lastOperationalChangeReasonLabel ? (
+          <div className="definition-item">
+            <dt>Change reason</dt>
+            <dd>{lastOperationalChangeReasonLabel}</dd>
+          </div>
+        ) : null}
+        {recommendedTimeframeReasonLabel ? (
+          <div className="definition-item">
+            <dt>Timeframe reason</dt>
+            <dd>{recommendedTimeframeReasonLabel}</dd>
+          </div>
+        ) : null}
         {resolutionTargetLabel ? (
           <div className="definition-item">
             <dt>Done when</dt>
@@ -95,10 +139,22 @@ export default function PatientWhyNowSummary({
             <dd>{closureReadinessLabel}</dd>
           </div>
         ) : null}
+        {closureReadinessReasonLabel ? (
+          <div className="definition-item">
+            <dt>Closure reason</dt>
+            <dd>{closureReadinessReasonLabel}</dd>
+          </div>
+        ) : null}
         {resolutionConfidenceLabel ? (
           <div className="definition-item">
             <dt>Resolution confidence</dt>
             <dd>{resolutionConfidenceLabel}</dd>
+          </div>
+        ) : null}
+        {resolutionConfidenceReasonLabel ? (
+          <div className="definition-item">
+            <dt>Confidence reason</dt>
+            <dd>{resolutionConfidenceReasonLabel}</dd>
           </div>
         ) : null}
         <div className="definition-item">

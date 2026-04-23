@@ -158,7 +158,7 @@ For each scenario:
 
 1. Open `/patients`.
 2. Find the validation patient in the queue.
-3. Record the visible summary state on the queue card, including attention reason, next step, priority, staleness, recent change, and closure/readiness labels when present.
+3. Record the visible summary state on the queue card, including attention reason, next step, owner, waiting-on, priority, staleness, recent change, and closure/readiness labels when present.
 4. Open the patient detail page from the queue card.
 5. Confirm the detail page shows `Validation scenario: <scenario>`.
 6. Confirm the detail summary uses the same backend-derived state as the queue card.
@@ -174,4 +174,44 @@ Expected coverage:
 | `recent_completion` | The recent completion/resolution posture is consistent in both places |
 | `routine` | Both views show no urgent workflow driver without inventing task or escalation urgency |
 
-Do not use this script to validate new labels or workflow behavior. It is only for confirming that the existing backend-derived summary fields render consistently across queue and patient detail.
+## Operational summary checklist
+
+Use this table to validate the backend-derived operational summary fields on the queue card and patient detail summary. The wording should match across surfaces when the same field is visible in both places.
+
+| Scenario | Queue `attention_reason` | Detail `attention_reason` or why-now wording | Queue `next_step` | Detail next action | Queue/detail match? |
+| --- | --- | --- | --- | --- | --- |
+| `overdue_task` |  |  |  |  |  |
+| `in_progress_task` |  |  |  |  |  |
+| `open_escalation_no_task` |  |  |  |  |  |
+| `recent_completion` |  |  |  |  |  |
+| `routine` |  |  |  |  |  |
+
+| Scenario | Queue `next_step_reason` | Detail supporting wording | Queue `recommended_timeframe` | Detail urgency/timeframe wording | Queue/detail match? |
+| --- | --- | --- | --- | --- | --- |
+| `overdue_task` |  |  |  |  |  |
+| `in_progress_task` |  |  |  |  |  |
+| `open_escalation_no_task` |  |  |  |  |  |
+| `recent_completion` |  |  |  |  |  |
+| `routine` |  |  |  |  |  |
+
+| Scenario | Queue `active_owner_label` | Detail owner | Queue `waiting_on_label` | Detail waiting on | Queue/detail match? |
+| --- | --- | --- | --- | --- | --- |
+| `overdue_task` | Care team queue |  | Task start |  |  |
+| `in_progress_task` | Assigned care team |  | Task completion |  |  |
+| `open_escalation_no_task` | Clinical review |  | Task creation |  |  |
+| `recent_completion` | Monitoring |  | Next signal or follow-up |  |  |
+| `routine` | Routine monitoring |  | No immediate action |  |  |
+
+## Reviewer notes
+
+For each scenario, note any of the following:
+
+| Scenario | Contradictory wording | Redundant wording | Overly crowded presentation | Queue/detail mismatch | Scenario-specific confusion |
+| --- | --- | --- | --- | --- | --- |
+| `overdue_task` |  |  |  |  |  |
+| `in_progress_task` |  |  |  |  |  |
+| `open_escalation_no_task` |  |  |  |  |  |
+| `recent_completion` |  |  |  |  |  |
+| `routine` |  |  |  |  |  |
+
+Use this checklist only to confirm that existing backend-derived summary fields render consistently across queue and patient detail. Do not expand it into new workflow behavior or product scope.

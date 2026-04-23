@@ -74,6 +74,12 @@ To run only the guarded patient-detail create-task validation prevention workflo
 python -m pytest tests/e2e/test_access2_smoke.py::test_admin_create_task_requires_title_before_submit --e2e-submit-bootstrap
 ```
 
+To run only the guarded workflow summary alignment check across `/patients` and patient detail:
+
+```powershell
+python -m pytest tests/e2e/test_access2_smoke.py::test_admin_workflow_summary_alignment_between_worklist_and_detail --e2e-submit-bootstrap
+```
+
 To run only the guarded patient-detail escalation-action workflow:
 
 ```powershell
@@ -104,6 +110,7 @@ Equivalent environment variables:
 - Admin login succeeds and lands on `/patients`.
 - Authenticated admin can load `/admin/workflow-bootstrap`.
 - Optional workflow bootstrap submission verifies success feedback.
+- Optional workflow summary alignment checks verify the queue and patient detail reflect matching operational meaning for deterministic bootstrap scenarios.
 - Optional patient-detail mutation tests verify task completion, task creation, create-task validation prevention, escalation start refresh behavior, worklist refresh after detail-page task creation, and escalation resolution across detail/worklist.
 
 These tests assume the frontend and backend are already running; they do not start or seed services.

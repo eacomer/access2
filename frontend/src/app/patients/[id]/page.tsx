@@ -323,6 +323,10 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
         }
       : null);
   const detailStatusSnapshot = detail?.status_snapshot ?? worklistSummary?.status_snapshot ?? null;
+  const detailStatusSnapshotReasonLabel =
+    detail?.status_snapshot_reason_label ??
+    worklistSummary?.status_snapshot_reason_label ??
+    null;
   const detailCareGapLabel = detail?.care_gap_label ?? worklistSummary?.care_gap_label ?? null;
   const detailBlockingIssueLabel =
     detail?.blocking_issue_label ?? worklistSummary?.blocking_issue_label ?? null;
@@ -330,8 +334,32 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
     detail?.resolution_target_label ?? worklistSummary?.resolution_target_label ?? null;
   const detailClosureReadinessLabel =
     detail?.closure_readiness_label ?? worklistSummary?.closure_readiness_label ?? null;
+  const detailClosureReadinessReasonLabel =
+    detail?.closure_readiness_reason_label ??
+    worklistSummary?.closure_readiness_reason_label ??
+    null;
   const detailResolutionConfidenceLabel =
     detail?.resolution_confidence_label ?? worklistSummary?.resolution_confidence_label ?? null;
+  const detailResolutionConfidenceReasonLabel =
+    detail?.resolution_confidence_reason_label ??
+    worklistSummary?.resolution_confidence_reason_label ??
+    null;
+  const detailLastOperationalChangeLabel =
+    detail?.last_operational_change_label ??
+    worklistSummary?.last_operational_change_label ??
+    null;
+  const detailLastOperationalChangeReasonLabel =
+    detail?.last_operational_change_reason_label ??
+    worklistSummary?.last_operational_change_reason_label ??
+    null;
+  const detailRecommendedTimeframeReasonLabel =
+    detail?.recommended_timeframe_reason_label ??
+    worklistSummary?.recommended_timeframe_reason_label ??
+    null;
+  const detailNextStepReasonDetailLabel =
+    detail?.next_step_reason_detail_label ??
+    worklistSummary?.next_step_reason_detail_label ??
+    null;
 
   let activeEscalation: PatientEscalation | null = null;
   if (activeEscalationId) {
@@ -638,13 +666,20 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
       <PatientWhyNowSummary
         summary={resolvedAttentionSummary}
         statusSnapshot={detailStatusSnapshot}
+        statusSnapshotReasonLabel={detailStatusSnapshotReasonLabel}
         careGapLabel={detailCareGapLabel}
         blockingIssueLabel={detailBlockingIssueLabel}
         activeOwnerLabel={detail?.active_owner_label ?? worklistSummary?.active_owner_label ?? null}
         waitingOnLabel={detail?.waiting_on_label ?? worklistSummary?.waiting_on_label ?? null}
+        nextStepReasonDetailLabel={detailNextStepReasonDetailLabel}
+        lastOperationalChangeLabel={detailLastOperationalChangeLabel}
+        lastOperationalChangeReasonLabel={detailLastOperationalChangeReasonLabel}
+        recommendedTimeframeReasonLabel={detailRecommendedTimeframeReasonLabel}
         resolutionTargetLabel={detailResolutionTargetLabel}
         closureReadinessLabel={detailClosureReadinessLabel}
+        closureReadinessReasonLabel={detailClosureReadinessReasonLabel}
         resolutionConfidenceLabel={detailResolutionConfidenceLabel}
+        resolutionConfidenceReasonLabel={detailResolutionConfidenceReasonLabel}
       />
       <PatientInterventionEvidenceSummary
         summary={interventionEvidenceSummary}

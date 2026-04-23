@@ -81,6 +81,30 @@ class PatientTimelineFilteredEventVisibilityError(PatientTimelineReadStateError)
 DEFAULT_SORT_TIMESTAMP = datetime(1970, 1, 1, tzinfo=timezone.utc)
 QUEUE_IMPACT_COMPLETED_TASK_WINDOW = timedelta(days=7)
 QUEUE_IMPACT_COMPLETED_TASK_WINDOW_DAYS = QUEUE_IMPACT_COMPLETED_TASK_WINDOW.days
+OPERATIONAL_CHANGE_PRECEDENCE = {
+    "task_completed": 0,
+    "task_started": 1,
+    "task_created": 2,
+    "care_update_created": 3,
+    "escalation_created": 4,
+    "signal_created": 5,
+}
+OPERATIONAL_CHANGE_LABELS = {
+    "task_completed": "Task completed",
+    "task_started": "Task started",
+    "task_created": "Task created",
+    "care_update_created": "Care update added",
+    "escalation_created": "Escalation opened",
+    "signal_created": "Signal recorded",
+}
+OPERATIONAL_CHANGE_REASON_LABELS = {
+    "task_completed": "Completed by task outcome",
+    "task_started": "Started when task moved to in progress",
+    "task_created": "Created when task was opened",
+    "care_update_created": "Added by care update",
+    "escalation_created": "Opened from escalation",
+    "signal_created": "Triggered by signal",
+}
 
 
 def get_patient_timeline_read_state(
@@ -426,6 +450,11 @@ def list_patient_timeline_worklist_summaries(
         context=context,
         patient_ids=list(patient_map.keys()),
     )
+    last_operational_change_map = _load_last_operational_change_summaries_for_patients(
+        db=db,
+        context=context,
+        patient_ids=list(patient_map.keys()),
+    )
 
     items: list[dict] = []
     skipped_context_patients = 0
@@ -485,12 +514,21 @@ def list_patient_timeline_worklist_summaries(
         )
         staleness_indicator = _staleness_indicator(workflow_age_label)
         recommended_timeframe = _recommended_timeframe(attention_summary)
+        recommended_timeframe_reason_label = _recommended_timeframe_reason_label(
+            attention_summary
+        )
         next_step = _compact_next_step(attention_summary)
+        next_step_reason_detail_label = _next_step_reason_detail_label(attention_summary)
+        status_snapshot_reason_label = _status_snapshot_reason_label(attention_summary)
         care_gap_label = _care_gap_label(attention_summary)
         blocking_issue_label = _blocking_issue_label(attention_summary)
         resolution_target_label = _resolution_target_label(attention_summary)
         closure_readiness_label = _closure_readiness_label(attention_summary)
+        closure_readiness_reason_label = _closure_readiness_reason_label(attention_summary)
         resolution_confidence_label = _resolution_confidence_label(attention_summary)
+        resolution_confidence_reason_label = _resolution_confidence_reason_label(
+            attention_summary
+        )
         priority_band = _priority_band(
             task_summary=task_summary,
             recommended_timeframe=recommended_timeframe,
@@ -518,15 +556,27 @@ def list_patient_timeline_worklist_summaries(
                 "attention_reason": _compact_attention_reason(attention_summary),
                 "next_step": next_step,
                 "next_step_reason": _compact_next_step_reason(attention_summary),
+                "next_step_reason_detail_label": next_step_reason_detail_label,
                 **ownership_labels,
                 "care_gap_label": care_gap_label,
                 "blocking_issue_label": blocking_issue_label,
                 "resolution_target_label": resolution_target_label,
                 "closure_readiness_label": closure_readiness_label,
+                "closure_readiness_reason_label": closure_readiness_reason_label,
                 "resolution_confidence_label": resolution_confidence_label,
+                "resolution_confidence_reason_label": resolution_confidence_reason_label,
                 "recommended_timeframe": recommended_timeframe,
+                "recommended_timeframe_reason_label": recommended_timeframe_reason_label,
                 "workflow_age_label": workflow_age_label,
                 "recent_change_label": recent_change_label,
+                "last_operational_change_label": last_operational_change_map.get(
+                    patient.id,
+                    {},
+                ).get("label"),
+                "last_operational_change_reason_label": last_operational_change_map.get(
+                    patient.id,
+                    {},
+                ).get("reason_label"),
                 "staleness_indicator": staleness_indicator,
                 "priority_band": priority_band,
                 "priority_reason": priority_reason,
@@ -536,6 +586,7 @@ def list_patient_timeline_worklist_summaries(
                     next_step=next_step,
                     recommended_timeframe=recommended_timeframe,
                 ),
+                "status_snapshot_reason_label": status_snapshot_reason_label,
             }
         )
 
@@ -599,6 +650,11 @@ def _build_single_patient_worklist_summary(
         context=context,
         patient_ids=[patient.id],
     )
+    last_operational_change_summary = _load_last_operational_change_summaries_for_patients(
+        db=db,
+        context=context,
+        patient_ids=[patient.id],
+    ).get(patient.id, {})
     attention_summary = _build_worklist_attention_summary(
         escalation_summary=escalation_summary,
         task_summary=task_summary,
@@ -615,12 +671,21 @@ def _build_single_patient_worklist_summary(
     )
     staleness_indicator = _staleness_indicator(workflow_age_label)
     recommended_timeframe = _recommended_timeframe(attention_summary)
+    recommended_timeframe_reason_label = _recommended_timeframe_reason_label(
+        attention_summary
+    )
     next_step = _compact_next_step(attention_summary)
+    next_step_reason_detail_label = _next_step_reason_detail_label(attention_summary)
+    status_snapshot_reason_label = _status_snapshot_reason_label(attention_summary)
     care_gap_label = _care_gap_label(attention_summary)
     blocking_issue_label = _blocking_issue_label(attention_summary)
     resolution_target_label = _resolution_target_label(attention_summary)
     closure_readiness_label = _closure_readiness_label(attention_summary)
+    closure_readiness_reason_label = _closure_readiness_reason_label(attention_summary)
     resolution_confidence_label = _resolution_confidence_label(attention_summary)
+    resolution_confidence_reason_label = _resolution_confidence_reason_label(
+        attention_summary
+    )
     priority_band = _priority_band(
         task_summary=task_summary,
         recommended_timeframe=recommended_timeframe,
@@ -665,15 +730,23 @@ def _build_single_patient_worklist_summary(
                 "attention_reason": _compact_attention_reason(attention_summary),
                 "next_step": next_step,
                 "next_step_reason": _compact_next_step_reason(attention_summary),
+                "next_step_reason_detail_label": next_step_reason_detail_label,
                 **ownership_labels,
                 "care_gap_label": care_gap_label,
                 "blocking_issue_label": blocking_issue_label,
                 "resolution_target_label": resolution_target_label,
                 "closure_readiness_label": closure_readiness_label,
+                "closure_readiness_reason_label": closure_readiness_reason_label,
                 "resolution_confidence_label": resolution_confidence_label,
+                "resolution_confidence_reason_label": resolution_confidence_reason_label,
                 "recommended_timeframe": recommended_timeframe,
+                "recommended_timeframe_reason_label": recommended_timeframe_reason_label,
                 "workflow_age_label": workflow_age_label,
                 "recent_change_label": recent_change_label,
+                "last_operational_change_label": last_operational_change_summary.get("label"),
+                "last_operational_change_reason_label": last_operational_change_summary.get(
+                    "reason_label"
+                ),
                 "staleness_indicator": staleness_indicator,
                 "priority_band": priority_band,
                 "priority_reason": priority_reason,
@@ -683,6 +756,7 @@ def _build_single_patient_worklist_summary(
                     next_step=next_step,
                     recommended_timeframe=recommended_timeframe,
                 ),
+                "status_snapshot_reason_label": status_snapshot_reason_label,
             }
         ],
         "total": total,
@@ -786,6 +860,10 @@ def build_operational_status_snapshot(
     )
 
 
+def build_status_snapshot_reason_label(*, attention_summary) -> str:
+    return _status_snapshot_reason_label(attention_summary)
+
+
 def build_care_gap_label(*, attention_summary) -> str:
     return _care_gap_label(attention_summary)
 
@@ -802,8 +880,58 @@ def build_closure_readiness_label(*, attention_summary) -> str:
     return _closure_readiness_label(attention_summary)
 
 
+def build_closure_readiness_reason_label(*, attention_summary) -> str:
+    return _closure_readiness_reason_label(attention_summary)
+
+
 def build_resolution_confidence_label(*, attention_summary) -> str:
     return _resolution_confidence_label(attention_summary)
+
+
+def build_resolution_confidence_reason_label(*, attention_summary) -> str:
+    return _resolution_confidence_reason_label(attention_summary)
+
+
+def build_recommended_timeframe_reason_label(*, attention_summary) -> str:
+    return _recommended_timeframe_reason_label(attention_summary)
+
+
+def build_next_step_reason_detail_label(*, attention_summary) -> str:
+    return _next_step_reason_detail_label(attention_summary)
+
+
+def build_last_operational_change_label(
+    *,
+    db: Session,
+    context: RequestContext,
+    patient: Patient,
+    reference_time: datetime | None = None,
+) -> str | None:
+    ensure_tenant_scoped_resource(context=context, resource=patient)
+    labels = _load_last_operational_change_summaries_for_patients(
+        db=db,
+        context=context,
+        patient_ids=[patient.id],
+        reference_time=reference_time,
+    )
+    return labels.get(patient.id, {}).get("label")
+
+
+def build_last_operational_change_reason_label(
+    *,
+    db: Session,
+    context: RequestContext,
+    patient: Patient,
+    reference_time: datetime | None = None,
+) -> str | None:
+    ensure_tenant_scoped_resource(context=context, resource=patient)
+    labels = _load_last_operational_change_summaries_for_patients(
+        db=db,
+        context=context,
+        patient_ids=[patient.id],
+        reference_time=reference_time,
+    )
+    return labels.get(patient.id, {}).get("reason_label")
 
 
 def _compact_attention_reason(attention_summary) -> str:
@@ -862,6 +990,42 @@ def _compact_next_step_reason(attention_summary) -> str:
     if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
         return "Work was completed recently; monitor for follow-up"
     return "No urgent workflow driver is present"
+
+
+def _next_step_reason_detail_label(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Because the overdue task still needs disposition"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "Because work has started but is not complete"
+    if recommended_action == "Assign and start an outreach task.":
+        return "Because the escalation is open and no task exists yet"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Because the open task still needs follow-through"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "Because no unresolved workflow remains"
+    return "Because no immediate workflow action is required"
+
+
+def _status_snapshot_reason_label(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Because an overdue task is still open"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "Because work is in progress"
+    if recommended_action == "Assign and start an outreach task.":
+        return "Because an escalation is open without a task"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Because an open task still requires follow-through"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "Because no unresolved workflow remains"
+    return "Because no immediate workflow action is required"
 
 
 def _care_gap_label(attention_summary) -> str:
@@ -936,6 +1100,24 @@ def _closure_readiness_label(attention_summary) -> str:
     return "Ready for routine monitoring"
 
 
+def _closure_readiness_reason_label(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Because an overdue task is still open"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "Because work remains in progress"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Because an open task still requires follow-through"
+    if recommended_action == "Assign and start an outreach task.":
+        return "Because the escalation is still unresolved"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "Because no unresolved workflow remains"
+    return "Because no immediate workflow closure is needed"
+
+
 def _resolution_confidence_label(attention_summary) -> str:
     recommended_action = attention_summary.recommended_next_action
     if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
@@ -954,6 +1136,24 @@ def _resolution_confidence_label(attention_summary) -> str:
     return "High confidence"
 
 
+def _resolution_confidence_reason_label(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Because overdue work still remains open"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "Because active work is still in progress"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Because open follow-through is still required"
+    if recommended_action == "Assign and start an outreach task.":
+        return "Because an escalation is unresolved without a task"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "Because no unresolved workflow remains"
+    return "Because no immediate workflow action is pending"
+
+
 def _recommended_timeframe(attention_summary) -> str:
     recommended_action = attention_summary.recommended_next_action
     if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
@@ -970,6 +1170,24 @@ def _recommended_timeframe(attention_summary) -> str:
     if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
         return "This week"
     return "Routine"
+
+
+def _recommended_timeframe_reason_label(attention_summary) -> str:
+    recommended_action = attention_summary.recommended_next_action
+    if attention_summary.urgency_level == "overdue" and attention_summary.primary_driver == "task":
+        return "Urgent because task is overdue"
+    if (
+        attention_summary.primary_driver == "task"
+        and recommended_action == "Follow through on the current task and document the outcome."
+    ):
+        return "Soon because work is already in progress"
+    if recommended_action == "Assign and start an outreach task.":
+        return "Soon because escalation is open with no task"
+    if recommended_action == "Start or complete the assigned intervention task.":
+        return "Soon because task is open"
+    if recommended_action == "Continue monitoring and review new timeline evidence as it arrives.":
+        return "Routine because no unresolved workflow remains"
+    return "Routine because no immediate action is required"
 
 
 def _workflow_age_label(
@@ -1097,6 +1315,25 @@ def _normalize_age_datetime(value: datetime) -> datetime:
     if value.tzinfo is None:
         return value.replace(tzinfo=timezone.utc)
     return value.astimezone(timezone.utc)
+
+
+def _format_operational_change_label(
+    *,
+    change_key: str,
+    occurred_at: datetime,
+    reference_time: datetime,
+) -> str:
+    base_label = OPERATIONAL_CHANGE_LABELS[change_key]
+    reference = _normalize_age_datetime(reference_time)
+    changed_at = _normalize_age_datetime(occurred_at)
+    day_delta = max(0, (reference.date() - changed_at.date()).days)
+    if day_delta == 0:
+        relative_label = "today"
+    elif day_delta == 1:
+        relative_label = "yesterday"
+    else:
+        relative_label = f"{day_delta} days ago"
+    return f"{base_label} {relative_label}"
 
 
 def _build_queue_impact_snapshot(
@@ -2255,3 +2492,124 @@ def _load_recent_completed_task_counts_for_patients(
     for patient_id, completed_count in rows:
         counts[patient_id] = int(completed_count or 0)
     return counts
+
+
+def _load_last_operational_change_summaries_for_patients(
+    *,
+    db: Session,
+    context: RequestContext,
+    patient_ids: Sequence[uuid.UUID],
+    reference_time: datetime | None = None,
+) -> dict[uuid.UUID, dict[str, str | None]]:
+    unique_ids = list(dict.fromkeys(patient_ids))
+    if not unique_ids:
+        return {}
+
+    candidates: dict[uuid.UUID, tuple[datetime, int, str, str]] = {}
+
+    def consider(
+        *,
+        patient_id: uuid.UUID,
+        change_key: str,
+        occurred_at: datetime | None,
+        source_id: uuid.UUID,
+    ) -> None:
+        if occurred_at is None:
+            return
+        precedence = OPERATIONAL_CHANGE_PRECEDENCE[change_key]
+        candidate = (
+            _normalize_age_datetime(occurred_at),
+            -precedence,
+            str(source_id),
+            change_key,
+        )
+        current = candidates.get(patient_id)
+        if current is None or candidate > current:
+            candidates[patient_id] = candidate
+
+    task_rows = db.execute(
+        select(InterventionTask).where(
+            InterventionTask.organization_id == context.organization_id,
+            InterventionTask.patient_id.in_(tuple(unique_ids)),
+        )
+    ).scalars().all()
+    for task in task_rows:
+        if task.completed_at is not None:
+            consider(
+                patient_id=task.patient_id,
+                change_key="task_completed",
+                occurred_at=task.completed_at,
+                source_id=task.id,
+            )
+        if task.status == InterventionTaskStatus.IN_PROGRESS:
+            consider(
+                patient_id=task.patient_id,
+                change_key="task_started",
+                occurred_at=task.updated_at,
+                source_id=task.id,
+            )
+        consider(
+            patient_id=task.patient_id,
+            change_key="task_created",
+            occurred_at=task.created_at,
+            source_id=task.id,
+        )
+
+    care_update_rows = db.execute(
+        select(CareUpdate).where(
+            CareUpdate.organization_id == context.organization_id,
+            CareUpdate.patient_id.in_(tuple(unique_ids)),
+        )
+    ).scalars().all()
+    for update in care_update_rows:
+        consider(
+            patient_id=update.patient_id,
+            change_key="care_update_created",
+            occurred_at=update.created_at,
+            source_id=update.id,
+        )
+
+    escalation_rows = db.execute(
+        select(PatientEscalation).where(
+            PatientEscalation.organization_id == context.organization_id,
+            PatientEscalation.patient_id.in_(tuple(unique_ids)),
+        )
+    ).scalars().all()
+    for escalation in escalation_rows:
+        consider(
+            patient_id=escalation.patient_id,
+            change_key="escalation_created",
+            occurred_at=escalation.triggered_at,
+            source_id=escalation.id,
+        )
+
+    signal_rows = db.execute(
+        select(PatientSignal).where(
+            PatientSignal.organization_id == context.organization_id,
+            PatientSignal.patient_id.in_(tuple(unique_ids)),
+        )
+    ).scalars().all()
+    for signal in signal_rows:
+        consider(
+            patient_id=signal.patient_id,
+            change_key="signal_created",
+            occurred_at=signal.recorded_at,
+            source_id=signal.id,
+        )
+
+    resolved_reference_time = reference_time or datetime.now(timezone.utc)
+    return {
+        patient_id: {
+            "label": _format_operational_change_label(
+                change_key=candidate[3],
+                occurred_at=candidate[0],
+                reference_time=resolved_reference_time,
+            ),
+            "reason_label": OPERATIONAL_CHANGE_REASON_LABELS.get(candidate[3]),
+        }
+        for patient_id, candidate in candidates.items()
+    } | {
+        patient_id: {"label": None, "reason_label": None}
+        for patient_id in unique_ids
+        if patient_id not in candidates
+    }

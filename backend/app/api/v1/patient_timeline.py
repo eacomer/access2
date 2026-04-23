@@ -43,9 +43,16 @@ from app.services.patient_timeline_read_state_service import (
     build_blocking_issue_label,
     build_care_gap_label,
     build_closure_readiness_label,
+    build_closure_readiness_reason_label,
+    build_last_operational_change_label,
+    build_last_operational_change_reason_label,
+    build_next_step_reason_detail_label,
     build_operational_status_snapshot,
+    build_recommended_timeframe_reason_label,
     build_resolution_confidence_label,
+    build_resolution_confidence_reason_label,
     build_resolution_target_label,
+    build_status_snapshot_reason_label,
     build_workflow_ownership_labels,
     get_patient_timeline_filter_snapshot,
     get_patient_timeline_inbox_summary,
@@ -551,15 +558,40 @@ def get_patient_timeline_event_endpoint(
         attention_summary=attention_summary,
         task_summary=task_summary,
     )
+    status_snapshot_reason_label = build_status_snapshot_reason_label(
+        attention_summary=attention_summary
+    )
     care_gap_label = build_care_gap_label(attention_summary=attention_summary)
     blocking_issue_label = build_blocking_issue_label(attention_summary=attention_summary)
     resolution_target_label = build_resolution_target_label(attention_summary=attention_summary)
     closure_readiness_label = build_closure_readiness_label(attention_summary=attention_summary)
+    closure_readiness_reason_label = build_closure_readiness_reason_label(
+        attention_summary=attention_summary
+    )
     resolution_confidence_label = build_resolution_confidence_label(attention_summary=attention_summary)
+    resolution_confidence_reason_label = build_resolution_confidence_reason_label(
+        attention_summary=attention_summary
+    )
+    next_step_reason_detail_label = build_next_step_reason_detail_label(
+        attention_summary=attention_summary
+    )
+    recommended_timeframe_reason_label = build_recommended_timeframe_reason_label(
+        attention_summary=attention_summary
+    )
     ownership_labels = build_workflow_ownership_labels(
         task_summary=task_summary,
         open_escalation_count=evidence.open_escalation_count,
         completed_task_count=intervention_evidence_summary.completed_tasks,
+    )
+    last_operational_change_label = build_last_operational_change_label(
+        db=db,
+        context=context,
+        patient=patient,
+    )
+    last_operational_change_reason_label = build_last_operational_change_reason_label(
+        db=db,
+        context=context,
+        patient=patient,
     )
 
     return PatientTimelineDetailResponse(
@@ -570,11 +602,18 @@ def get_patient_timeline_event_endpoint(
         intervention_evidence_summary=intervention_evidence_summary.as_dict(),
         attention_summary=attention_summary.as_dict(),
         status_snapshot=status_snapshot,
+        status_snapshot_reason_label=status_snapshot_reason_label,
         care_gap_label=care_gap_label,
         blocking_issue_label=blocking_issue_label,
         resolution_target_label=resolution_target_label,
         closure_readiness_label=closure_readiness_label,
+        closure_readiness_reason_label=closure_readiness_reason_label,
         resolution_confidence_label=resolution_confidence_label,
+        resolution_confidence_reason_label=resolution_confidence_reason_label,
+        next_step_reason_detail_label=next_step_reason_detail_label,
+        recommended_timeframe_reason_label=recommended_timeframe_reason_label,
+        last_operational_change_label=last_operational_change_label,
+        last_operational_change_reason_label=last_operational_change_reason_label,
         **ownership_labels,
     )
 

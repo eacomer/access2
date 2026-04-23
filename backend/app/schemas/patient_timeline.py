@@ -100,9 +100,16 @@ class PatientTimelineDetailResponse(BaseModel):
     blocking_issue_label: str | None = None
     resolution_target_label: str | None = None
     closure_readiness_label: str | None = None
+    closure_readiness_reason_label: str | None = None
     resolution_confidence_label: str | None = None
+    resolution_confidence_reason_label: str | None = None
     active_owner_label: str | None = None
     waiting_on_label: str | None = None
+    next_step_reason_detail_label: str | None = None
+    status_snapshot_reason_label: str | None = None
+    last_operational_change_label: str | None = None
+    last_operational_change_reason_label: str | None = None
+    recommended_timeframe_reason_label: str | None = None
 
 
 class PatientInterventionTaskSummary(BaseModel):
@@ -318,20 +325,27 @@ class PatientTimelineWorklistSummaryItem(BaseModel):
     attention_reason: str | None = None
     next_step: str | None = None
     next_step_reason: str | None = None
+    next_step_reason_detail_label: str | None = None
     active_owner_label: str | None = None
     waiting_on_label: str | None = None
     care_gap_label: str | None = None
     blocking_issue_label: str | None = None
     resolution_target_label: str | None = None
     closure_readiness_label: str | None = None
+    closure_readiness_reason_label: str | None = None
     resolution_confidence_label: str | None = None
+    resolution_confidence_reason_label: str | None = None
     recommended_timeframe: str | None = None
+    recommended_timeframe_reason_label: str | None = None
     workflow_age_label: str | None = None
     recent_change_label: str | None = None
+    last_operational_change_label: str | None = None
+    last_operational_change_reason_label: str | None = None
     staleness_indicator: str | None = None
     priority_band: str | None = None
     priority_reason: str | None = None
     status_snapshot: str | None = None
+    status_snapshot_reason_label: str | None = None
 
 
 class PatientQueueImpactSnapshot(BaseModel):

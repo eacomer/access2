@@ -4982,3 +4982,158 @@ def test_patient_attention_summary_handles_minimal_workflow_state(
     assert summary["why_now"] == "No active escalation or intervention task is currently recorded."
     assert summary["recommended_next_action"] == "Continue routine monitoring."
     assert summary["supporting_evidence"] == ["1 timeline evidence event"]
+
+
+@pytest.mark.parametrize(
+    (
+        "scenario",
+        "expected_label",
+        "expected_reason_label",
+        "expected_timeframe_reason_label",
+        "expected_next_step_reason_detail_label",
+        "expected_status_snapshot_reason_label",
+        "expected_closure_readiness_reason_label",
+        "expected_resolution_confidence_reason_label",
+    ),
+    [
+        (
+            "overdue_task",
+            "Task created today",
+            "Created when task was opened",
+            "Urgent because task is overdue",
+            "Because the overdue task still needs disposition",
+            "Because an overdue task is still open",
+            "Because an overdue task is still open",
+            "Because overdue work still remains open",
+        ),
+        (
+            "in_progress_task",
+            "Task started today",
+            "Started when task moved to in progress",
+            "Soon because work is already in progress",
+            "Because work has started but is not complete",
+            "Because work is in progress",
+            "Because work remains in progress",
+            "Because active work is still in progress",
+        ),
+        (
+            "open_escalation_no_task",
+            "Escalation opened today",
+            "Opened from escalation",
+            "Soon because escalation is open with no task",
+            "Because the escalation is open and no task exists yet",
+            "Because an escalation is open without a task",
+            "Because the escalation is still unresolved",
+            "Because an escalation is unresolved without a task",
+        ),
+        (
+            "recent_completion",
+            "Task completed today",
+            "Completed by task outcome",
+            "Routine because no unresolved workflow remains",
+            "Because no unresolved workflow remains",
+            "Because no unresolved workflow remains",
+            "Because no unresolved workflow remains",
+            "Because no unresolved workflow remains",
+        ),
+        (
+            "routine",
+            "Care update added today",
+            "Added by care update",
+            "Routine because no immediate action is required",
+            "Because no immediate workflow action is required",
+            "Because no immediate workflow action is required",
+            "Because no immediate workflow closure is needed",
+            "Because no immediate workflow action is pending",
+        ),
+    ],
+)
+def test_patient_last_operational_change_label_matches_worklist_and_detail(
+    client: TestClient,
+    db_session: Session,
+    scenario: str,
+    expected_label: str,
+    expected_reason_label: str,
+    expected_timeframe_reason_label: str,
+    expected_next_step_reason_detail_label: str,
+    expected_status_snapshot_reason_label: str,
+    expected_closure_readiness_reason_label: str,
+    expected_resolution_confidence_reason_label: str,
+) -> None:
+    env = _bootstrap_patient_env(
+        client,
+        db_session,
+        slug=f"last-operational-{scenario.replace('_', '-')}",
+    )
+
+    if scenario == "routine":
+        _create_care_update(
+            client,
+            env["headers"],
+            env["patient_id"],
+            summary="Routine monitoring note",
+        )
+    else:
+        signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+        escalation_id = signal_payload["escalation"]["id"]
+
+        if scenario == "overdue_task":
+            task_id = _create_task(
+                client,
+                env["headers"],
+                escalation_id,
+                due_at=datetime.now(timezone.utc) - timedelta(hours=2),
+            )
+            task = db_session.get(InterventionTask, uuid.UUID(task_id))
+            assert task is not None
+            task.created_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+            db_session.commit()
+        elif scenario == "in_progress_task":
+            task_id = _create_task(client, env["headers"], escalation_id)
+            start_resp = client.post(
+                f"/api/v1/tasks/{task_id}/start",
+                headers=env["headers"],
+            )
+            assert start_resp.status_code == 200
+            task = db_session.get(InterventionTask, uuid.UUID(task_id))
+            assert task is not None
+            task.updated_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+            db_session.commit()
+        elif scenario == "recent_completion":
+            task_id = _create_task(client, env["headers"], escalation_id)
+            _complete_task_with_outcome(client, env["headers"], task_id)
+            resolve_resp = client.post(
+                f"/api/v1/escalations/{escalation_id}/resolve",
+                json={"resolution_notes": "Handled"},
+                headers=env["headers"],
+            )
+            assert resolve_resp.status_code == 200
+            task = db_session.get(InterventionTask, uuid.UUID(task_id))
+            assert task is not None
+            task.completed_at = datetime.now(timezone.utc) + timedelta(minutes=5)
+            db_session.commit()
+        else:
+            assert scenario == "open_escalation_no_task"
+
+    worklist = _get_worklist_summary(
+        client,
+        env["headers"],
+        params=[("patient_ids", env["patient_id"]), ("active_only", False)],
+    )
+    row = _find_worklist_item(worklist, env["patient_id"])
+    detail = _get_timeline_detail_payload(client, env["headers"], env["patient_id"])
+
+    assert row["last_operational_change_label"] == expected_label
+    assert row["last_operational_change_reason_label"] == expected_reason_label
+    assert row["recommended_timeframe_reason_label"] == expected_timeframe_reason_label
+    assert row["next_step_reason_detail_label"] == expected_next_step_reason_detail_label
+    assert row["status_snapshot_reason_label"] == expected_status_snapshot_reason_label
+    assert row["closure_readiness_reason_label"] == expected_closure_readiness_reason_label
+    assert row["resolution_confidence_reason_label"] == expected_resolution_confidence_reason_label
+    assert detail["last_operational_change_label"] == expected_label
+    assert detail["last_operational_change_reason_label"] == expected_reason_label
+    assert detail["recommended_timeframe_reason_label"] == expected_timeframe_reason_label
+    assert detail["next_step_reason_detail_label"] == expected_next_step_reason_detail_label
+    assert detail["status_snapshot_reason_label"] == expected_status_snapshot_reason_label
+    assert detail["closure_readiness_reason_label"] == expected_closure_readiness_reason_label
+    assert detail["resolution_confidence_reason_label"] == expected_resolution_confidence_reason_label

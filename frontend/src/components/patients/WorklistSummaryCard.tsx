@@ -501,20 +501,27 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
   const compactAttentionReason = summary.attention_reason ?? attention.primary;
   const compactNextStep = summary.next_step ?? actionCue?.label ?? "Standing by";
   const compactNextStepReason = summary.next_step_reason ?? actionCue?.helper ?? null;
+  const compactNextStepReasonDetail = summary.next_step_reason_detail_label ?? null;
   const compactActiveOwner = summary.active_owner_label ?? null;
   const compactWaitingOn = summary.waiting_on_label ?? null;
   const compactCareGap = summary.care_gap_label ?? null;
   const compactBlockingIssue = summary.blocking_issue_label ?? null;
   const compactResolutionTarget = summary.resolution_target_label ?? null;
   const compactClosureReadiness = summary.closure_readiness_label ?? null;
+  const compactClosureReadinessReason = summary.closure_readiness_reason_label ?? null;
   const compactResolutionConfidence = summary.resolution_confidence_label ?? null;
+  const compactResolutionConfidenceReason = summary.resolution_confidence_reason_label ?? null;
   const compactRecommendedTimeframe = summary.recommended_timeframe ?? null;
+  const compactRecommendedTimeframeReason = summary.recommended_timeframe_reason_label ?? null;
   const compactWorkflowAge = summary.workflow_age_label ?? null;
   const compactRecentChange = summary.recent_change_label ?? null;
+  const compactLastOperationalChange = summary.last_operational_change_label ?? null;
+  const compactLastOperationalChangeReason = summary.last_operational_change_reason_label ?? null;
   const compactStaleness = summary.staleness_indicator ?? null;
   const compactPriorityBand = summary.priority_band ?? null;
   const compactPriorityReason = summary.priority_reason ?? null;
   const compactStatusSnapshot = summary.status_snapshot ?? null;
+  const compactStatusSnapshotReason = summary.status_snapshot_reason_label ?? null;
   const latestActivityTimestamp =
     taskSummary?.latest_active_task_created_at ?? summary.latest_event_occurred_at ?? null;
   const latestEventSummary = latestActivityTimestamp
@@ -632,8 +639,18 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
           {compactNextStepReason ? (
             <span className="worklist-topline-helper">{compactNextStepReason}</span>
           ) : null}
+          {compactNextStepReasonDetail ? (
+            <span className="worklist-topline-helper">
+              Next step detail: {compactNextStepReasonDetail}
+            </span>
+          ) : null}
           {compactStatusSnapshot ? (
             <span className="worklist-topline-helper">{compactStatusSnapshot}</span>
+          ) : null}
+          {compactStatusSnapshotReason ? (
+            <span className="worklist-topline-helper">
+              Status reason: {compactStatusSnapshotReason}
+            </span>
           ) : null}
           {compactActiveOwner ? (
             <span className="worklist-topline-helper">Owner: {compactActiveOwner}</span>
@@ -653,17 +670,42 @@ export default function WorklistSummaryCard({ summary, queueQueryString }: Props
           {compactClosureReadiness ? (
             <span className="worklist-topline-helper">Closure: {compactClosureReadiness}</span>
           ) : null}
+          {compactClosureReadinessReason ? (
+            <span className="worklist-topline-helper">
+              Closure reason: {compactClosureReadinessReason}
+            </span>
+          ) : null}
           {compactResolutionConfidence ? (
             <span className="worklist-topline-helper">Confidence: {compactResolutionConfidence}</span>
           ) : null}
+          {compactResolutionConfidenceReason ? (
+            <span className="worklist-topline-helper">
+              Confidence reason: {compactResolutionConfidenceReason}
+            </span>
+          ) : null}
           {compactRecommendedTimeframe ? (
             <span className="worklist-topline-helper">Timeframe: {compactRecommendedTimeframe}</span>
+          ) : null}
+          {compactRecommendedTimeframeReason ? (
+            <span className="worklist-topline-helper">
+              Timeframe reason: {compactRecommendedTimeframeReason}
+            </span>
           ) : null}
           {compactWorkflowAge ? (
             <span className="worklist-topline-helper">Age: {compactWorkflowAge}</span>
           ) : null}
           {compactRecentChange ? (
             <span className="worklist-topline-helper">{compactRecentChange}</span>
+          ) : null}
+          {compactLastOperationalChange ? (
+            <span className="worklist-topline-helper">
+              Latest workflow change: {compactLastOperationalChange}
+            </span>
+          ) : null}
+          {compactLastOperationalChangeReason ? (
+            <span className="worklist-topline-helper">
+              Change reason: {compactLastOperationalChangeReason}
+            </span>
           ) : null}
           {compactStaleness ? (
             <span className="worklist-topline-helper">Staleness: {compactStaleness}</span>

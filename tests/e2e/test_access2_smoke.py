@@ -187,12 +187,17 @@ def create_workflow_bootstrap(
     browser.find_element(*by_test_id("workflow-bootstrap-signal-notes")).send_keys(
         f"Selenium {scenario} scenario signal note."
     )
-    task_title_input = browser.find_element(*by_test_id("workflow-bootstrap-task-title"))
-    task_title_input.clear()
-    task_title_input.send_keys(task_title)
-    browser.find_element(*by_test_id("workflow-bootstrap-task-description")).send_keys(
-        "Verify overdue task workflow content on patient detail."
+    task_title_inputs = browser.find_elements(*by_test_id("workflow-bootstrap-task-title"))
+    if task_title_inputs:
+        task_title_inputs[0].clear()
+        task_title_inputs[0].send_keys(task_title)
+    task_description_inputs = browser.find_elements(
+        *by_test_id("workflow-bootstrap-task-description")
     )
+    if task_description_inputs:
+        task_description_inputs[0].send_keys(
+            "Verify unresolved workflow content across patient surfaces."
+        )
     submit = browser.find_element(
         By.CSS_SELECTOR,
         '[data-testid="workflow-bootstrap-form"] button[type="submit"]',
@@ -237,6 +242,88 @@ def create_overdue_task_bootstrap(browser, wait, base_url, task_title):
         scenario="overdue_task",
         task_title=task_title,
     )
+
+
+WORKFLOW_SUMMARY_ALIGNMENT_SCENARIOS = {
+    "overdue_task": {
+        "last_name": "WorkflowOverdue",
+        "queue": (
+            "Task overdue",
+            "Update task disposition",
+            "Task is overdue and needs disposition",
+            "Care team queue",
+            "Task start",
+        ),
+        "detail": (
+            "One or more active intervention tasks are overdue.",
+            "Complete immediate follow-up or update the task disposition.",
+            "Care team queue",
+            "Task start",
+        ),
+    },
+    "in_progress_task": {
+        "last_name": "WorkflowInProgress",
+        "queue": (
+            "Task in progress",
+            "Continue active intervention",
+            "An intervention is already underway",
+            "Assigned care team",
+            "Task completion",
+        ),
+        "detail": (
+            "Active intervention work is already in progress.",
+            "Follow through on the current task and document the outcome.",
+            "Assigned care team",
+            "Task completion",
+        ),
+    },
+    "open_escalation_no_task": {
+        "last_name": "WorkflowEscalation",
+        "queue": (
+            "Open escalation, no active outreach",
+            "Start outreach",
+            "Escalation is open and no active task exists",
+            "Clinical review",
+            "Task creation",
+        ),
+        "detail": (
+            "There is an open escalation with no active intervention task.",
+            "Assign and start an outreach task.",
+            "Clinical review",
+            "Task creation",
+        ),
+    },
+    "recent_completion": {
+        "last_name": "WorkflowRecentDone",
+        "queue": (
+            "Recently completed, monitor",
+            "Monitor recent completion",
+            "Work was completed recently; monitor for follow-up",
+            "Monitoring",
+            "Next signal or follow-up",
+        ),
+        "detail": (
+            "Recent intervention work is completed and no escalation is currently open.",
+            "Continue monitoring and review new timeline evidence as it arrives.",
+            "Monitoring",
+            "Next signal or follow-up",
+        ),
+    },
+    "routine": {
+        "last_name": "WorkflowRoutine",
+        "queue": (
+            "Routine monitoring",
+            "No urgent workflow driver is present",
+            "Routine monitoring",
+            "No immediate action",
+        ),
+        "detail": (
+            "Low priority: no urgent workflow driver",
+            "Routine monitoring",
+            "No immediate action",
+        ),
+    },
+}
 
 
 def test_login_page_loads(browser, wait, base_url):
@@ -300,6 +387,57 @@ def test_admin_can_submit_workflow_bootstrap(
     task_panel = wait_for_test_id(wait, "patient-task-action-panel")
     assert task_title in task_panel.text
     assert "Current status: Open" in task_panel.text
+
+
+def test_admin_workflow_summary_alignment_between_worklist_and_detail(
+    browser,
+    wait,
+    base_url,
+    submit_bootstrap_enabled,
+):
+    if not submit_bootstrap_enabled:
+        pytest.skip(
+            "Set ACCESS2_E2E_SUBMIT_BOOTSTRAP=1 or pass --e2e-submit-bootstrap "
+            "to run this data-creating browser test."
+        )
+
+    login_as_admin(browser, wait, base_url)
+
+    for scenario, expectations in WORKFLOW_SUMMARY_ALIGNMENT_SCENARIOS.items():
+        create_workflow_bootstrap(
+            browser,
+            wait,
+            base_url,
+            scenario=scenario,
+            task_title=f"Selenium {scenario} alignment task",
+            last_name=expectations["last_name"],
+        )
+        patient_id = current_patient_id(browser)
+
+        scenario_marker = wait_for_test_id(wait, "patient-validation-scenario")
+        assert f"Validation scenario: {scenario}" in scenario_marker.text
+
+        detail_summary = wait_for_test_id(wait, "patient-why-now-summary").text
+        for expected_detail_text in expectations["detail"]:
+            assert expected_detail_text in detail_summary
+
+        browser.get(f"{base_url}/patients?patient_ids={patient_id}&active_only=0")
+        wait_for_test_id(wait, "patients-page")
+        worklist_card = wait_for_worklist_patient_card(wait, patient_id)
+        worklist_text = worklist_card.text
+
+        assert expectations["last_name"] in worklist_text
+        for expected_queue_text in expectations["queue"]:
+            assert expected_queue_text in worklist_text
+
+        patient_href = worklist_card.get_attribute("href")
+        assert patient_href
+        browser.get(patient_href)
+        wait_for_test_id(wait, "patient-detail-page")
+
+        refreshed_detail_summary = wait_for_test_id(wait, "patient-why-now-summary").text
+        for expected_detail_text in expectations["detail"]:
+            assert expected_detail_text in refreshed_detail_summary
 
 
 def test_admin_can_complete_patient_detail_task(

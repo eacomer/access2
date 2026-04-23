@@ -82,20 +82,27 @@ export interface PatientTimelineWorklistSummaryItem {
   attention_reason?: string | null;
   next_step?: string | null;
   next_step_reason?: string | null;
+  next_step_reason_detail_label?: string | null;
   active_owner_label?: string | null;
   waiting_on_label?: string | null;
   care_gap_label?: string | null;
   blocking_issue_label?: string | null;
   resolution_target_label?: string | null;
   closure_readiness_label?: string | null;
+  closure_readiness_reason_label?: string | null;
   resolution_confidence_label?: string | null;
+  resolution_confidence_reason_label?: string | null;
   recommended_timeframe?: string | null;
+  recommended_timeframe_reason_label?: string | null;
   workflow_age_label?: string | null;
   recent_change_label?: string | null;
+  last_operational_change_label?: string | null;
+  last_operational_change_reason_label?: string | null;
   staleness_indicator?: string | null;
   priority_band?: string | null;
   priority_reason?: string | null;
   status_snapshot?: string | null;
+  status_snapshot_reason_label?: string | null;
 }
 
 export interface PatientQueueImpactSnapshot {
@@ -188,13 +195,20 @@ export interface PatientTimelineDetailResponse {
   intervention_evidence_summary?: PatientInterventionEvidenceSummary | null;
   attention_summary?: PatientAttentionSummary | null;
   status_snapshot?: string | null;
+  status_snapshot_reason_label?: string | null;
   care_gap_label?: string | null;
   blocking_issue_label?: string | null;
   resolution_target_label?: string | null;
   closure_readiness_label?: string | null;
+  closure_readiness_reason_label?: string | null;
   resolution_confidence_label?: string | null;
+  resolution_confidence_reason_label?: string | null;
   active_owner_label?: string | null;
   waiting_on_label?: string | null;
+  next_step_reason_detail_label?: string | null;
+  last_operational_change_label?: string | null;
+  last_operational_change_reason_label?: string | null;
+  recommended_timeframe_reason_label?: string | null;
 }
 
 export interface PatientEscalation {
