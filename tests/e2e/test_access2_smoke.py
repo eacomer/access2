@@ -526,7 +526,7 @@ def test_admin_can_create_patient_detail_task(
     create_submit.click()
 
     feedback = wait_for_action_feedback(browser, wait)
-    assert "Task created successfully." in feedback.text
+    assert "Task created successfully" in feedback.text
 
     wait.until(
         lambda driver: created_task_title
@@ -541,6 +541,53 @@ def test_admin_can_create_patient_detail_task(
     )
     intervention_summary = browser.find_element(*by_test_id("patient-intervention-summary"))
     assert created_task_title in intervention_summary.text
+
+
+def test_admin_can_dismiss_patient_detail_action_feedback(
+    browser,
+    wait,
+    base_url,
+    submit_bootstrap_enabled,
+):
+    if not submit_bootstrap_enabled:
+        pytest.skip(
+            "Set ACCESS2_E2E_SUBMIT_BOOTSTRAP=1 or pass --e2e-submit-bootstrap "
+            "to run this data-creating browser test."
+        )
+
+    login_as_admin(browser, wait, base_url)
+    created_task_title = "Selenium dismiss feedback task"
+    create_workflow_bootstrap(
+        browser,
+        wait,
+        base_url,
+        scenario="open_escalation_no_task",
+        task_title="Unused bootstrap task title",
+        last_name="DismissBanner",
+    )
+
+    detail_url = browser.current_url
+    title_input = find_by_test_id_or_id(browser, wait, "patient-create-task-title", "task-title")
+    create_form = title_input.find_element(By.XPATH, "./ancestor::form")
+    title_input.send_keys(created_task_title)
+    create_submit = create_form.find_element(By.CSS_SELECTOR, 'button[type="submit"]')
+    assert create_submit.is_enabled()
+    create_submit.click()
+
+    feedback = wait_for_action_feedback(browser, wait)
+    assert "Task created successfully" in feedback.text
+
+    feedback.find_element(By.XPATH, ".//button[normalize-space()='Clear']").click()
+    wait.until(lambda driver: not driver.find_elements(*by_test_id("patient-action-feedback")))
+    assert "workflow_outcome" not in urlparse(browser.current_url).query
+
+    browser.refresh()
+    wait_for_test_id(wait, "patient-detail-page")
+    assert not browser.find_elements(*by_test_id("patient-action-feedback"))
+
+    browser.get(detail_url)
+    wait_for_test_id(wait, "patient-detail-page")
+    assert not browser.find_elements(*by_test_id("patient-action-feedback"))
 
 
 def test_admin_create_task_requires_title_before_submit(
@@ -627,7 +674,7 @@ def test_admin_worklist_refreshes_after_patient_detail_task_creation(
     create_submit.click()
 
     feedback = wait_for_action_feedback(browser, wait)
-    assert "Task created successfully." in feedback.text
+    assert "Task created successfully" in feedback.text
     wait.until(
         lambda driver: created_task_title
         in driver.find_element(*by_test_id("patient-task-action-panel")).text

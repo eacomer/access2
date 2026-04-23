@@ -174,6 +174,22 @@ Expected coverage:
 | `recent_completion` | The recent completion/resolution posture is consistent in both places |
 | `routine` | Both views show no urgent workflow driver without inventing task or escalation urgency |
 
+### Patient-detail outcome banner
+
+When validating patient-detail workflow actions, confirm the compact success banner appears near the workflow action area after the action completes.
+
+Expected messages:
+
+| Action | Expected banner |
+| --- | --- |
+| Start task | Task started successfully |
+| Complete task | Task completed successfully |
+| Create task | Task created successfully |
+| Start escalation | Escalation started successfully |
+| Resolve escalation | Escalation resolved successfully |
+
+After selecting `Clear`, the banner should disappear, `workflow_outcome` should no longer be present in the URL, and the dismissed banner should not reappear after refreshing or revisiting the patient detail page.
+
 ## Operational summary checklist
 
 Use this table to validate the backend-derived operational summary fields on the queue card and patient detail summary. The wording should match across surfaces when the same field is visible in both places.

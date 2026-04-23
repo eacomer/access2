@@ -161,6 +161,14 @@ const removeParamValue = (params: URLSearchParams, key: string, value?: string |
   remaining.forEach((entry) => params.append(key, entry));
 };
 
+const WORKFLOW_OUTCOME_MESSAGES: Record<string, string> = {
+  task_started: "Task started successfully",
+  task_completed: "Task completed successfully",
+  task_created: "Task created successfully",
+  escalation_started: "Escalation started successfully",
+  escalation_resolved: "Escalation resolved successfully",
+};
+
 export default async function PatientDetailPage({ params, searchParams }: PageProps) {
   const { id: patientId } = await params;
   const resolvedSearchParams =
@@ -190,10 +198,19 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   const cursorEventId = getFirstParam(resolvedSearchParams?.cursor_event_id);
   const cursorDirection = getFirstParam(resolvedSearchParams?.cursor_direction);
   const limitParam = getFirstParam(resolvedSearchParams?.limit);
+  const workflowOutcome = getFirstParam(resolvedSearchParams?.workflow_outcome);
+  const initialActionFeedback =
+    workflowOutcome && WORKFLOW_OUTCOME_MESSAGES[workflowOutcome]
+      ? {
+          success: true,
+          message: WORKFLOW_OUTCOME_MESSAGES[workflowOutcome],
+          outcome: workflowOutcome,
+        }
+      : null;
   const parsedLimit = limitParam ? Number.parseInt(limitParam, 10) : NaN;
   const pageSize = Number.isFinite(parsedLimit) ? Math.min(Math.max(parsedLimit, 5), 100) : 25;
   const pagePath = `/patients/${patientId}`;
-  const originalSearchParams = createSearchParams(resolvedSearchParams);
+  const originalSearchParams = createSearchParams(resolvedSearchParams, ["workflow_outcome"]);
   const originalQueryString = originalSearchParams.toString();
   const detailRetryHref = originalQueryString ? `${pagePath}?${originalQueryString}` : pagePath;
   requireAuth(detailRetryHref);
@@ -530,11 +547,17 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
       revalidatePatientViews({ pagePath, detailPath: detailRetryHref });
       const successMessage =
         request.type === "resolve"
-          ? "Escalation resolved."
+          ? WORKFLOW_OUTCOME_MESSAGES.escalation_resolved
           : request.type === "start"
-            ? "Escalation marked as in progress."
+            ? WORKFLOW_OUTCOME_MESSAGES.escalation_started
             : "Escalation acknowledged.";
-      return { success: true, message: successMessage };
+      const outcome =
+        request.type === "resolve"
+          ? "escalation_resolved"
+          : request.type === "start"
+            ? "escalation_started"
+            : null;
+      return { success: true, message: successMessage, outcome };
     } catch (error) {
       console.error("Failed to update escalation", error);
       return {
@@ -581,11 +604,13 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
       revalidatePatientViews({ pagePath, detailPath: detailRetryHref });
       const successMessage =
         request.type === "start"
-          ? "Task started."
+          ? WORKFLOW_OUTCOME_MESSAGES.task_started
           : request.type === "cancel"
             ? "Task canceled."
-            : "Task completed and documented.";
-      return { success: true, message: successMessage, ...buildTaskResult(updatedTask) };
+            : WORKFLOW_OUTCOME_MESSAGES.task_completed;
+      const outcome =
+        request.type === "start" ? "task_started" : request.type === "complete" ? "task_completed" : null;
+      return { success: true, message: successMessage, outcome, ...buildTaskResult(updatedTask) };
     } catch (error) {
       console.error("Failed to update task", error);
       return {
@@ -618,7 +643,12 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
         { authRedirectPath: detailRetryHref },
       );
       revalidatePatientViews({ pagePath, detailPath: detailRetryHref });
-      return { success: true, message: "Task created successfully.", ...buildTaskResult(createdTask) };
+      return {
+        success: true,
+        message: WORKFLOW_OUTCOME_MESSAGES.task_created,
+        outcome: "task_created",
+        ...buildTaskResult(createdTask),
+      };
     } catch (error) {
       console.error("Failed to create task", error);
       return {
@@ -699,6 +729,7 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
           task={activeTask}
           taskSummary={taskSummary}
           patientName={patientName}
+          initialFeedback={initialActionFeedback}
           createTaskContextLabel={createTaskContextLabel}
           disableTaskCreation={!activeEscalationId}
           disabledCreateTaskMessage="Tasks are created when a patient has an open escalation."

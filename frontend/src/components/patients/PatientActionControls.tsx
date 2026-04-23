@@ -17,6 +17,7 @@ type Props = {
   task: InterventionTask | null;
   taskSummary: PatientInterventionTaskSummary | null;
   patientName: string;
+  initialFeedback?: ActionResult | null;
   createTaskContextLabel?: string;
   disableTaskCreation?: boolean;
   disabledCreateTaskMessage?: string;
@@ -30,6 +31,7 @@ export default function PatientActionControls({
   task,
   taskSummary,
   patientName,
+  initialFeedback = null,
   createTaskContextLabel,
   disableTaskCreation = false,
   disabledCreateTaskMessage,
@@ -37,15 +39,39 @@ export default function PatientActionControls({
   onTaskAction,
   onCreateTask,
 }: Props) {
-  const [feedback, setFeedback] = useState<ActionResult | null>(null);
+  const [feedback, setFeedback] = useState<ActionResult | null>(initialFeedback);
+
+  const clearOutcomeParam = () => {
+    if (typeof window === "undefined") {
+      return;
+    }
+    const url = new URL(window.location.href);
+    if (url.searchParams.has("workflow_outcome")) {
+      url.searchParams.delete("workflow_outcome");
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    }
+  };
 
   const handleFeedback = (result: ActionResult | null) => {
+    if (result === null) {
+      clearOutcomeParam();
+    } else if (result.success && result.outcome && typeof window !== "undefined") {
+      const url = new URL(window.location.href);
+      url.searchParams.set("workflow_outcome", result.outcome);
+      window.history.replaceState(null, "", `${url.pathname}${url.search}${url.hash}`);
+    }
     setFeedback(result);
   };
 
   return (
     <div className="patient-action-controls">
-      <ActionFeedbackBanner feedback={feedback} onDismiss={() => setFeedback(null)} />
+      <ActionFeedbackBanner
+        feedback={feedback}
+        onDismiss={() => {
+          clearOutcomeParam();
+          setFeedback(null);
+        }}
+      />
       <EscalationActionBar
         status={escalationStatus}
         onAction={onEscalationAction}

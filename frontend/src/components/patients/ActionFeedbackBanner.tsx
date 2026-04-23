@@ -5,6 +5,7 @@ import { useMemo } from "react";
 export type ActionResult = {
   success: boolean;
   message?: string;
+  outcome?: string | null;
   taskId?: string | null;
   taskTitle?: string | null;
   taskDescription?: string | null;
