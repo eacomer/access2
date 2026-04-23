@@ -679,6 +679,14 @@ def test_admin_worklist_refreshes_after_patient_detail_task_creation(
         lambda driver: created_task_title
         in driver.find_element(*by_test_id("patient-task-action-panel")).text
     )
+    refreshed_task_panel = browser.find_element(*by_test_id("patient-task-action-panel"))
+    assert created_task_title in refreshed_task_panel.text
+    assert "Current status: Open" in refreshed_task_panel.text
+    detail_intervention_summary = browser.find_element(
+        *by_test_id("patient-intervention-summary")
+    )
+    assert created_task_title in detail_intervention_summary.text
+    assert "1 open task" in detail_intervention_summary.text
 
     browser.get(f"{base_url}/patients?patient_ids={patient_id}&active_only=0")
     wait_for_test_id(wait, "patients-page")
