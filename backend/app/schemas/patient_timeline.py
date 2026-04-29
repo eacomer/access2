@@ -6,6 +6,7 @@ from uuid import UUID
 
 from pydantic import BaseModel, ConfigDict, Field, field_validator, model_validator
 
+from app.schemas.access_evidence import AccessReviewReadinessSummary
 from app.models.intervention_task import InterventionTaskStatus
 
 
@@ -95,6 +96,7 @@ class PatientTimelineDetailResponse(BaseModel):
     escalation_evidence: PatientEscalationEvidence | None = None
     task_summary: "PatientInterventionTaskSummary | None" = None
     workflow_status: "PatientWorkflowStatusSummary | None" = None
+    review_readiness: AccessReviewReadinessSummary | None = None
     intervention_evidence_summary: "PatientInterventionEvidenceSummary | None" = None
     attention_summary: "PatientAttentionSummary | None" = None
     status_snapshot: str | None = None
@@ -270,6 +272,7 @@ class PatientTimelineWorkflowSummaryResponse(BaseModel):
     unread_count: int = Field(default=0, ge=0)
     last_read_event_id: str | None = None
     last_read_occurred_at: datetime | None = None
+    review_readiness: AccessReviewReadinessSummary | None = None
 
 
 class PatientTimelineFilterSnapshotResponse(BaseModel):
@@ -324,6 +327,7 @@ class PatientTimelineWorklistSummaryItem(BaseModel):
     latest_open_escalation_id: UUID | None = None
     task_summary: PatientInterventionTaskSummary | None = None
     workflow_status: PatientWorkflowStatusSummary | None = None
+    review_readiness: AccessReviewReadinessSummary | None = None
     attention_reason: str | None = None
     next_step: str | None = None
     next_step_reason: str | None = None

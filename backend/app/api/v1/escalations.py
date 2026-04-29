@@ -16,9 +16,11 @@ from app.schemas.signal import (
 )
 from app.services.authz import OrganizationAccessError
 from app.services.patient_signal_service import (
+    EscalationResolutionValidationError,
     EscalationTransitionError,
     PatientEscalationNotFoundError,
     get_escalation_by_id,
+    resolve_escalation,
     transition_escalation_status,
     update_escalation_sla_due_at,
 )
@@ -65,13 +67,28 @@ def resolve_escalation_endpoint(
     db: Session = Depends(get_db),
     context: RequestContext = Depends(get_request_context),
 ) -> PatientEscalationRead:
-    return _update_status_response(
-        db=db,
-        escalation_id=escalation_id,
-        context=context,
-        new_status=EscalationStatus.RESOLVED,
-        note=payload.resolution_notes,
-    )
+    escalation = _get_escalation_or_error(db=db, context=context, escalation_id=escalation_id)
+    try:
+        return resolve_escalation(
+            db=db,
+            context=context,
+            escalation=escalation,
+            resolution_reason=payload.resolution_reason,
+            resolution_notes=payload.resolution_notes,
+            outcome_id=payload.outcome_id,
+            care_update_id=payload.care_update_id,
+            resolved_at=payload.resolved_at,
+        )
+    except EscalationResolutionValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        )
+    except EscalationTransitionError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
+        )
 
 
 @router.post(

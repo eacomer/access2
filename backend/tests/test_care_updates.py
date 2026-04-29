@@ -4,7 +4,6 @@ from datetime import datetime, timedelta, timezone
 
 from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
-
 from tests.test_patients import (
     auth_headers,
     create_organization_record,
@@ -73,19 +72,23 @@ def _create_task(
     return resp.json()["id"]
 
 
-def _complete_task_with_outcome(
+def _create_outcome(
     client: TestClient,
     headers: dict[str, str],
+    patient_id: str,
     task_id: str,
 ) -> dict:
     resp = client.post(
-        f"/api/v1/intervention-tasks/{task_id}/complete-with-outcome",
+        "/api/v1/outcomes",
         json={
-            "completion_summary": "Reached patient",
-            "intervention_type": "phone_call",
-            "outcome_status": "successful",
-            "patient_response": "Agreed to plan",
-            "follow_up_required": False,
+            "patient_id": patient_id,
+            "intervention_task_id": task_id,
+            "type": "bp",
+            "metric_name": "systolic_bp",
+            "value_numeric": 128,
+            "unit": "mmHg",
+            "observed_at": datetime.now(timezone.utc).isoformat(),
+            "source": "care_team",
         },
         headers=headers,
     )
@@ -97,8 +100,9 @@ def test_create_care_update_for_patient(client: TestClient, db_session: Session)
     env = _bootstrap_patient_env(client, db_session, slug="care-basic")
 
     resp = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
+        "/api/v1/care-updates",
         json={
+            "patient_id": env["patient_id"],
             "summary": "Spoke with patient",
             "details": "Confirmed medication plan",
             "care_update_type": "outreach",
@@ -117,8 +121,9 @@ def test_create_care_update_with_escalation(client: TestClient, db_session: Sess
     escalation_id = _create_escalation(client, env["headers"], env["patient_id"])
 
     resp = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
+        "/api/v1/care-updates",
         json={
+            "patient_id": env["patient_id"],
             "summary": "Escalation reviewed",
             "care_update_type": "coordination",
             "escalation_id": escalation_id,
@@ -136,8 +141,9 @@ def test_create_care_update_with_task(client: TestClient, db_session: Session) -
     task_id = _create_task(client, env["headers"], escalation_id)
 
     resp = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
+        "/api/v1/care-updates",
         json={
+            "patient_id": env["patient_id"],
             "summary": "Task progress noted",
             "care_update_type": "follow_up",
             "intervention_task_id": task_id,
@@ -154,20 +160,21 @@ def test_create_care_update_with_task_outcome(client: TestClient, db_session: Se
     env = _bootstrap_patient_env(client, db_session, slug="care-outcome")
     escalation_id = _create_escalation(client, env["headers"], env["patient_id"])
     task_id = _create_task(client, env["headers"], escalation_id)
-    outcome = _complete_task_with_outcome(client, env["headers"], task_id)
+    outcome = _create_outcome(client, env["headers"], env["patient_id"], task_id)
 
     resp = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
+        "/api/v1/care-updates",
         json={
+            "patient_id": env["patient_id"],
             "summary": "Documented outcome follow-up",
             "care_update_type": "adherence",
-            "intervention_task_outcome_id": outcome["id"],
+            "outcome_id": outcome["id"],
         },
         headers=env["headers"],
     )
     assert resp.status_code == 201
     payload = resp.json()
-    assert payload["intervention_task_outcome_id"] == outcome["id"]
+    assert payload["outcome_id"] == outcome["id"]
     assert payload["intervention_task_id"] == outcome["intervention_task_id"]
     assert payload["escalation_id"] == escalation_id
 
@@ -188,8 +195,9 @@ def test_care_update_creation_blocked_cross_tenant(
     other_headers = auth_headers(client, other_user.email, "Secret123!")
 
     resp = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
+        "/api/v1/care-updates",
         json={
+            "patient_id": env["patient_id"],
             "summary": "Unauthorized attempt",
             "care_update_type": "other",
         },
@@ -207,15 +215,16 @@ def test_care_update_rejects_cross_patient_references(
     other_escalation = _create_escalation(client, env["headers"], other_patient)
 
     resp = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
+        "/api/v1/care-updates",
         json={
+            "patient_id": env["patient_id"],
             "summary": "Invalid linkage",
             "care_update_type": "coordination",
             "escalation_id": other_escalation,
         },
         headers=env["headers"],
     )
-    assert resp.status_code == 400
+    assert resp.status_code == 422
 
 
 def test_care_update_rejects_mismatched_task_outcome(
@@ -225,23 +234,24 @@ def test_care_update_rejects_mismatched_task_outcome(
     env = _bootstrap_patient_env(client, db_session, slug="care-mismatch")
     escalation_one = _create_escalation(client, env["headers"], env["patient_id"])
     task_one = _create_task(client, env["headers"], escalation_one)
-    _complete_task_with_outcome(client, env["headers"], task_one)
+    _create_outcome(client, env["headers"], env["patient_id"], task_one)
 
     escalation_two = _create_escalation(client, env["headers"], env["patient_id"])
     task_two = _create_task(client, env["headers"], escalation_two)
-    outcome_two = _complete_task_with_outcome(client, env["headers"], task_two)
+    outcome_two = _create_outcome(client, env["headers"], env["patient_id"], task_two)
 
     resp = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
+        "/api/v1/care-updates",
         json={
+            "patient_id": env["patient_id"],
             "summary": "Mismatch linkage",
             "care_update_type": "coordination",
             "intervention_task_id": task_one,
-            "intervention_task_outcome_id": outcome_two["id"],
+            "outcome_id": outcome_two["id"],
         },
         headers=env["headers"],
     )
-    assert resp.status_code == 400
+    assert resp.status_code == 422
 
 
 def test_list_care_updates_for_patient(client: TestClient, db_session: Session) -> None:
@@ -249,8 +259,9 @@ def test_list_care_updates_for_patient(client: TestClient, db_session: Session) 
     older_time = datetime.now(timezone.utc) - timedelta(days=1)
 
     first = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
+        "/api/v1/care-updates",
         json={
+            "patient_id": env["patient_id"],
             "summary": "Earlier note",
             "care_update_type": "education",
             "occurred_at": older_time.isoformat(),
@@ -260,8 +271,9 @@ def test_list_care_updates_for_patient(client: TestClient, db_session: Session) 
     assert first.status_code == 201
 
     second = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
+        "/api/v1/care-updates",
         json={
+            "patient_id": env["patient_id"],
             "summary": "Recent note",
             "care_update_type": "follow_up",
         },
@@ -279,87 +291,15 @@ def test_list_care_updates_for_patient(client: TestClient, db_session: Session) 
     assert payload[0]["summary"] == "Recent note"
     assert payload[1]["summary"] == "Earlier note"
 
-
-def test_list_care_updates_for_escalation(client: TestClient, db_session: Session) -> None:
-    env = _bootstrap_patient_env(client, db_session, slug="care-escalation-list")
-    escalation_id = _create_escalation(client, env["headers"], env["patient_id"])
-
-    create = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
-        json={
-            "summary": "Escalation follow-up",
-            "care_update_type": "coordination",
-            "escalation_id": escalation_id,
-        },
-        headers=env["headers"],
-    )
-    assert create.status_code == 201
-
-    listing = client.get(
-        f"/api/v1/escalations/{escalation_id}/care-updates",
-        headers=env["headers"],
-    )
-    assert listing.status_code == 200
-    payload = listing.json()
-    assert len(payload) == 1
-    assert payload[0]["summary"] == "Escalation follow-up"
-
-
-def test_list_care_updates_for_task(client: TestClient, db_session: Session) -> None:
-    env = _bootstrap_patient_env(client, db_session, slug="care-task-list")
-    escalation_id = _create_escalation(client, env["headers"], env["patient_id"])
-    task_id = _create_task(client, env["headers"], escalation_id)
-
-    create = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
-        json={
-            "summary": "Task check-in",
-            "care_update_type": "follow_up",
-            "intervention_task_id": task_id,
-        },
-        headers=env["headers"],
-    )
-    assert create.status_code == 201
-
-    listing = client.get(
-        f"/api/v1/intervention-tasks/{task_id}/care-updates",
-        headers=env["headers"],
-    )
-    assert listing.status_code == 200
-    payload = listing.json()
-    assert len(payload) == 1
-    assert payload[0]["intervention_task_id"] == task_id
-
-
-def test_get_single_care_update(client: TestClient, db_session: Session) -> None:
-    env = _bootstrap_patient_env(client, db_session, slug="care-detail")
-    create = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
-        json={
-            "summary": "Detail lookup",
-            "care_update_type": "other",
-        },
-        headers=env["headers"],
-    )
-    assert create.status_code == 201
-    care_update_id = create.json()["id"]
-
-    detail = client.get(
-        f"/api/v1/care-updates/{care_update_id}",
-        headers=env["headers"],
-    )
-    assert detail.status_code == 200
-    assert detail.json()["summary"] == "Detail lookup"
-
-
 def test_patient_care_update_listing_scoped_to_org(
     client: TestClient,
     db_session: Session,
 ) -> None:
     env = _bootstrap_patient_env(client, db_session, slug="care-scope")
     create = client.post(
-        f"/api/v1/patients/{env['patient_id']}/care-updates",
+        "/api/v1/care-updates",
         json={
+            "patient_id": env["patient_id"],
             "summary": "Scoped note",
             "care_update_type": "outreach",
         },
@@ -381,3 +321,72 @@ def test_patient_care_update_listing_scoped_to_org(
         headers=other_headers,
     )
     assert denied.status_code == 403
+
+
+def test_care_update_requires_same_patient_for_outcome_reference(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="care-outcome-cross-patient")
+    other_patient_id = create_patient_for_user(client, env["headers"], first_name="other-patient")
+    other_escalation_id = _create_escalation(client, env["headers"], other_patient_id)
+    other_task_id = _create_task(client, env["headers"], other_escalation_id)
+    other_outcome = _create_outcome(client, env["headers"], other_patient_id, other_task_id)
+
+    resp = client.post(
+        "/api/v1/care-updates",
+        json={
+            "patient_id": env["patient_id"],
+            "summary": "Cross patient outcome",
+            "care_update_type": "coordination",
+            "outcome_id": other_outcome["id"],
+        },
+        headers=env["headers"],
+    )
+
+    assert resp.status_code == 422
+
+
+def test_care_update_list_is_deterministic_for_same_occurred_at(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="care-deterministic")
+    occurred_at = datetime.now(timezone.utc).replace(microsecond=0)
+
+    first = client.post(
+        "/api/v1/care-updates",
+        json={
+            "patient_id": env["patient_id"],
+            "summary": "First note",
+            "care_update_type": "outreach",
+            "occurred_at": occurred_at.isoformat(),
+        },
+        headers=env["headers"],
+    )
+    assert first.status_code == 201
+
+    second = client.post(
+        "/api/v1/care-updates",
+        json={
+            "patient_id": env["patient_id"],
+            "summary": "Second note",
+            "care_update_type": "follow_up",
+            "occurred_at": occurred_at.isoformat(),
+        },
+        headers=env["headers"],
+    )
+    assert second.status_code == 201
+
+    listing = client.get(
+        f"/api/v1/patients/{env['patient_id']}/care-updates",
+        headers=env["headers"],
+    )
+    assert listing.status_code == 200
+
+    ordered_ids = [item["id"] for item in listing.json()]
+    expected_ids = sorted(
+        [first.json()["id"], second.json()["id"]],
+        reverse=True,
+    )
+    assert ordered_ids == expected_ids

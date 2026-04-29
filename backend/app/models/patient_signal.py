@@ -21,6 +21,8 @@ from app.models.base import Base
 from app.models.mixins import IDTimestampMixin
 
 if TYPE_CHECKING:
+    from app.models.care_update import CareUpdate
+    from app.models.outcome import Outcome
     from app.models.organization import Organization
     from app.models.patient import Patient
     from app.models.patient_enrollment import PatientEnrollment
@@ -51,6 +53,14 @@ class EscalationSeverity(str, Enum):
     LOW = "low"
     MEDIUM = "medium"
     HIGH = "high"
+
+
+class EscalationResolutionReason(str, Enum):
+    CLINICALLY_STABLE = "clinically_stable"
+    ISSUE_ADDRESSED = "issue_addressed"
+    FALSE_POSITIVE = "false_positive"
+    DUPLICATE = "duplicate"
+    OTHER = "other"
 
 
 class PatientSignal(IDTimestampMixin, Base):
@@ -196,6 +206,24 @@ class PatientEscalation(IDTimestampMixin, Base):
         Text,
         nullable=True,
     )
+    resolution_reason: Mapped[EscalationResolutionReason | None] = mapped_column(
+        SAEnum(
+            EscalationResolutionReason,
+            name="escalationresolutionreason",
+            values_callable=enum_values,
+        ),
+        nullable=True,
+    )
+    resolution_outcome_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("outcomes.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
+        index=True,
+    )
+    resolution_care_update_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("care_updates.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
+        index=True,
+    )
 
     canceled_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
@@ -214,6 +242,14 @@ class PatientEscalation(IDTimestampMixin, Base):
         "PatientSignal",
         back_populates="escalation",
         uselist=False,
+    )
+    resolution_outcome: Mapped["Outcome | None"] = relationship(
+        "Outcome",
+        foreign_keys=[resolution_outcome_id],
+    )
+    resolution_care_update: Mapped["CareUpdate | None"] = relationship(
+        "CareUpdate",
+        foreign_keys=[resolution_care_update_id],
     )
     status_events: Mapped[list["PatientEscalationStatusEvent"]] = relationship(
         "PatientEscalationStatusEvent",
@@ -258,6 +294,24 @@ class PatientEscalationStatusEvent(IDTimestampMixin, Base):
         Text,
         nullable=True,
     )
+    resolution_reason: Mapped[EscalationResolutionReason | None] = mapped_column(
+        SAEnum(
+            EscalationResolutionReason,
+            name="escalationresolutionreason",
+            values_callable=enum_values,
+        ),
+        nullable=True,
+    )
+    resolution_outcome_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("outcomes.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
+        index=True,
+    )
+    resolution_care_update_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("care_updates.id", ondelete="SET NULL", use_alter=True),
+        nullable=True,
+        index=True,
+    )
 
     actor_user_id: Mapped[uuid.UUID | None] = mapped_column(
         ForeignKey("users.id", ondelete="SET NULL"),
@@ -271,3 +325,11 @@ class PatientEscalationStatusEvent(IDTimestampMixin, Base):
         back_populates="status_events",
     )
     actor: Mapped["User"] = relationship("User")
+    resolution_outcome: Mapped["Outcome | None"] = relationship(
+        "Outcome",
+        foreign_keys=[resolution_outcome_id],
+    )
+    resolution_care_update: Mapped["CareUpdate | None"] = relationship(
+        "CareUpdate",
+        foreign_keys=[resolution_care_update_id],
+    )

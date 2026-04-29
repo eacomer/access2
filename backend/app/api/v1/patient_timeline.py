@@ -24,6 +24,7 @@ from app.schemas.patient_timeline import (
     PatientTimelineWorkflowSummaryResponse,
 )
 from app.services.authz import OrganizationAccessError
+from app.services.access_evidence_service import build_access_review_readiness_summary
 from app.services.patient_service import PatientNotFoundError, get_patient_by_id
 from app.services.patient_timeline_service import (
     PatientTimelineContextMismatchError,
@@ -99,7 +100,7 @@ def _parse_timeline_filters(
         )
     except (ValueError, ValidationError) as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         )
 
@@ -120,7 +121,7 @@ def _parse_workflow_summary_filters(
         )
     except (ValueError, ValidationError) as exc:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail=str(exc),
         )
 
@@ -153,7 +154,7 @@ def get_patient_timeline_worklist_summary_endpoint(
     except PatientTimelineContextNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except PatientTimelineContextMismatchError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     return PatientTimelineWorklistSummaryResponse(**summaries)
 
 
@@ -178,7 +179,7 @@ def list_patient_timeline_endpoint(
 ) -> PatientTimelineListResponse:
     if (cursor_occurred_at is None) != (cursor_event_id is None):
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="cursor_occurred_at and cursor_event_id must be provided together.",
         )
 
@@ -196,7 +197,7 @@ def list_patient_timeline_endpoint(
     except PatientTimelineContextNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except PatientTimelineContextMismatchError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     return PatientTimelineListResponse(**result)
 
 
@@ -228,7 +229,7 @@ def list_patient_timeline_since_endpoint(
     except PatientTimelineContextNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except PatientTimelineContextMismatchError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     return PatientTimelineSinceResponse(**result)
 
 
@@ -253,7 +254,7 @@ def summarize_patient_timeline_endpoint(
     except PatientTimelineContextNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except PatientTimelineContextMismatchError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     return PatientTimelineSummaryResponse(**summary)
 
 
@@ -278,7 +279,7 @@ def get_patient_timeline_workflow_summary_endpoint(
     except PatientTimelineContextNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except PatientTimelineContextMismatchError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     return PatientTimelineWorkflowSummaryResponse(**summary)
 
 
@@ -321,7 +322,7 @@ def get_patient_timeline_filtered_read_state_endpoint(
     except PatientTimelineContextNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except PatientTimelineContextMismatchError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     return PatientTimelineReadStateResponse(**result)
 
 
@@ -346,7 +347,7 @@ def preview_patient_timeline_filtered_read_state_endpoint(
     except PatientTimelineContextNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except PatientTimelineContextMismatchError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     return PatientTimelineReadStateResponse(**result)
 
 
@@ -371,7 +372,7 @@ def get_patient_timeline_filter_snapshot_endpoint(
     except PatientTimelineContextNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except PatientTimelineContextMismatchError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     return PatientTimelineFilterSnapshotResponse(**snapshot)
 
 
@@ -396,7 +397,7 @@ def get_patient_timeline_inbox_summary_endpoint(
     except PatientTimelineContextNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except PatientTimelineContextMismatchError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     return PatientTimelineInboxSummaryResponse(**summary)
 
 
@@ -420,7 +421,7 @@ def update_patient_timeline_read_state_endpoint(
         )
     except PatientTimelineEventNotFoundError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Timeline event not found for this patient.",
         )
     return PatientTimelineReadStateResponse(**result)
@@ -446,7 +447,7 @@ def mark_patient_timeline_through_event_endpoint(
         )
     except PatientTimelineEventNotFoundError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Timeline event not found for this patient.",
         )
     return PatientTimelineReadStateResponse(**result)
@@ -474,15 +475,15 @@ def mark_patient_timeline_through_filtered_event_endpoint(
         )
     except PatientTimelineEventNotFoundError:
         raise HTTPException(
-            status_code=status.HTTP_422_UNPROCESSABLE_ENTITY,
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Timeline event not found for this patient.",
         )
     except PatientTimelineContextNotFoundError as exc:
         raise HTTPException(status_code=status.HTTP_404_NOT_FOUND, detail=str(exc))
     except PatientTimelineContextMismatchError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     except PatientTimelineFilteredEventVisibilityError as exc:
-        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_ENTITY, detail=str(exc))
+        raise HTTPException(status_code=status.HTTP_422_UNPROCESSABLE_CONTENT, detail=str(exc))
     return PatientTimelineReadStateResponse(**result)
 
 
@@ -599,6 +600,11 @@ def get_patient_timeline_event_endpoint(
         escalation_evidence=evidence.as_dict(),
         task_summary=task_summary.as_dict(),
         workflow_status=workflow_status.as_dict(),
+        review_readiness=build_access_review_readiness_summary(
+            db=db,
+            context=context,
+            patient=patient,
+        ),
         intervention_evidence_summary=intervention_evidence_summary.as_dict(),
         attention_summary=attention_summary.as_dict(),
         status_snapshot=status_snapshot,

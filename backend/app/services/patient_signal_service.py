@@ -9,9 +9,12 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.core.context import RequestContext
+from app.models.care_update import CareUpdate
+from app.models.outcome import Outcome
 from app.models.patient import Patient
 from app.models.patient_enrollment import PatientEnrollment
 from app.models.patient_signal import (
+    EscalationResolutionReason,
     EscalationSeverity,
     EscalationStatus,
     PatientEscalation,
@@ -40,6 +43,10 @@ class PatientEscalationNotFoundError(Exception):
 
 class EscalationTransitionError(Exception):
     """Raised when applying an invalid escalation state transition."""
+
+
+class EscalationResolutionValidationError(Exception):
+    """Raised when resolution evidence is inconsistent with the escalation."""
 
 
 ALLOWED_ESCALATION_TRANSITIONS: dict[EscalationStatus, tuple[EscalationStatus, ...]] = {
@@ -218,6 +225,15 @@ def transition_escalation_status(
         status=new_status,
         occurred_at=timestamp,
         note=cleaned_note,
+        resolution_reason=escalation.resolution_reason
+        if new_status == EscalationStatus.RESOLVED
+        else None,
+        resolution_outcome_id=escalation.resolution_outcome_id
+        if new_status == EscalationStatus.RESOLVED
+        else None,
+        resolution_care_update_id=escalation.resolution_care_update_id
+        if new_status == EscalationStatus.RESOLVED
+        else None,
         actor_user_id=actor_user_id,
     )
 
@@ -226,6 +242,65 @@ def transition_escalation_status(
     db.commit()
     db.refresh(escalation)
     return escalation
+
+
+def resolve_escalation(
+    db: Session,
+    *,
+    context: RequestContext,
+    escalation: PatientEscalation,
+    resolution_reason: EscalationResolutionReason | None,
+    resolution_notes: str | None = None,
+    outcome_id: UUID | None = None,
+    care_update_id: UUID | None = None,
+    resolved_at: datetime | None = None,
+) -> PatientEscalation:
+    ensure_tenant_scoped_resource(context=context, resource=escalation)
+
+    outcome: Outcome | None = None
+    if outcome_id is not None:
+        outcome = db.get(Outcome, outcome_id)
+        if outcome is None:
+            raise EscalationResolutionValidationError("Outcome reference not found.")
+        ensure_tenant_scoped_resource(context=context, resource=outcome)
+        if outcome.patient_id != escalation.patient_id:
+            raise EscalationResolutionValidationError(
+                "Outcome must belong to the same patient as the escalation."
+            )
+
+    care_update: CareUpdate | None = None
+    if care_update_id is not None:
+        care_update = db.get(CareUpdate, care_update_id)
+        if care_update is None:
+            raise EscalationResolutionValidationError("Care update reference not found.")
+        ensure_tenant_scoped_resource(context=context, resource=care_update)
+        if care_update.patient_id != escalation.patient_id:
+            raise EscalationResolutionValidationError(
+                "Care update must belong to the same patient as the escalation."
+            )
+        if care_update.escalation_id is not None and care_update.escalation_id != escalation.id:
+            raise EscalationResolutionValidationError(
+                "Care update escalation linkage must match the escalation being resolved."
+            )
+
+    if outcome is not None and care_update is not None:
+        if care_update.outcome_id is not None and care_update.outcome_id != outcome.id:
+            raise EscalationResolutionValidationError(
+                "Care update outcome linkage must match the provided outcome."
+            )
+
+    escalation.resolution_reason = resolution_reason
+    escalation.resolution_outcome_id = outcome.id if outcome is not None else None
+    escalation.resolution_care_update_id = care_update.id if care_update is not None else None
+
+    return transition_escalation_status(
+        db=db,
+        escalation=escalation,
+        new_status=EscalationStatus.RESOLVED,
+        note=resolution_notes,
+        actor_user_id=context.user.id,
+        occurred_at=resolved_at,
+    )
 
 
 def update_escalation_sla_due_at(

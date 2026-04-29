@@ -15,6 +15,7 @@ from app.models.intervention_task_outcome import InterventionTaskOutcome
 from app.models.outcome import Outcome
 from app.models.patient import Patient
 from app.models.patient_signal import (
+    EscalationResolutionReason,
     EscalationSeverity,
     EscalationStatus,
     PatientEscalation,
@@ -893,6 +894,15 @@ def _normalize_escalation(escalation: PatientEscalation) -> TimelineItemPayload:
         "in_progress_at": _iso(escalation.in_progress_at),
         "resolved_at": _iso(escalation.resolved_at),
         "resolution_notes": escalation.resolution_notes,
+        "resolution_reason": escalation.resolution_reason.value
+        if escalation.resolution_reason is not None
+        else None,
+        "resolution_outcome_id": str(escalation.resolution_outcome_id)
+        if escalation.resolution_outcome_id
+        else None,
+        "resolution_care_update_id": str(escalation.resolution_care_update_id)
+        if escalation.resolution_care_update_id
+        else None,
         "canceled_at": _iso(escalation.canceled_at),
         "cancellation_notes": escalation.cancellation_notes,
         "signal_id": str(escalation.signal_id) if escalation.signal_id else None,
@@ -924,9 +934,20 @@ def _normalize_escalation_status_event(
     status_event: PatientEscalationStatusEvent,
 ) -> TimelineItemPayload:
     display_title = f"Escalation marked {status_event.status.value.replace('_', ' ')}"
+    if status_event.status == EscalationStatus.RESOLVED:
+        display_title = "Escalation resolved"
     metadata = {
         "status": status_event.status.value,
         "note": status_event.note,
+        "resolution_reason": status_event.resolution_reason.value
+        if status_event.resolution_reason is not None
+        else None,
+        "resolution_outcome_id": str(status_event.resolution_outcome_id)
+        if status_event.resolution_outcome_id
+        else None,
+        "resolution_care_update_id": str(status_event.resolution_care_update_id)
+        if status_event.resolution_care_update_id
+        else None,
     }
 
     return {
@@ -945,7 +966,7 @@ def _normalize_escalation_status_event(
         "actor_user_id": status_event.actor_user_id,
         "related_escalation_id": status_event.escalation_id,
         "related_task_id": None,
-        "related_outcome_id": None,
+        "related_outcome_id": status_event.resolution_outcome_id,
         "metadata": metadata,
     }
 
@@ -1233,7 +1254,7 @@ def _normalize_care_update(update: CareUpdate) -> TimelineItemPayload:
         "actor_user_id": update.created_by_user_id,
         "related_escalation_id": update.escalation_id,
         "related_task_id": update.intervention_task_id,
-        "related_outcome_id": update.intervention_task_outcome_id,
+        "related_outcome_id": update.outcome_id,
         "metadata": metadata,
     }
 

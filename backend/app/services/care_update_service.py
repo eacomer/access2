@@ -10,7 +10,7 @@ from sqlalchemy.orm import Session
 from app.core.context import RequestContext
 from app.models.care_update import CareUpdate
 from app.models.intervention_task import InterventionTask
-from app.models.intervention_task_outcome import InterventionTaskOutcome
+from app.models.outcome import Outcome
 from app.models.patient import Patient
 from app.models.patient_signal import PatientEscalation
 from app.schemas.care_update import CareUpdateCreate
@@ -33,9 +33,11 @@ def create_care_update(
     db: Session,
     *,
     context: RequestContext,
-    patient: Patient,
     payload: CareUpdateCreate,
 ) -> CareUpdate:
+    patient = db.get(Patient, payload.patient_id)
+    if patient is None:
+        raise CareUpdateValidationError("Patient not found.")
     ensure_tenant_scoped_resource(context=context, resource=patient)
 
     summary = (payload.summary or "").strip()
@@ -56,8 +58,8 @@ def create_care_update(
         else None
     )
     outcome = (
-        _load_outcome(db=db, context=context, outcome_id=payload.intervention_task_outcome_id)
-        if payload.intervention_task_outcome_id
+        _load_outcome(db=db, context=context, outcome_id=payload.outcome_id)
+        if payload.outcome_id
         else None
     )
 
@@ -79,17 +81,25 @@ def create_care_update(
         _ensure_patient_match(
             patient_id=patient.id,
             resource_patient_id=outcome.patient_id,
-            label="Task outcome",
+            label="Outcome",
         )
 
     if task is not None and escalation is not None and task.escalation_id != escalation.id:
         raise CareUpdateLinkageError("Intervention task must belong to the provided escalation.")
 
     if outcome is not None and task is not None and outcome.intervention_task_id != task.id:
-        raise CareUpdateLinkageError("Task outcome must belong to the provided intervention task.")
+        raise CareUpdateLinkageError("Outcome must belong to the provided intervention task.")
+
+    outcome_task = (
+        _load_task(db=db, context=context, task_id=outcome.intervention_task_id)
+        if outcome is not None and outcome.intervention_task_id is not None and task is None
+        else None
+    )
 
     resolved_task_id = (
-        task.id if task is not None else (outcome.intervention_task_id if outcome is not None else None)
+        task.id
+        if task is not None
+        else (outcome_task.id if outcome_task is not None else None)
     )
 
     resolved_escalation_id = (
@@ -99,7 +109,9 @@ def create_care_update(
             task.escalation_id
             if task is not None and task.escalation_id is not None
             else (
-                outcome.escalation_id if outcome is not None and outcome.escalation_id is not None else None
+                outcome_task.escalation_id
+                if outcome_task is not None and outcome_task.escalation_id is not None
+                else None
             )
         )
     )
@@ -109,7 +121,7 @@ def create_care_update(
         patient_id=patient.id,
         escalation_id=resolved_escalation_id,
         intervention_task_id=resolved_task_id,
-        intervention_task_outcome_id=outcome.id if outcome is not None else None,
+        outcome_id=outcome.id if outcome is not None else None,
         created_by_user_id=context.user.id,
         care_update_type=payload.care_update_type,
         summary=summary,
@@ -133,53 +145,9 @@ def list_care_updates_for_patient(
     stmt = (
         select(CareUpdate)
         .where(CareUpdate.patient_id == patient.id)
-        .order_by(CareUpdate.occurred_at.desc(), CareUpdate.created_at.desc())
+        .order_by(CareUpdate.occurred_at.desc(), CareUpdate.id.desc())
     )
     return list(db.execute(stmt).scalars().all())
-
-
-def list_care_updates_for_escalation(
-    db: Session,
-    *,
-    context: RequestContext,
-    escalation: PatientEscalation,
-) -> List[CareUpdate]:
-    ensure_tenant_scoped_resource(context=context, resource=escalation)
-    stmt = (
-        select(CareUpdate)
-        .where(CareUpdate.escalation_id == escalation.id)
-        .order_by(CareUpdate.occurred_at.desc(), CareUpdate.created_at.desc())
-    )
-    return list(db.execute(stmt).scalars().all())
-
-
-def list_care_updates_for_task(
-    db: Session,
-    *,
-    context: RequestContext,
-    task: InterventionTask,
-) -> List[CareUpdate]:
-    ensure_tenant_scoped_resource(context=context, resource=task)
-    stmt = (
-        select(CareUpdate)
-        .where(CareUpdate.intervention_task_id == task.id)
-        .order_by(CareUpdate.occurred_at.desc(), CareUpdate.created_at.desc())
-    )
-    return list(db.execute(stmt).scalars().all())
-
-
-def get_care_update_by_id(
-    db: Session,
-    *,
-    context: RequestContext,
-    care_update_id: UUID,
-) -> CareUpdate:
-    care_update = db.get(CareUpdate, care_update_id)
-    if care_update is None:
-        raise CareUpdateNotFoundError()
-
-    ensure_tenant_scoped_resource(context=context, resource=care_update)
-    return care_update
 
 
 def _load_escalation(
@@ -215,10 +183,10 @@ def _load_outcome(
     db: Session,
     context: RequestContext,
     outcome_id: UUID,
-) -> InterventionTaskOutcome:
-    outcome = db.get(InterventionTaskOutcome, outcome_id)
+) -> Outcome:
+    outcome = db.get(Outcome, outcome_id)
     if outcome is None:
-        raise CareUpdateLinkageError("Task outcome reference not found.")
+        raise CareUpdateLinkageError("Outcome reference not found.")
 
     ensure_tenant_scoped_resource(context=context, resource=outcome)
     return outcome

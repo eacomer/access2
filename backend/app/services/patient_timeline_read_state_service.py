@@ -26,6 +26,7 @@ from app.models.intervention_task_outcome import InterventionTaskOutcome
 from app.models.patient_signal import PatientEscalation, PatientEscalationStatusEvent, PatientSignal
 from app.models.patient_timeline_read_state import PatientTimelineReadState
 from app.services.authz import ensure_tenant_scoped_resource
+from app.services.access_evidence_service import build_access_review_readiness_summary
 from app.services.patient_timeline_service import (
     EVENT_TYPE_CARE_UPDATE,
     EVENT_TYPE_ESCALATION,
@@ -544,6 +545,11 @@ def list_patient_timeline_worklist_summaries(
             open_escalation_count=escalation_summary.open_escalation_count,
             completed_task_count=completed_task_count_map.get(patient.id, 0),
         )
+        review_readiness = build_access_review_readiness_summary(
+            db=db,
+            context=context,
+            patient=patient,
+        )
         summary_payload = escalation_summary.as_dict()
         task_summary_payload = task_summary.as_dict()
         items.append(
@@ -553,6 +559,7 @@ def list_patient_timeline_worklist_summaries(
                 "patient_display_name": f"{patient.first_name} {patient.last_name}",
                 "task_summary": task_summary_payload,
                 "workflow_status": workflow_status.as_dict(),
+                "review_readiness": review_readiness,
                 "attention_reason": _compact_attention_reason(attention_summary),
                 "next_step": next_step,
                 "next_step_reason": _compact_next_step_reason(attention_summary),
@@ -701,6 +708,11 @@ def _build_single_patient_worklist_summary(
         open_escalation_count=escalation_summary.open_escalation_count,
         completed_task_count=completed_task_count_map.get(patient.id, 0),
     )
+    review_readiness = build_access_review_readiness_summary(
+        db=db,
+        context=context,
+        patient=patient,
+    )
     summary_payload = escalation_summary.as_dict()
     task_summary_payload = task_summary.as_dict()
     if has_unread_events is not None and payload["has_unread_events"] is not has_unread_events:
@@ -727,6 +739,7 @@ def _build_single_patient_worklist_summary(
                 "patient_display_name": f"{patient.first_name} {patient.last_name}",
                 "task_summary": task_summary_payload,
                 "workflow_status": workflow_status.as_dict(),
+                "review_readiness": review_readiness,
                 "attention_reason": _compact_attention_reason(attention_summary),
                 "next_step": next_step,
                 "next_step_reason": _compact_next_step_reason(attention_summary),

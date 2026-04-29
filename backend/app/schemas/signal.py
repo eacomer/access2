@@ -6,6 +6,7 @@ from uuid import UUID
 from pydantic import BaseModel, ConfigDict, Field
 
 from app.models.patient_signal import (
+    EscalationResolutionReason,
     EscalationSeverity,
     EscalationStatus,
     SignalType,
@@ -55,6 +56,9 @@ class PatientEscalationRead(BaseModel):
     in_progress_at: datetime | None
     resolved_at: datetime | None
     resolution_notes: str | None
+    resolution_reason: EscalationResolutionReason | None
+    resolution_outcome_id: UUID | None
+    resolution_care_update_id: UUID | None
     canceled_at: datetime | None
     cancellation_notes: str | None
     sla_due_at: datetime | None
@@ -71,6 +75,10 @@ class SignalCreateResponse(BaseModel):
 
 class EscalationResolveRequest(BaseModel):
     resolution_notes: str | None = Field(default=None, max_length=2000)
+    resolution_reason: EscalationResolutionReason | None = None
+    outcome_id: UUID | None = None
+    care_update_id: UUID | None = None
+    resolved_at: datetime | None = None
 
 
 class EscalationStatusUpdateRequest(BaseModel):

@@ -9,6 +9,7 @@ from app.core.context import RequestContext
 from app.models.intervention_task import InterventionTask
 from app.models.patient import Patient
 from app.models.patient_signal import PatientEscalation
+from app.services.access_evidence_service import build_access_review_readiness_summary
 from app.services.authz import ensure_tenant_scoped_resource
 from app.services.patient_timeline_read_state_service import (
     calculate_unread_count_for_events,
@@ -64,6 +65,11 @@ def get_patient_timeline_workflow_summary(
         patient=patient,
         target_escalation_id=related_escalation_id,
     )
+    review_readiness = build_access_review_readiness_summary(
+        db=db,
+        context=context,
+        patient=patient,
+    )
 
     return {
         "patient_id": patient.id,
@@ -89,6 +95,7 @@ def get_patient_timeline_workflow_summary(
         "unread_count": filtered_unread_count,
         "last_read_event_id": read_state["last_read_event_id"],
         "last_read_occurred_at": read_state["last_read_occurred_at"],
+        "review_readiness": review_readiness,
     }
 
 
@@ -146,4 +153,3 @@ def _get_latest_unresolved_escalation(
     if target_escalation_id:
         stmt = stmt.where(PatientEscalation.id == target_escalation_id)
     return db.execute(stmt).scalar_one_or_none()
-

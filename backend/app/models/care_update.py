@@ -9,11 +9,12 @@ from sqlalchemy import DateTime, Enum as SAEnum, ForeignKey, Index, String, Text
 from sqlalchemy.orm import Mapped, mapped_column, relationship
 
 from app.models.base import Base
+from app.models.intervention_task import enum_values
 from app.models.mixins import IDTimestampMixin
 
 if TYPE_CHECKING:
     from app.models.intervention_task import InterventionTask
-    from app.models.intervention_task_outcome import InterventionTaskOutcome
+    from app.models.outcome import Outcome
     from app.models.patient import Patient
     from app.models.patient_signal import PatientEscalation
     from app.models.user import User
@@ -58,8 +59,8 @@ class CareUpdate(IDTimestampMixin, Base):
         index=True,
     )
 
-    intervention_task_outcome_id: Mapped[uuid.UUID | None] = mapped_column(
-        ForeignKey("intervention_task_outcomes.id", ondelete="SET NULL"),
+    outcome_id: Mapped[uuid.UUID | None] = mapped_column(
+        ForeignKey("outcomes.id", ondelete="SET NULL"),
         nullable=True,
         index=True,
     )
@@ -70,7 +71,7 @@ class CareUpdate(IDTimestampMixin, Base):
     )
 
     care_update_type: Mapped[CareUpdateType] = mapped_column(
-        SAEnum(CareUpdateType, name="careupdatetype"),
+        SAEnum(CareUpdateType, name="careupdatetype", values_callable=enum_values),
         nullable=False,
     )
 
@@ -91,11 +92,12 @@ class CareUpdate(IDTimestampMixin, Base):
     )
 
     patient: Mapped["Patient"] = relationship("Patient")
-    escalation: Mapped["PatientEscalation | None"] = relationship("PatientEscalation")
-    intervention_task: Mapped["InterventionTask | None"] = relationship("InterventionTask")
-    intervention_task_outcome: Mapped["InterventionTaskOutcome | None"] = relationship(
-        "InterventionTaskOutcome"
+    escalation: Mapped["PatientEscalation | None"] = relationship(
+        "PatientEscalation",
+        foreign_keys=[escalation_id],
     )
+    intervention_task: Mapped["InterventionTask | None"] = relationship("InterventionTask")
+    outcome: Mapped["Outcome | None"] = relationship("Outcome")
     created_by_user: Mapped["User"] = relationship(
         "User",
         foreign_keys=[created_by_user_id],

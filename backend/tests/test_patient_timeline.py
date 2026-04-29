@@ -8,7 +8,9 @@ from fastapi.testclient import TestClient
 from sqlalchemy.orm import Session
 
 from app.models.intervention_task import InterventionTask
+from app.models.patient_signal import PatientEscalation
 from app.services import patient_timeline_read_state_service as read_state_service
+from tests.test_outcomes import _create_outcome
 from tests.test_patients import (
     auth_headers,
     create_organization_record,
@@ -140,23 +142,108 @@ def _create_care_update(
     *,
     summary: str = "Spoke with patient",
     occurred_at: datetime | None = None,
-    intervention_task_outcome_id: str | None = None,
+    escalation_id: str | None = None,
+    outcome_id: str | None = None,
 ) -> dict:
     payload: dict[str, object] = {
+        "patient_id": patient_id,
         "summary": summary,
         "care_update_type": "outreach",
     }
     if occurred_at is not None:
         payload["occurred_at"] = occurred_at.isoformat()
-    if intervention_task_outcome_id is not None:
-        payload["intervention_task_outcome_id"] = intervention_task_outcome_id
+    if escalation_id is not None:
+        payload["escalation_id"] = escalation_id
+    if outcome_id is not None:
+        payload["outcome_id"] = outcome_id
     resp = client.post(
-        f"/api/v1/patients/{patient_id}/care-updates",
+        "/api/v1/care-updates",
         json=payload,
         headers=headers,
     )
     assert resp.status_code == 201
     return resp.json()
+
+
+def _complete_task(
+    client: TestClient,
+    headers: dict[str, str],
+    task_id: str,
+    *,
+    completion_note: str = "Handled",
+) -> dict:
+    resp = client.post(
+        f"/api/v1/tasks/{task_id}/complete",
+        json={"completion_note": completion_note},
+        headers=headers,
+    )
+    assert resp.status_code == 200
+    return resp.json()
+
+
+def _create_resolved_evidence_chain(
+    client: TestClient,
+    db_session: Session,
+    headers: dict[str, str],
+    patient_id: str,
+    *,
+    recorded_at: datetime,
+    outcome_observed_at: datetime,
+    care_update_occurred_at: datetime,
+    resolved_at: datetime | None = None,
+) -> dict:
+    signal_payload = _create_signal(
+        client,
+        headers,
+        patient_id,
+        recorded_at=recorded_at,
+    )
+    escalation_id = signal_payload["escalation"]["id"]
+    task_id = _create_task(client, headers, escalation_id, title="Document intervention")
+    outcome = _create_outcome(
+        client,
+        headers,
+        patient_id,
+        intervention_task_id=task_id,
+        observed_at=outcome_observed_at,
+        value_numeric=128,
+    )
+    _complete_task(client, headers, task_id, completion_note="Documented completion")
+    care_update = _create_care_update(
+        client,
+        headers,
+        patient_id,
+        summary="Follow-up documented",
+        occurred_at=care_update_occurred_at,
+        escalation_id=escalation_id,
+        outcome_id=outcome["id"],
+    )
+    resolve_resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/resolve",
+        json={
+            "resolution_reason": "clinically_stable",
+            "resolution_notes": "Closed with supporting evidence.",
+            "outcome_id": outcome["id"],
+            "care_update_id": care_update["id"],
+        },
+        headers=headers,
+    )
+    assert resolve_resp.status_code == 200
+
+    if resolved_at is not None:
+        escalation = db_session.get(PatientEscalation, uuid.UUID(escalation_id))
+        assert escalation is not None
+        escalation.resolved_at = resolved_at
+        db_session.commit()
+
+    return {
+        "signal": signal_payload,
+        "escalation_id": escalation_id,
+        "task_id": task_id,
+        "outcome": outcome,
+        "care_update": care_update,
+        "resolution": resolve_resp.json(),
+    }
 
 
 def _get_workflow_summary(
@@ -359,7 +446,7 @@ def test_patient_timeline_returns_combined_feed(
         client,
         env["headers"],
         env["patient_id"],
-        intervention_task_outcome_id=outcome["id"],
+        summary="Follow-up documented",
     )
 
     resp = client.get(
@@ -419,6 +506,155 @@ def test_patient_timeline_includes_escalation_status_events(
     assert status_events, "expected escalation status change in timeline feed"
     assert status_events[0]["status"] == "resolved"
     assert status_events[0]["display_text"] == "closed"
+
+
+def test_patient_timeline_escalation_resolution_event_includes_closure_evidence(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-escalation-resolution-evidence")
+    signal_payload = _create_signal(client, env["headers"], env["patient_id"])
+    escalation_id = signal_payload["escalation"]["id"]
+    task_id = _create_task(client, env["headers"], escalation_id)
+    outcome = _create_outcome(
+        client,
+        env["headers"],
+        env["patient_id"],
+        intervention_task_id=task_id,
+    )
+    care_update = _create_care_update(
+        client,
+        env["headers"],
+        env["patient_id"],
+        summary="Closure evidence",
+        outcome_id=outcome["id"],
+    )
+
+    resolve_resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/resolve",
+        json={
+            "resolution_reason": "issue_addressed",
+            "resolution_notes": "Closed with documented outcome and follow-up.",
+            "outcome_id": outcome["id"],
+            "care_update_id": care_update["id"],
+        },
+        headers=env["headers"],
+    )
+    assert resolve_resp.status_code == 200
+
+    timeline = client.get(
+        f"/api/v1/patients/{env['patient_id']}/timeline",
+        headers=env["headers"],
+    )
+    assert timeline.status_code == 200
+    resolution_event = next(
+        item
+        for item in timeline.json()["items"]
+        if item["event_type"] == "escalation_status_changed"
+        and item["status"] == "resolved"
+    )
+    assert resolution_event["display_title"] == "Escalation resolved"
+    assert resolution_event["related_escalation_id"] == escalation_id
+    assert resolution_event["related_outcome_id"] == outcome["id"]
+    assert resolution_event["metadata"]["resolution_reason"] == "issue_addressed"
+    assert resolution_event["metadata"]["resolution_outcome_id"] == outcome["id"]
+    assert resolution_event["metadata"]["resolution_care_update_id"] == care_update["id"]
+
+
+def test_patient_timeline_orders_resolved_escalation_events_by_resolved_at_desc(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-escalation-resolution-order")
+    base = datetime.now(timezone.utc).replace(microsecond=0)
+
+    first_signal = _create_signal(client, env["headers"], env["patient_id"])
+    first_escalation_id = first_signal["escalation"]["id"]
+    first_task_id = _create_task(client, env["headers"], first_escalation_id)
+    first_outcome = _create_outcome(
+        client,
+        env["headers"],
+        env["patient_id"],
+        intervention_task_id=first_task_id,
+        observed_at=base + timedelta(hours=1),
+    )
+    first_update = _create_care_update(
+        client,
+        env["headers"],
+        env["patient_id"],
+        summary="First closure evidence",
+        occurred_at=base + timedelta(hours=2),
+        outcome_id=first_outcome["id"],
+    )
+    first_resolved_at = base + timedelta(hours=3)
+    first_resolve = client.post(
+        f"/api/v1/escalations/{first_escalation_id}/resolve",
+        json={
+            "resolution_reason": "issue_addressed",
+            "resolution_notes": "First escalation closed.",
+            "outcome_id": first_outcome["id"],
+            "care_update_id": first_update["id"],
+            "resolved_at": first_resolved_at.isoformat(),
+        },
+        headers=env["headers"],
+    )
+    assert first_resolve.status_code == 200
+
+    second_signal = _create_signal(client, env["headers"], env["patient_id"])
+    second_escalation_id = second_signal["escalation"]["id"]
+    second_task_id = _create_task(client, env["headers"], second_escalation_id)
+    second_outcome = _create_outcome(
+        client,
+        env["headers"],
+        env["patient_id"],
+        intervention_task_id=second_task_id,
+        observed_at=base + timedelta(hours=4),
+    )
+    second_update = _create_care_update(
+        client,
+        env["headers"],
+        env["patient_id"],
+        summary="Second closure evidence",
+        occurred_at=base + timedelta(hours=5),
+        outcome_id=second_outcome["id"],
+    )
+    second_resolved_at = base + timedelta(hours=6)
+    second_resolve = client.post(
+        f"/api/v1/escalations/{second_escalation_id}/resolve",
+        json={
+            "resolution_reason": "clinically_stable",
+            "resolution_notes": "Second escalation closed.",
+            "outcome_id": second_outcome["id"],
+            "care_update_id": second_update["id"],
+            "resolved_at": second_resolved_at.isoformat(),
+        },
+        headers=env["headers"],
+    )
+    assert second_resolve.status_code == 200
+
+    timeline = client.get(
+        f"/api/v1/patients/{env['patient_id']}/timeline",
+        headers=env["headers"],
+    )
+    assert timeline.status_code == 200
+
+    resolution_events = [
+        item
+        for item in timeline.json()["items"]
+        if item["event_type"] == "escalation_status_changed" and item["status"] == "resolved"
+    ]
+    assert [item["related_escalation_id"] for item in resolution_events[:2]] == [
+        second_escalation_id,
+        first_escalation_id,
+    ]
+    assert [item["occurred_at"] for item in resolution_events[:2]] == [
+        second_resolved_at.replace(tzinfo=None).isoformat(),
+        first_resolved_at.replace(tzinfo=None).isoformat(),
+    ]
+    assert resolution_events[0]["metadata"]["resolution_outcome_id"] == second_outcome["id"]
+    assert resolution_events[0]["metadata"]["resolution_care_update_id"] == second_update["id"]
+    assert resolution_events[1]["metadata"]["resolution_outcome_id"] == first_outcome["id"]
+    assert resolution_events[1]["metadata"]["resolution_care_update_id"] == first_update["id"]
 
 
 def test_patient_timeline_pagination_is_deterministic(
@@ -1494,7 +1730,7 @@ def test_patient_timeline_filter_by_related_task_id(
         client,
         env["headers"],
         env["patient_id"],
-        intervention_task_outcome_id=outcome["id"],
+        summary="Task follow-up documented",
     )
 
     resp = client.get(
@@ -1585,7 +1821,7 @@ def test_patient_timeline_task_status_filter_applies_to_outcome_events(
         client,
         env["headers"],
         env["patient_id"],
-        intervention_task_outcome_id=outcome["id"],
+        summary="Completed-task care update",
     )
 
     outcome_resp = client.get(
@@ -1610,8 +1846,7 @@ def test_patient_timeline_task_status_filter_applies_to_outcome_events(
     )
     assert care_update_resp.status_code == 200
     care_update_payload = care_update_resp.json()
-    assert care_update_payload["items"]
-    assert {item["related_task_id"] for item in care_update_payload["items"]} == {task_id}
+    assert care_update_payload["items"] == []
 
     open_filtered = client.get(
         f"/api/v1/patients/{env['patient_id']}/timeline",
@@ -1637,12 +1872,13 @@ def test_patient_timeline_include_only_open_work_filters_results(
     second_signal = _create_signal(client, env["headers"], env["patient_id"])
     second_escalation_id = second_signal["escalation"]["id"]
     closed_task_id = _create_task(client, env["headers"], second_escalation_id, title="Close Me")
-    outcome = _complete_task_with_outcome(client, env["headers"], closed_task_id)
+    _complete_task_with_outcome(client, env["headers"], closed_task_id)
     _create_care_update(
         client,
         env["headers"],
         env["patient_id"],
-        intervention_task_outcome_id=outcome["id"],
+        escalation_id=second_escalation_id,
+        summary="Closed workflow follow-up",
     )
     resolve_resp = client.post(
         f"/api/v1/escalations/{second_escalation_id}/resolve",
@@ -2883,6 +3119,157 @@ def test_patient_timeline_worklist_summary_default_sorting_prioritizes_unread(
     assert payload["items"][2]["has_unread_events"] is False
 
 
+def test_patient_timeline_worklist_summary_exposes_review_readiness_states(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-review-readiness")
+    mixed_patient_id = create_patient_for_user(client, env["headers"], first_name="worklist-mixed")
+    incomplete_patient_id = create_patient_for_user(
+        client,
+        env["headers"],
+        first_name="worklist-incomplete",
+    )
+    base_time = datetime.now(timezone.utc)
+
+    ready_chain = _create_resolved_evidence_chain(
+        client,
+        db_session,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=base_time - timedelta(days=3),
+        outcome_observed_at=base_time - timedelta(days=2, hours=4),
+        care_update_occurred_at=base_time - timedelta(days=2),
+        resolved_at=base_time - timedelta(days=1, hours=20),
+    )
+    _create_resolved_evidence_chain(
+        client,
+        db_session,
+        env["headers"],
+        mixed_patient_id,
+        recorded_at=base_time - timedelta(days=2, hours=12),
+        outcome_observed_at=base_time - timedelta(days=2),
+        care_update_occurred_at=base_time - timedelta(days=1, hours=18),
+        resolved_at=base_time - timedelta(days=1, hours=12),
+    )
+    mixed_signal = _create_signal(
+        client,
+        env["headers"],
+        mixed_patient_id,
+        recorded_at=base_time - timedelta(hours=6),
+    )
+    _create_task(
+        client,
+        env["headers"],
+        mixed_signal["escalation"]["id"],
+        title="New open follow-up",
+    )
+    _create_outcome(
+        client,
+        env["headers"],
+        incomplete_patient_id,
+        observed_at=base_time - timedelta(hours=5),
+        value_numeric=134,
+    )
+    _create_care_update(
+        client,
+        env["headers"],
+        incomplete_patient_id,
+        summary="Evidence captured, no closure yet",
+        occurred_at=base_time - timedelta(hours=4),
+    )
+
+    payload = _get_worklist_summary(
+        client,
+        env["headers"],
+        params=[
+            ("patient_ids", env["patient_id"]),
+            ("patient_ids", mixed_patient_id),
+            ("patient_ids", incomplete_patient_id),
+            ("active_only", False),
+        ],
+    )
+
+    ready_row = _find_worklist_item(payload, env["patient_id"])
+    mixed_row = _find_worklist_item(payload, mixed_patient_id)
+    incomplete_row = _find_worklist_item(payload, incomplete_patient_id)
+
+    assert ready_row["review_readiness"]["readiness_status"] == "ready_for_review"
+    assert ready_row["review_readiness"]["has_measured_outcome"] is True
+    assert ready_row["review_readiness"]["has_care_update"] is True
+    assert ready_row["review_readiness"]["has_resolution_evidence"] is True
+    assert ready_row["review_readiness"]["has_open_work"] is False
+    assert ready_row["review_readiness"]["latest_outcome_at"] == ready_chain["outcome"]["observed_at"]
+    assert (
+        ready_row["review_readiness"]["latest_care_update_at"]
+        == ready_chain["care_update"]["occurred_at"]
+    )
+    assert ready_row["review_readiness"]["latest_resolution_at"] is not None
+
+    assert mixed_row["review_readiness"]["readiness_status"] == "active_open_work"
+    assert mixed_row["review_readiness"]["has_measured_outcome"] is True
+    assert mixed_row["review_readiness"]["has_care_update"] is True
+    assert mixed_row["review_readiness"]["has_resolution_evidence"] is True
+    assert mixed_row["review_readiness"]["has_open_work"] is True
+    assert mixed_row["review_readiness"]["latest_resolution_at"] is not None
+
+    assert incomplete_row["review_readiness"] == {
+        "has_measured_outcome": True,
+        "has_care_update": True,
+        "has_resolution_evidence": False,
+        "has_open_work": False,
+        "latest_outcome_at": incomplete_row["review_readiness"]["latest_outcome_at"],
+        "latest_care_update_at": incomplete_row["review_readiness"]["latest_care_update_at"],
+        "latest_resolution_at": None,
+        "readiness_status": "incomplete",
+    }
+
+
+def test_patient_timeline_worklist_summary_review_readiness_preserves_sorting_and_scope(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="worklist-review-scope")
+    second_patient_id = create_patient_for_user(client, env["headers"], first_name="worklist-review-two")
+    other_org_env = _bootstrap_patient_env(client, db_session, slug="worklist-review-other-org")
+    base_time = datetime.now(timezone.utc)
+
+    _create_care_update(
+        client,
+        env["headers"],
+        env["patient_id"],
+        summary="Older queue event",
+        occurred_at=base_time - timedelta(hours=2),
+    )
+    _create_care_update(
+        client,
+        env["headers"],
+        second_patient_id,
+        summary="Newer queue event",
+        occurred_at=base_time - timedelta(hours=1),
+    )
+
+    scoped_payload = _get_worklist_summary(
+        client,
+        env["headers"],
+        params=[
+            ("patient_ids", env["patient_id"]),
+            ("patient_ids", second_patient_id),
+            ("active_only", False),
+        ],
+    )
+    ids_in_order = [item["patient_id"] for item in scoped_payload["items"]]
+    assert ids_in_order == [second_patient_id, env["patient_id"]]
+    assert all(item["review_readiness"]["readiness_status"] == "incomplete" for item in scoped_payload["items"])
+
+    _get_worklist_summary(
+        client,
+        env["headers"],
+        params=[("patient_ids", other_org_env["patient_id"])],
+        expect_status=404,
+    )
+
+
 def test_patient_timeline_worklist_summary_pagination(
     client: TestClient,
     db_session: Session,
@@ -3994,6 +4381,91 @@ def test_patient_timeline_workflow_summary_empty(
     assert summary["has_open_escalation"] is False
     assert summary["latest_workflow_event_id"] is None
     assert summary["unread_count"] == 0
+    assert summary["review_readiness"] == {
+        "has_measured_outcome": False,
+        "has_care_update": False,
+        "has_resolution_evidence": False,
+        "has_open_work": False,
+        "latest_outcome_at": None,
+        "latest_care_update_at": None,
+        "latest_resolution_at": None,
+        "readiness_status": "incomplete",
+    }
+
+
+def test_patient_timeline_workflow_summary_exposes_ready_for_review_readiness(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-workflow-ready-review")
+    base_time = datetime.now(timezone.utc)
+
+    chain = _create_resolved_evidence_chain(
+        client,
+        db_session,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=base_time - timedelta(days=3),
+        outcome_observed_at=base_time - timedelta(days=2, hours=3),
+        care_update_occurred_at=base_time - timedelta(days=2),
+        resolved_at=base_time - timedelta(days=1, hours=12),
+    )
+
+    summary = _get_workflow_summary(client, env["headers"], env["patient_id"])
+    assert summary["has_open_escalation"] is False
+    assert summary["open_task_count"] == 0
+    assert summary["review_readiness"]["readiness_status"] == "ready_for_review"
+    assert summary["review_readiness"]["has_measured_outcome"] is True
+    assert summary["review_readiness"]["has_care_update"] is True
+    assert summary["review_readiness"]["has_resolution_evidence"] is True
+    assert summary["review_readiness"]["has_open_work"] is False
+    assert summary["review_readiness"]["latest_outcome_at"] == chain["outcome"]["observed_at"]
+    assert (
+        summary["review_readiness"]["latest_care_update_at"]
+        == chain["care_update"]["occurred_at"]
+    )
+    assert summary["review_readiness"]["latest_resolution_at"] is not None
+
+
+def test_patient_timeline_workflow_summary_exposes_active_open_work_readiness(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="timeline-workflow-mixed-review")
+    base_time = datetime.now(timezone.utc)
+
+    _create_resolved_evidence_chain(
+        client,
+        db_session,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=base_time - timedelta(days=2),
+        outcome_observed_at=base_time - timedelta(days=1, hours=18),
+        care_update_occurred_at=base_time - timedelta(days=1, hours=12),
+        resolved_at=base_time - timedelta(days=1),
+    )
+    open_signal = _create_signal(
+        client,
+        env["headers"],
+        env["patient_id"],
+        recorded_at=base_time - timedelta(hours=6),
+    )
+    _create_task(
+        client,
+        env["headers"],
+        open_signal["escalation"]["id"],
+        title="Open mixed-work task",
+    )
+
+    summary = _get_workflow_summary(client, env["headers"], env["patient_id"])
+    assert summary["has_open_escalation"] is True
+    assert summary["open_task_count"] == 1
+    assert summary["review_readiness"]["readiness_status"] == "active_open_work"
+    assert summary["review_readiness"]["has_measured_outcome"] is True
+    assert summary["review_readiness"]["has_care_update"] is True
+    assert summary["review_readiness"]["has_resolution_evidence"] is True
+    assert summary["review_readiness"]["has_open_work"] is True
+    assert summary["review_readiness"]["latest_resolution_at"] is not None
 
 
 def test_patient_timeline_workflow_summary_escalation_only(
@@ -4266,12 +4738,12 @@ def test_patient_timeline_workflow_summary_include_only_open_work_focuses_latest
     closed_signal = _create_signal(client, env["headers"], env["patient_id"])
     closed_escalation_id = closed_signal["escalation"]["id"]
     closed_task_id = _create_task(client, env["headers"], closed_escalation_id, title="Closed Workflow Task")
-    outcome = _complete_task_with_outcome(client, env["headers"], closed_task_id)
+    _complete_task_with_outcome(client, env["headers"], closed_task_id)
     _create_care_update(
         client,
         env["headers"],
         env["patient_id"],
-        intervention_task_outcome_id=outcome["id"],
+        summary="Closed workflow follow-up",
     )
     resolve_resp = client.post(
         f"/api/v1/escalations/{closed_escalation_id}/resolve",
