@@ -1,3 +1,9 @@
+from app.models.access_review_packet_snapshot import (
+    AccessReviewPacketSnapshotEvent,
+    AccessReviewPacketSnapshotEventType,
+    AccessReviewPacketSnapshot,
+    AccessReviewPacketSnapshotReviewStatus,
+)
 from app.models.base import Base
 from app.models.care_update import CareUpdate, CareUpdateType
 from app.models.organization import Organization
@@ -26,6 +32,10 @@ from app.models.user import User
 
 __all__ = [
     "Base",
+    "AccessReviewPacketSnapshotEvent",
+    "AccessReviewPacketSnapshotEventType",
+    "AccessReviewPacketSnapshot",
+    "AccessReviewPacketSnapshotReviewStatus",
     "CareUpdate",
     "CareUpdateType",
     "Organization",
