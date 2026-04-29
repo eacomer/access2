@@ -258,3 +258,191 @@ export interface InterventionTaskCreateRequest {
   due_at?: string | null;
   assigned_user_id?: string | null;
 }
+
+export type ReviewPacketReviewStatus = "pending_review" | "approved" | "rejected";
+
+export type ReviewStateValue =
+  | "pending_unassigned"
+  | "pending_assigned_ready"
+  | "blocked_missing_evidence"
+  | "approved"
+  | "approved_with_override"
+  | "rejected";
+
+export type ReviewActionValue = "ready_to_review" | "missing_evidence" | "stale_review";
+
+export type ReviewActionPriority = "normal" | "high";
+
+export interface ReviewState {
+  state: ReviewStateValue;
+  label: string;
+  next_action: string;
+  is_actionable: boolean;
+  is_approvable: boolean;
+  requires_override_for_approval: boolean;
+  approval_override_used: boolean;
+  missing_checklist_items: string[];
+  assigned_reviewer_user_id: string | null;
+  last_decision_at: string | null;
+  last_decision_by_user_id: string | null;
+}
+
+export interface ReviewAction {
+  action: ReviewActionValue;
+  reason: string;
+  priority: ReviewActionPriority;
+}
+
+export type AuditReadinessStatus =
+  | "incomplete"
+  | "review_ready"
+  | "approved_not_exported"
+  | "audit_ready"
+  | "rejected";
+
+export interface AuditReadinessStatusCounts {
+  incomplete_count: number;
+  review_ready_count: number;
+  approved_not_exported_count: number;
+  audit_ready_count: number;
+  rejected_count: number;
+}
+
+export type PatientAuditStatusNextStepAction =
+  | "create_snapshot"
+  | "assign_reviewer"
+  | "complete_missing_evidence"
+  | "review_snapshot"
+  | "export_audit_bundle"
+  | "no_action_needed";
+
+export interface PatientAuditStatusNextStep {
+  action: PatientAuditStatusNextStepAction;
+  reason: string;
+  priority: ReviewActionPriority;
+}
+
+export interface PatientAuditStatusCompletionSummary {
+  status: "not_started" | AuditReadinessStatus;
+  missing_evidence_count: number;
+  has_required_evidence: boolean;
+  has_approval: boolean;
+  has_export: boolean;
+  reason: string;
+}
+
+export interface PatientAuditBundleStatus {
+  available: boolean;
+  exported: boolean;
+  last_exported_at: string | null;
+  export_formats: string[];
+}
+
+export interface PatientAuditStatus {
+  patient_id: string;
+  has_snapshot: boolean;
+  latest_snapshot_id: string | null;
+  latest_snapshot_created_at: string | null;
+  review_status: ReviewPacketReviewStatus | null;
+  review_state: ReviewState | null;
+  assigned_reviewer_user_id: string | null;
+  review_action: ReviewAction | null;
+  audit_bundle: PatientAuditBundleStatus;
+  next_step: PatientAuditStatusNextStep;
+  completion_summary: PatientAuditStatusCompletionSummary;
+}
+
+export interface AuditReadinessItem {
+  patient_id: string;
+  latest_snapshot_id: string;
+  latest_snapshot_created_at: string;
+  review_status: ReviewPacketReviewStatus;
+  review_state: ReviewStateValue;
+  completion_status: AuditReadinessStatus;
+  assigned_reviewer_user_id: string | null;
+  next_step: PatientAuditStatusNextStep;
+  audit_bundle: PatientAuditBundleStatus;
+}
+
+export interface AuditReadinessResponse {
+  items: AuditReadinessItem[];
+  total_count: number;
+  limit: number;
+  offset: number;
+  status_counts: AuditReadinessStatusCounts;
+}
+
+export interface PendingReviewAgeCounts {
+  new_today_count: number;
+  one_to_three_days_count: number;
+  four_to_seven_days_count: number;
+  over_seven_days_count: number;
+}
+
+export interface SnapshotAuditLifecycleCounts {
+  pending_unassigned_count: number;
+  pending_assigned_ready_count: number;
+  blocked_missing_evidence_count: number;
+  approved_count: number;
+  approved_with_override_count: number;
+  rejected_count: number;
+  approved_not_exported_count: number;
+  exported_count: number;
+  pending_review_age: PendingReviewAgeCounts;
+}
+
+export interface ReviewPacketQueueSummary {
+  total: number;
+  review_status: Record<string, number>;
+  review_readiness_status: Record<string, number>;
+  assigned: number;
+  unassigned: number;
+  pending_review_assigned: number;
+  pending_review_unassigned: number;
+  pending_review_ready_for_review: number;
+  pending_review_active_open_work: number;
+  pending_review_incomplete: number;
+  snapshot_audit_lifecycle: SnapshotAuditLifecycleCounts;
+  audit_readiness_rollup: AuditReadinessStatusCounts;
+}
+
+export interface ReviewerMySummary {
+  assigned_to_me_count: number;
+  pending_assigned_ready_count: number;
+  blocked_missing_evidence_count: number;
+  oldest_pending_snapshot_created_at: string | null;
+  pending_review_age: PendingReviewAgeCounts;
+}
+
+export interface ReviewPacketAuditTimelineItem {
+  event_type: string;
+  occurred_at: string;
+  actor_user_id: string | null;
+  summary: string;
+}
+
+export interface ReviewPacketSnapshot {
+  id: string;
+  patient_id: string;
+  organization_id: string;
+  generated_at: string;
+  created_at: string;
+  updated_at: string;
+  review_readiness_status: string;
+  review_status: ReviewPacketReviewStatus;
+  reviewed_at: string | null;
+  reviewed_by_user_id: string | null;
+  assigned_reviewer_user_id: string | null;
+  review_note: string | null;
+  review_state: ReviewState;
+  review_action: ReviewAction | null;
+  audit_timeline: ReviewPacketAuditTimelineItem[] | null;
+  packet_json: Record<string, unknown>;
+  packet_markdown: string;
+}
+
+export interface PatientBacklogDrillInResponse {
+  patient_id: string;
+  audit_status: PatientAuditStatus;
+  snapshots: ReviewPacketSnapshot[];
+}

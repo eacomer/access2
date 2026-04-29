@@ -5,8 +5,9 @@ from selenium.common.exceptions import NoSuchElementException, TimeoutException
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.select import Select
 from selenium.webdriver.support import expected_conditions as EC
+from selenium.webdriver.support.ui import WebDriverWait
 
-from .pages import by_test_id, login_as_admin, wait_for_test_id
+from .pages import ADMIN_EMAIL, ADMIN_PASSWORD, by_test_id, login_as_admin, wait_for_test_id
 
 
 def wait_for_bootstrap_success(browser, wait):
@@ -112,6 +113,45 @@ def wait_for_worklist_patient_card(wait, patient_id):
             "Filtered worklist did not render the expected patient card. "
             f"URL={driver.current_url}. patient_id={patient_id}. "
             f"Rendered cards={cards or ['no worklist patient cards rendered']}"
+        ) from exc
+
+
+def wait_for_audit_readiness_page(browser, wait):
+    try:
+        return wait_for_test_id(wait, "audit-readiness-page")
+    except TimeoutException as exc:
+        body_text = ""
+        body_elements = browser.find_elements(By.TAG_NAME, "body")
+        if body_elements:
+            body_text = body_elements[0].text.strip()
+        raise AssertionError(
+            "Audit readiness page did not render after navigation. "
+            f"URL={browser.current_url}. "
+            f"Title={browser.title!r}. "
+            f"Body={body_text[:1000]!r}"
+        ) from exc
+
+
+def login_until_navigation_is_available(browser, wait, base_url):
+    browser.get(f"{base_url}/login")
+    wait_for_test_id(wait, "login-page")
+    browser.find_element(*by_test_id("login-email")).send_keys(ADMIN_EMAIL)
+    browser.find_element(*by_test_id("login-password")).send_keys(ADMIN_PASSWORD)
+    browser.find_element(*by_test_id("login-submit")).click()
+    navigation_wait = WebDriverWait(browser, 60)
+    try:
+        navigation_wait.until(EC.url_contains("/patients"))
+        return navigation_wait.until(
+            EC.element_to_be_clickable((By.XPATH, "//a[normalize-space()='Audit Readiness']"))
+        )
+    except TimeoutException as exc:
+        body_text = ""
+        body_elements = browser.find_elements(By.TAG_NAME, "body")
+        if body_elements:
+            body_text = body_elements[0].text.strip()
+        raise AssertionError(
+            "Admin login did not expose the audit-readiness navigation link. "
+            f"URL={browser.current_url}. Body={body_text[:1000]!r}"
         ) from exc
 
 
@@ -339,6 +379,31 @@ def test_admin_login_reaches_patients(browser, wait, base_url):
     login_as_admin(browser, wait, base_url)
 
     assert "/patients" in browser.current_url
+
+
+def test_admin_can_open_audit_readiness_from_navigation(browser, wait, base_url):
+    audit_link = login_until_navigation_is_available(browser, wait, base_url)
+    audit_link.click()
+
+    wait.until(EC.url_contains("/audit-readiness"))
+    page = wait_for_audit_readiness_page(browser, wait)
+    page_text = page.text
+
+    assert "Audit readiness" in page_text
+    assert "Incomplete" in page_text
+    assert "Review ready" in page_text
+    assert "Approved, not exported" in page_text
+    assert "Audit ready" in page_text
+    assert "Rejected" in page_text
+    assert page.find_element(By.CSS_SELECTOR, '[aria-label="Audit readiness worklist"]').is_displayed()
+
+    for mutation_label in ("Approve", "Reject", "Assign", "Export Bundle", "Verify"):
+        controls = page.find_elements(
+            By.XPATH,
+            f".//button[normalize-space()='{mutation_label}']"
+            f"|.//a[normalize-space()='{mutation_label}']",
+        )
+        assert controls == []
 
 
 def test_admin_workflow_bootstrap_page_loads(browser, wait, base_url):

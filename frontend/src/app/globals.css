@@ -20,6 +20,46 @@ a {
   color: inherit;
 }
 
+.app-nav {
+  max-width: 1200px;
+  margin: 0 auto;
+  padding: 1rem 1.5rem 0;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 1rem;
+}
+
+.app-nav-brand {
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-decoration: none;
+  color: #0f172a;
+}
+
+.app-nav-links {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.app-nav-link {
+  border: 1px solid #cbd5e1;
+  border-radius: 9999px;
+  padding: 0.35rem 0.75rem;
+  color: #475569;
+  font-size: 0.85rem;
+  text-decoration: none;
+  background: #fff;
+}
+
+.app-nav-link:hover,
+.app-nav-link--active {
+  border-color: #c7d2fe;
+  color: #312e81;
+  background: #eef2ff;
+}
+
 main.page {
   max-width: 1200px;
   margin: 0 auto;
@@ -812,6 +852,40 @@ main.page {
 .queue-impact-stat--positive {
   border-color: #bbf7d0;
   background: #dcfce7;
+}
+
+.audit-readiness-table-wrap {
+  overflow-x: auto;
+  border: 1px solid #e2e8f0;
+  border-radius: 14px;
+  background: #fff;
+}
+
+.audit-readiness-table {
+  width: 100%;
+  min-width: 980px;
+  border-collapse: collapse;
+  font-size: 0.85rem;
+}
+
+.audit-readiness-table th,
+.audit-readiness-table td {
+  padding: 0.75rem 0.85rem;
+  text-align: left;
+  border-bottom: 1px solid #e2e8f0;
+  vertical-align: top;
+}
+
+.audit-readiness-table th {
+  color: #475569;
+  font-size: 0.72rem;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  background: #f8fafc;
+}
+
+.audit-readiness-table tbody tr:last-child td {
+  border-bottom: 0;
 }
 
 .worklist-context-header {

@@ -11,7 +11,13 @@ import type {
   PatientTimelineListResponse,
   PatientTimelineWorklistSummaryResponse,
   PatientTimelineFilters,
+  AuditReadinessResponse,
+  AuditReadinessStatus,
   Patient,
+  PatientAuditStatus,
+  PatientBacklogDrillInResponse,
+  ReviewPacketQueueSummary,
+  ReviewerMySummary,
   EscalationStatus,
   InterventionTask,
   InterventionTaskCreateRequest,
@@ -100,6 +106,145 @@ async function apiFetch<TResponse>(path: string, options: ApiFetchOptions = {}):
   }
 
   return (await response.json()) as TResponse;
+}
+
+async function apiFetchBlob(path: string, options: ApiFetchOptions = {}): Promise<Blob> {
+  const base = getApiBaseUrl();
+  const relativePath = path.startsWith("/") ? path : `/${path}`;
+  const url = new URL(`${base}${relativePath}`);
+
+  if (options.query) {
+    for (const [key, rawValue] of Object.entries(options.query)) {
+      if (rawValue === undefined || rawValue === null) {
+        continue;
+      }
+      if (Array.isArray(rawValue)) {
+        rawValue.forEach((value) => url.searchParams.append(key, String(value)));
+      } else {
+        url.searchParams.set(key, String(rawValue));
+      }
+    }
+  }
+
+  const headers = new Headers(options.init?.headers);
+  headers.set("Accept", "text/csv");
+
+  const authToken = await getAuthTokenFromCookies();
+  console.log("[apiFetchBlob.request]", {
+    path,
+    url: url.toString(),
+    hasAuthToken: Boolean(authToken),
+    authTokenLength: authToken?.length ?? 0,
+    redirectPath: options.auth?.redirectPath ?? null,
+  });
+
+  if (authToken) {
+    headers.set("Authorization", `Bearer ${authToken}`);
+  }
+
+  const response = await fetch(url, {
+    ...options.init,
+    headers,
+    cache: "no-store",
+    credentials: "include",
+  });
+
+  console.log("[apiFetchBlob.response]", {
+    path,
+    status: response.status,
+    statusText: response.statusText,
+    redirected: response.redirected,
+  });
+
+  if (response.status === 401) {
+    return handleUnauthorized(options.auth?.redirectPath);
+  }
+
+  if (!response.ok) {
+    const message = `Request failed for ${url.pathname}: ${response.status} ${response.statusText}`;
+    throw new Error(message);
+  }
+
+  return response.blob();
+}
+
+export async function fetchReviewPacketQueueSummary(
+  options: AuthenticatedRequestOptions = {},
+): Promise<ReviewPacketQueueSummary> {
+  return apiFetch<ReviewPacketQueueSummary>("/reports/access-review-packet/snapshots/queue-summary", {
+    auth: { redirectPath: options.authRedirectPath },
+  });
+}
+
+export async function fetchAuditReadiness(
+  params: {
+    status?: AuditReadinessStatus;
+    limit?: number;
+    offset?: number;
+  } = {},
+  options: AuthenticatedRequestOptions = {},
+): Promise<AuditReadinessResponse> {
+  return apiFetch<AuditReadinessResponse>("/reports/access-review-packet/audit-readiness", {
+    query: {
+      status: params.status,
+      limit: params.limit,
+      offset: params.offset,
+    },
+    auth: { redirectPath: options.authRedirectPath },
+  });
+}
+
+export async function fetchAuditReadinessCsv(
+  params: { status?: AuditReadinessStatus } = {},
+  options: AuthenticatedRequestOptions = {},
+): Promise<Blob> {
+  return apiFetchBlob("/reports/access-review-packet/audit-readiness/export.csv", {
+    query: {
+      status: params.status,
+    },
+    auth: { redirectPath: options.authRedirectPath },
+  });
+}
+
+export async function fetchPatientAuditStatus(
+  patientId: string,
+  options: AuthenticatedRequestOptions = {},
+): Promise<PatientAuditStatus> {
+  return apiFetch<PatientAuditStatus>(`/reports/access-review-packet/patients/${patientId}/audit-status`, {
+    auth: { redirectPath: options.authRedirectPath },
+  });
+}
+
+export async function fetchPatientBacklogDrillIn(
+  patientId: string,
+  options: {
+    reviewStatus?: string;
+    reviewReadinessStatus?: string;
+    limit?: number;
+    offset?: number;
+  } = {},
+  requestOptions: AuthenticatedRequestOptions = {},
+): Promise<PatientBacklogDrillInResponse> {
+  return apiFetch<PatientBacklogDrillInResponse>(
+    `/reports/access-review-packet/snapshots/patient-backlog/${patientId}`,
+    {
+      query: {
+        review_status: options.reviewStatus,
+        review_readiness_status: options.reviewReadinessStatus,
+        limit: options.limit,
+        offset: options.offset,
+      },
+      auth: { redirectPath: requestOptions.authRedirectPath },
+    },
+  );
+}
+
+export async function fetchReviewerMySummary(
+  options: AuthenticatedRequestOptions = {},
+): Promise<ReviewerMySummary> {
+  return apiFetch<ReviewerMySummary>("/reports/access-review-packet/reviewer/my-summary", {
+    auth: { redirectPath: options.authRedirectPath },
+  });
 }
 
 export async function fetchWorklistSummary(
