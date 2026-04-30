@@ -56,6 +56,30 @@ To run only the deterministic submit-to-patient-detail workflow:
 python -m pytest tests/e2e/test_access2_smoke.py::test_admin_can_submit_workflow_bootstrap --e2e-submit-bootstrap
 ```
 
+## Seeded Read-Only Audit Validation
+
+To seed one local patient through the existing admin workflow bootstrap UI:
+
+```powershell
+py -3 -m pytest tests/e2e/test_access2_smoke.py::test_admin_can_submit_workflow_bootstrap --e2e-submit-bootstrap -q
+```
+
+Then run the smoke suite:
+
+```powershell
+py -3 -m pytest tests/e2e/test_access2_smoke.py -q
+```
+
+If an already-running frontend on `localhost:3000` is stale, read-only audit panel checks can fail even though the committed code is correct. Restart `localhost:3000`, or start a fresh current-workspace frontend on another port and pass that URL:
+
+```powershell
+py -3 -m pytest tests/e2e/test_access2_smoke.py --e2e-base-url http://localhost:3001 -q
+```
+
+Latest known seeded result against a fresh `localhost:3001` frontend: `5 passed, 9 skipped`.
+
+The read-only patient audit-status and review-packet backlog sections should render without mutation controls such as approve, reject, assign, export, verify, or create snapshot.
+
 To run only the guarded patient-detail mutation workflow:
 
 ```powershell
