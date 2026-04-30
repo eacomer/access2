@@ -27,6 +27,7 @@ import {
   fetchEscalation,
   fetchInterventionTask,
   fetchPatient,
+  fetchPatientAuditStatus,
   fetchPatientTimeline,
   fetchPatientTimelineEvent,
   fetchWorklistSummary,
@@ -34,7 +35,7 @@ import {
   startInterventionTask,
   updateEscalationStatus,
 } from "../../../lib/api";
-import { formatDueDate, formatEventType, pluralize } from "../../../lib/format";
+import { formatDueDate, formatEventType, formatPriority, pluralize } from "../../../lib/format";
 import { requireAuth } from "../../../lib/auth/session";
 import STATUS_LABELS, { FILTER_LABELS } from "../../../lib/statusLabels";
 import type {
@@ -42,6 +43,7 @@ import type {
   InterventionTask,
   PatientEscalation,
   PatientTimelineFilters,
+  PatientAuditStatus,
 } from "../../../types/patient";
 
 type WorklistSummaryResponse = Awaited<ReturnType<typeof fetchWorklistSummary>>;
@@ -169,6 +171,108 @@ const WORKFLOW_OUTCOME_MESSAGES: Record<string, string> = {
   escalation_resolved: "Escalation resolved successfully",
 };
 
+const formatBooleanLabel = (value: boolean) => (value ? "Yes" : "No");
+
+const formatAuditList = (values: string[]) => (values.length > 0 ? values.join(", ") : "—");
+
+const formatAuditStatusValue = (value?: string | null) =>
+  value
+    ? value
+        .split("_")
+        .filter(Boolean)
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase())
+        .join(" ")
+    : "—";
+
+const renderAuditStatusPanel = ({
+  auditStatus,
+  auditStatusLoadFailed,
+  detailRetryHref,
+}: {
+  auditStatus: PatientAuditStatus | null;
+  auditStatusLoadFailed: boolean;
+  detailRetryHref: string;
+}) => {
+  if (auditStatusLoadFailed) {
+    return (
+      <StateNotice
+        tone="warning"
+        title="Audit status unavailable"
+        body="The patient audit-status request failed. Other patient evidence remains available."
+        actions={[{ label: "Retry", href: detailRetryHref }]}
+      />
+    );
+  }
+
+  if (!auditStatus) {
+    return (
+      <StateNotice
+        tone="info"
+        title="Audit status not loaded"
+        body="Audit-status data is not available for this patient right now."
+      />
+    );
+  }
+
+  return (
+    <div className="audit-readiness-table-wrap">
+      <table className="audit-readiness-table">
+        <tbody>
+          <tr>
+            <th scope="row">Has snapshot</th>
+            <td>{formatBooleanLabel(auditStatus.has_snapshot)}</td>
+          </tr>
+          <tr>
+            <th scope="row">Review state</th>
+            <td>{formatAuditStatusValue(auditStatus.review_state?.state)}</td>
+          </tr>
+          <tr>
+            <th scope="row">Review action</th>
+            <td>
+              {auditStatus.review_action ? (
+                <>
+                  <strong>{formatAuditStatusValue(auditStatus.review_action.action)}</strong>
+                  <span> · {formatPriority(auditStatus.review_action.priority)}</span>
+                  <p className="inline-helper">{auditStatus.review_action.reason}</p>
+                </>
+              ) : (
+                "—"
+              )}
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Audit bundle available</th>
+            <td>{formatBooleanLabel(auditStatus.audit_bundle.available)}</td>
+          </tr>
+          <tr>
+            <th scope="row">Audit bundle exported</th>
+            <td>{formatBooleanLabel(auditStatus.audit_bundle.exported)}</td>
+          </tr>
+          <tr>
+            <th scope="row">Export formats</th>
+            <td>{formatAuditList(auditStatus.audit_bundle.export_formats)}</td>
+          </tr>
+          <tr>
+            <th scope="row">Next step</th>
+            <td>
+              <strong>{formatAuditStatusValue(auditStatus.next_step.action)}</strong>
+              <span> · {formatPriority(auditStatus.next_step.priority)}</span>
+              <p className="inline-helper">{auditStatus.next_step.reason}</p>
+            </td>
+          </tr>
+          <tr>
+            <th scope="row">Completion summary</th>
+            <td>
+              <strong>{formatAuditStatusValue(auditStatus.completion_summary.status)}</strong>
+              <p className="inline-helper">{auditStatus.completion_summary.reason}</p>
+            </td>
+          </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
 export default async function PatientDetailPage({ params, searchParams }: PageProps) {
   const { id: patientId } = await params;
   const resolvedSearchParams =
@@ -250,8 +354,10 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   let patient: PatientResponse | null = null;
   let worklist: WorklistSummaryResponse | null = null;
   let timeline: TimelineResponse | null = null;
+  let auditStatus: PatientAuditStatus | null = null;
+  let auditStatusLoadFailed = false;
   try {
-    [patient, worklist, timeline] = await Promise.all([
+    [patient, worklist, timeline, auditStatus] = await Promise.all([
       fetchPatient(patientId, { authRedirectPath: detailRetryHref }),
       fetchWorklistSummary(
         { patientIds: [patientId], limit: 1, activeOnly: false },
@@ -271,6 +377,11 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
         },
         { authRedirectPath: detailRetryHref },
       ),
+      fetchPatientAuditStatus(patientId, { authRedirectPath: detailRetryHref }).catch((error) => {
+        auditStatusLoadFailed = true;
+        console.error(`Failed to load audit status for patient ${patientId}`, error);
+        return null;
+      }),
     ]);
   } catch (error) {
     console.error(`Failed to load timeline for patient ${patientId}`, error);
@@ -716,6 +827,18 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
         workflowStatus={workflowStatus}
       />
       <EscalationEvidenceCard evidence={escalationEvidence} />
+      <section className="section-card" data-testid="patient-audit-status-panel">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">ACCESS audit status</p>
+            <h2 className="section-title">Review packet readiness</h2>
+            <p className="section-subtitle">
+              Read-only latest-snapshot audit posture from persisted review packet data.
+            </p>
+          </div>
+        </div>
+        {renderAuditStatusPanel({ auditStatus, auditStatusLoadFailed, detailRetryHref })}
+      </section>
       <section className="section-card">
         <div className="section-header">
           <div>

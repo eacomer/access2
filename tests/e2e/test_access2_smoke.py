@@ -116,6 +116,32 @@ def wait_for_worklist_patient_card(wait, patient_id):
         ) from exc
 
 
+def wait_for_first_worklist_patient_card(browser, wait):
+    def find_first_card(driver):
+        cards = (
+            driver.find_elements(*by_test_id("worklist-patient-card"))
+            or driver.find_elements(By.CSS_SELECTOR, "a.worklist-card")
+        )
+        return cards[0] if cards else False
+
+    try:
+        return wait.until(find_first_card)
+    except TimeoutException as exc:
+        cards = [
+            element.text.strip()
+            for element in (
+                browser.find_elements(*by_test_id("worklist-patient-card"))
+                or browser.find_elements(By.CSS_SELECTOR, "a.worklist-card")
+            )
+            if element.text.strip()
+        ]
+        raise AssertionError(
+            "Patient worklist did not render any patient cards for detail navigation. "
+            f"URL={browser.current_url}. "
+            f"Rendered cards={cards or ['no worklist patient cards rendered']}"
+        ) from exc
+
+
 def wait_for_audit_readiness_page(browser, wait):
     try:
         return wait_for_test_id(wait, "audit-readiness-page")
@@ -399,6 +425,45 @@ def test_admin_can_open_audit_readiness_from_navigation(browser, wait, base_url)
 
     for mutation_label in ("Approve", "Reject", "Assign", "Export Bundle", "Verify"):
         controls = page.find_elements(
+            By.XPATH,
+            f".//button[normalize-space()='{mutation_label}']"
+            f"|.//a[normalize-space()='{mutation_label}']",
+        )
+        assert controls == []
+
+
+def test_admin_patient_detail_shows_read_only_audit_status_panel(browser, wait, base_url):
+    login_as_admin(browser, wait, base_url)
+
+    browser.get(f"{base_url}/patients?active_only=0")
+    wait_for_test_id(wait, "patients-page")
+    try:
+        patient_card = wait_for_first_worklist_patient_card(browser, wait)
+    except AssertionError as exc:
+        pytest.skip(f"No seeded patient is available for read-only detail smoke coverage: {exc}")
+    patient_href = patient_card.get_attribute("href")
+    assert patient_href
+
+    browser.get(patient_href)
+    wait.until(EC.url_contains("/patients/"))
+    page = wait_for_test_id(wait, "patient-detail-page")
+    assert page.is_displayed()
+
+    audit_panel = wait_for_test_id(wait, "patient-audit-status-panel")
+    assert audit_panel.is_displayed()
+    audit_panel_text = audit_panel.text.lower()
+
+    for expected_label in (
+        "audit status",
+        "snapshot",
+        "review state",
+        "next step",
+        "completion",
+    ):
+        assert expected_label in audit_panel_text
+
+    for mutation_label in ("Approve", "Reject", "Assign", "Export Bundle", "Verify"):
+        controls = audit_panel.find_elements(
             By.XPATH,
             f".//button[normalize-space()='{mutation_label}']"
             f"|.//a[normalize-space()='{mutation_label}']",
