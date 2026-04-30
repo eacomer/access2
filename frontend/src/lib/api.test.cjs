@@ -121,10 +121,43 @@ test("fetchPatientAuditStatus uses the patient audit-status path", async () => {
   );
 });
 
-test("fetchPatientBacklogDrillIn uses the patient backlog drill-in path", async () => {
-  const calls = installJsonFetch({ patient_id: "patient-1", audit_status: {}, snapshots: [] });
+test("fetchPatientBacklogDrillIn uses the patient backlog drill-in path and returns JSON", async () => {
+  const payload = {
+    patient_id: "patient-1",
+    audit_status: {
+      patient_id: "patient-1",
+      has_snapshot: true,
+      next_step: {
+        action: "review_snapshot",
+        reason: "Assigned packet is ready for review.",
+        priority: "normal",
+      },
+      completion_summary: {
+        status: "review_ready",
+        missing_evidence_count: 0,
+        has_required_evidence: true,
+        has_approval: false,
+        has_export: false,
+        reason: "Packet is ready for review.",
+      },
+    },
+    snapshots: [
+      {
+        id: "snapshot-1",
+        patient_id: "patient-1",
+        created_at: "2026-04-01T12:00:00Z",
+        review_status: "pending_review",
+        review_state: {
+          state: "pending_assigned_ready",
+          label: "Pending assigned ready",
+        },
+        assigned_reviewer_user_id: "reviewer-1",
+      },
+    ],
+  };
+  const calls = installJsonFetch(payload);
 
-  await api.fetchPatientBacklogDrillIn("patient-1", {
+  const result = await api.fetchPatientBacklogDrillIn("patient-1", {
     reviewStatus: "pending_review",
     reviewReadinessStatus: "ready_for_review",
     limit: 10,
@@ -137,6 +170,8 @@ test("fetchPatientBacklogDrillIn uses the patient backlog drill-in path", async 
   assert.equal(url.searchParams.get("review_readiness_status"), "ready_for_review");
   assert.equal(url.searchParams.get("limit"), "10");
   assert.equal(url.searchParams.get("offset"), "20");
+  assert.deepEqual(result, payload);
+  assertJsonRequest(calls[0]);
 });
 
 test("fetchReviewerMySummary uses the reviewer summary endpoint and returns JSON", async () => {
@@ -227,5 +262,19 @@ test("fetchReviewerMySummary surfaces non-2xx responses", async () => {
   await assert.rejects(
     () => api.fetchReviewerMySummary(),
     /Request failed for \/api\/v1\/reports\/access-review-packet\/reviewer\/my-summary: 503 Service Unavailable/,
+  );
+});
+
+test("fetchPatientBacklogDrillIn surfaces non-2xx responses", async () => {
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ detail: "failure" }), {
+      status: 502,
+      statusText: "Bad Gateway",
+      headers: { "Content-Type": "application/json" },
+    });
+
+  await assert.rejects(
+    () => api.fetchPatientBacklogDrillIn("patient-1"),
+    /Request failed for \/api\/v1\/reports\/access-review-packet\/snapshots\/patient-backlog\/patient-1: 502 Bad Gateway/,
   );
 });

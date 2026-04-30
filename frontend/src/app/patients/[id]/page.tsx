@@ -28,6 +28,7 @@ import {
   fetchInterventionTask,
   fetchPatient,
   fetchPatientAuditStatus,
+  fetchPatientBacklogDrillIn,
   fetchPatientTimeline,
   fetchPatientTimelineEvent,
   fetchWorklistSummary,
@@ -35,13 +36,14 @@ import {
   startInterventionTask,
   updateEscalationStatus,
 } from "../../../lib/api";
-import { formatDueDate, formatEventType, formatPriority, pluralize } from "../../../lib/format";
+import { formatDateTime, formatDueDate, formatEventType, formatPriority, pluralize } from "../../../lib/format";
 import { requireAuth } from "../../../lib/auth/session";
 import STATUS_LABELS, { FILTER_LABELS } from "../../../lib/statusLabels";
 import type {
   EscalationStatus,
   InterventionTask,
   PatientEscalation,
+  PatientBacklogDrillInResponse,
   PatientTimelineFilters,
   PatientAuditStatus,
 } from "../../../types/patient";
@@ -273,6 +275,105 @@ const renderAuditStatusPanel = ({
   );
 };
 
+const sortSnapshotsByCreatedAtDesc = (snapshots: PatientBacklogDrillInResponse["snapshots"]) =>
+  [...snapshots].sort((left, right) => {
+    const createdComparison = right.created_at.localeCompare(left.created_at);
+    return createdComparison !== 0 ? createdComparison : right.id.localeCompare(left.id);
+  });
+
+const renderPatientBacklogPanel = ({
+  backlog,
+  backlogLoadFailed,
+  detailRetryHref,
+}: {
+  backlog: PatientBacklogDrillInResponse | null;
+  backlogLoadFailed: boolean;
+  detailRetryHref: string;
+}) => {
+  if (backlogLoadFailed) {
+    return (
+      <StateNotice
+        tone="warning"
+        title="Review packet backlog unavailable"
+        body="The patient review-packet backlog request failed. Other patient evidence remains available."
+        actions={[{ label: "Retry", href: detailRetryHref }]}
+      />
+    );
+  }
+
+  if (!backlog) {
+    return (
+      <StateNotice
+        tone="info"
+        title="Review packet backlog not loaded"
+        body="Review-packet backlog data is not available for this patient right now."
+      />
+    );
+  }
+
+  const latestSnapshots = sortSnapshotsByCreatedAtDesc(backlog.snapshots).slice(0, 3);
+
+  return (
+    <>
+      <div className="queue-impact-grid">
+        <div className="queue-impact-stat">
+          <span className="queue-impact-value">{formatBooleanLabel(backlog.audit_status.has_snapshot)}</span>
+          <span className="queue-impact-label">Has snapshot</span>
+        </div>
+        <div className="queue-impact-stat queue-impact-stat--info">
+          <span className="queue-impact-value">{backlog.snapshots.length}</span>
+          <span className="queue-impact-label">Total snapshots</span>
+        </div>
+        <div className="queue-impact-stat queue-impact-stat--warning">
+          <span className="queue-impact-value">
+            {formatAuditStatusValue(backlog.audit_status.next_step.action)}
+          </span>
+          <span className="queue-impact-label">Next step</span>
+        </div>
+        <div className="queue-impact-stat queue-impact-stat--positive">
+          <span className="queue-impact-value">
+            {formatAuditStatusValue(backlog.audit_status.completion_summary.status)}
+          </span>
+          <span className="queue-impact-label">Completion</span>
+        </div>
+      </div>
+
+      {latestSnapshots.length === 0 ? (
+        <StateNotice
+          tone="info"
+          title="No review packets yet"
+          body={`No persisted review-packet snapshots are available for this patient. Next step: ${formatAuditStatusValue(
+            backlog.audit_status.next_step.action,
+          )}.`}
+        />
+      ) : (
+        <div className="audit-readiness-table-wrap">
+          <table className="audit-readiness-table">
+            <thead>
+              <tr>
+                <th>Created</th>
+                <th>Review status</th>
+                <th>Review state</th>
+                <th>Assigned reviewer</th>
+              </tr>
+            </thead>
+            <tbody>
+              {latestSnapshots.map((snapshot) => (
+                <tr key={snapshot.id}>
+                  <td>{formatDateTime(snapshot.created_at)}</td>
+                  <td>{formatAuditStatusValue(snapshot.review_status)}</td>
+                  <td>{snapshot.review_state.label}</td>
+                  <td>{snapshot.assigned_reviewer_user_id ?? "—"}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+    </>
+  );
+};
+
 export default async function PatientDetailPage({ params, searchParams }: PageProps) {
   const { id: patientId } = await params;
   const resolvedSearchParams =
@@ -356,8 +457,10 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
   let timeline: TimelineResponse | null = null;
   let auditStatus: PatientAuditStatus | null = null;
   let auditStatusLoadFailed = false;
+  let patientBacklog: PatientBacklogDrillInResponse | null = null;
+  let patientBacklogLoadFailed = false;
   try {
-    [patient, worklist, timeline, auditStatus] = await Promise.all([
+    [patient, worklist, timeline, auditStatus, patientBacklog] = await Promise.all([
       fetchPatient(patientId, { authRedirectPath: detailRetryHref }),
       fetchWorklistSummary(
         { patientIds: [patientId], limit: 1, activeOnly: false },
@@ -380,6 +483,11 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
       fetchPatientAuditStatus(patientId, { authRedirectPath: detailRetryHref }).catch((error) => {
         auditStatusLoadFailed = true;
         console.error(`Failed to load audit status for patient ${patientId}`, error);
+        return null;
+      }),
+      fetchPatientBacklogDrillIn(patientId, {}, { authRedirectPath: detailRetryHref }).catch((error) => {
+        patientBacklogLoadFailed = true;
+        console.error(`Failed to load review packet backlog for patient ${patientId}`, error);
         return null;
       }),
     ]);
@@ -838,6 +946,22 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
           </div>
         </div>
         {renderAuditStatusPanel({ auditStatus, auditStatusLoadFailed, detailRetryHref })}
+      </section>
+      <section className="section-card" data-testid="patient-review-packet-backlog-panel">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Review packet backlog</p>
+            <h2 className="section-title">Packet drill-in</h2>
+            <p className="section-subtitle">
+              Read-only snapshot backlog for this patient from persisted review packet data.
+            </p>
+          </div>
+        </div>
+        {renderPatientBacklogPanel({
+          backlog: patientBacklog,
+          backlogLoadFailed: patientBacklogLoadFailed,
+          detailRetryHref,
+        })}
       </section>
       <section className="section-card">
         <div className="section-header">
