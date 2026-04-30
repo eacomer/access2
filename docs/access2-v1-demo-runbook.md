@@ -112,6 +112,8 @@ Expected latest seeded smoke result against a fresh `localhost:3001` frontend:
 5 passed, 9 skipped
 ```
 
+The 9 skipped tests are expected for the read-only smoke command. They are data-creating bootstrap, patient-detail mutation, workflow alignment, and escalation mutation checks that require `--e2e-submit-bootstrap` and a disposable local database. If the first 5 tests fail with `net::ERR_CONNECTION_REFUSED`, the selected frontend URL is not running or reachable; start or restart the frontend before interpreting the smoke result.
+
 ## 7. Demo Flow
 
 1. Open the frontend.

@@ -78,6 +78,8 @@ py -3 -m pytest tests/e2e/test_access2_smoke.py --e2e-base-url http://localhost:
 
 Latest known seeded result against a fresh `localhost:3001` frontend: `5 passed, 9 skipped`.
 
+The 9 skipped tests are expected in the read-only smoke command above. They are data-creating bootstrap, patient-detail mutation, workflow alignment, and escalation mutation checks that require `--e2e-submit-bootstrap` and a disposable local database. If the first 5 tests fail with `net::ERR_CONNECTION_REFUSED`, the selected frontend URL is not running or is not reachable; start or restart the frontend before interpreting the smoke result.
+
 The read-only patient audit-status and review-packet backlog sections should render without mutation controls such as approve, reject, assign, export, verify, or create snapshot.
 
 To run only the guarded patient-detail mutation workflow:
