@@ -1,10 +1,11 @@
 import Link from "next/link";
+import { Suspense } from "react";
 
 import StateNotice from "../../components/StateNotice";
-import { fetchAuditReadiness } from "../../lib/api";
+import { fetchAuditReadiness, fetchReviewerMySummary } from "../../lib/api";
 import { requireAuth } from "../../lib/auth/session";
 import { formatDateTime, formatPriority } from "../../lib/format";
-import type { AuditReadinessItem, AuditReadinessStatus } from "../../types/patient";
+import type { AuditReadinessItem, AuditReadinessStatus, ReviewerMySummary } from "../../types/patient";
 
 export const dynamic = "force-dynamic";
 
@@ -58,6 +59,86 @@ const formatExportFormats = (item: AuditReadinessItem) => {
 const statusHref = (status?: AuditReadinessStatus) =>
   status ? `/audit-readiness?status=${encodeURIComponent(status)}` : "/audit-readiness";
 
+const renderReviewerSummaryStats = (summary: ReviewerMySummary) => (
+  <div className="queue-impact-grid">
+    <div className="queue-impact-stat queue-impact-stat--info">
+      <span className="queue-impact-value">{summary.assigned_to_me_count}</span>
+      <span className="queue-impact-label">Assigned to me</span>
+    </div>
+    <div className="queue-impact-stat queue-impact-stat--positive">
+      <span className="queue-impact-value">{summary.pending_assigned_ready_count}</span>
+      <span className="queue-impact-label">Ready to review</span>
+    </div>
+    <div className="queue-impact-stat queue-impact-stat--alert">
+      <span className="queue-impact-value">{summary.blocked_missing_evidence_count}</span>
+      <span className="queue-impact-label">Blocked or missing evidence</span>
+    </div>
+    <div className="queue-impact-stat queue-impact-stat--warning">
+      <span className="queue-impact-value">{summary.pending_review_age.over_seven_days_count}</span>
+      <span className="queue-impact-label">Stale reviews</span>
+    </div>
+    <div className="queue-impact-stat">
+      <span className="queue-impact-value">{summary.pending_review_age.new_today_count}</span>
+      <span className="queue-impact-label">New today</span>
+    </div>
+    <div className="queue-impact-stat">
+      <span className="queue-impact-value">{summary.pending_review_age.one_to_three_days_count}</span>
+      <span className="queue-impact-label">1-3 days pending</span>
+    </div>
+    <div className="queue-impact-stat">
+      <span className="queue-impact-value">{summary.pending_review_age.four_to_seven_days_count}</span>
+      <span className="queue-impact-label">4-7 days pending</span>
+    </div>
+  </div>
+);
+
+const ReviewerSummaryLoading = () => (
+  <section className="queue-impact" aria-label="Reviewer workload summary">
+    <div className="queue-impact-head">
+      <div>
+        <p className="worklist-context-label">Reviewer workload</p>
+        <p className="queue-impact-summary">Loading assigned review summary.</p>
+      </div>
+    </div>
+  </section>
+);
+
+async function ReviewerSummarySection({ retryHref }: { retryHref: string }) {
+  let summary: ReviewerMySummary | null = null;
+  try {
+    summary = await fetchReviewerMySummary({ authRedirectPath: retryHref });
+  } catch (error) {
+    if (isRedirectLikeError(error)) {
+      throw error;
+    }
+    console.error("Failed to load reviewer summary", error);
+    return (
+      <StateNotice
+        tone="warning"
+        title="Reviewer summary unavailable"
+        body="The reviewer workload request failed. Audit-readiness rows remain available."
+      />
+    );
+  }
+
+  return (
+    <section className="queue-impact" aria-label="Reviewer workload summary">
+      <div className="queue-impact-head">
+        <div>
+          <p className="worklist-context-label">Reviewer workload</p>
+          <p className="queue-impact-summary">
+            Assigned review posture for the current reviewer from persisted packet state.
+          </p>
+        </div>
+        <p className="worklist-context-helper">
+          Oldest pending snapshot: {formatDateTime(summary.oldest_pending_snapshot_created_at)}
+        </p>
+      </div>
+      {renderReviewerSummaryStats(summary)}
+    </section>
+  );
+}
+
 export default async function AuditReadinessPage({ searchParams }: PageProps) {
   const resolvedSearchParams =
     (searchParams ? await searchParams : {}) as Record<string, string | string[] | undefined>;
@@ -104,6 +185,10 @@ export default async function AuditReadinessPage({ searchParams }: PageProps) {
             ))}
           </div>
         </header>
+
+        <Suspense fallback={<ReviewerSummaryLoading />}>
+          <ReviewerSummarySection retryHref={retryHref} />
+        </Suspense>
 
         <section className="queue-impact" aria-label="Audit readiness status counts">
           <div className="queue-impact-head">

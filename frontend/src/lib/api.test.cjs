@@ -57,6 +57,13 @@ function installJsonFetch(payload = {}) {
   return calls;
 }
 
+function assertJsonRequest(call) {
+  assert.equal(call.init.headers.get("Accept"), "application/json");
+  assert.equal(call.init.headers.get("Authorization"), "Bearer test-token");
+  assert.equal(call.init.credentials, "include");
+  assert.equal(call.init.cache, "no-store");
+}
+
 test.beforeEach(() => {
   process.env.NEXT_PUBLIC_API_BASE_URL = "http://api.test/api/v1";
   console.log = () => {};
@@ -79,8 +86,7 @@ test("fetchAuditReadiness sends status, limit, and offset query parameters", asy
   assert.equal(url.searchParams.get("status"), "audit_ready");
   assert.equal(url.searchParams.get("limit"), "25");
   assert.equal(url.searchParams.get("offset"), "50");
-  assert.equal(calls[0].init.headers.get("Accept"), "application/json");
-  assert.equal(calls[0].init.headers.get("Authorization"), "Bearer test-token");
+  assertJsonRequest(calls[0]);
 });
 
 test("fetchAuditReadinessCsv sends optional status and returns Blob data", async () => {
@@ -133,21 +139,93 @@ test("fetchPatientBacklogDrillIn uses the patient backlog drill-in path", async 
   assert.equal(url.searchParams.get("offset"), "20");
 });
 
-test("fetchReviewerMySummary uses the reviewer summary endpoint", async () => {
-  const calls = installJsonFetch({});
+test("fetchReviewerMySummary uses the reviewer summary endpoint and returns JSON", async () => {
+  const payload = {
+    assigned_to_me_count: 4,
+    pending_assigned_ready_count: 2,
+    blocked_missing_evidence_count: 1,
+    oldest_pending_snapshot_created_at: "2026-04-01T12:00:00Z",
+    pending_review_age: {
+      new_today_count: 1,
+      one_to_three_days_count: 1,
+      four_to_seven_days_count: 1,
+      over_seven_days_count: 1,
+    },
+  };
+  const calls = installJsonFetch(payload);
 
-  await api.fetchReviewerMySummary();
+  const result = await api.fetchReviewerMySummary();
 
   assert.equal(new URL(calls[0].url).pathname, "/api/v1/reports/access-review-packet/reviewer/my-summary");
+  assert.deepEqual(result, payload);
+  assertJsonRequest(calls[0]);
 });
 
-test("fetchReviewPacketQueueSummary uses the queue summary endpoint", async () => {
-  const calls = installJsonFetch({});
+test("fetchReviewPacketQueueSummary uses the queue summary endpoint and returns JSON", async () => {
+  const payload = {
+    total: 7,
+    review_status: {
+      pending_review: 4,
+      approved: 2,
+      rejected: 1,
+    },
+    review_readiness_status: {
+      ready_for_review: 3,
+      missing_evidence: 1,
+    },
+    assigned: 5,
+    unassigned: 2,
+    pending_review_assigned: 3,
+    pending_review_unassigned: 1,
+    pending_review_ready_for_review: 3,
+    pending_review_active_open_work: 1,
+    pending_review_incomplete: 1,
+    snapshot_audit_lifecycle: {
+      pending_unassigned_count: 1,
+      pending_assigned_ready_count: 3,
+      blocked_missing_evidence_count: 1,
+      approved_count: 2,
+      approved_with_override_count: 1,
+      rejected_count: 1,
+      approved_not_exported_count: 1,
+      exported_count: 1,
+      pending_review_age: {
+        new_today_count: 1,
+        one_to_three_days_count: 1,
+        four_to_seven_days_count: 1,
+        over_seven_days_count: 1,
+      },
+    },
+    audit_readiness_rollup: {
+      incomplete_count: 1,
+      review_ready_count: 3,
+      approved_not_exported_count: 1,
+      audit_ready_count: 1,
+      rejected_count: 1,
+    },
+  };
+  const calls = installJsonFetch(payload);
 
-  await api.fetchReviewPacketQueueSummary();
+  const result = await api.fetchReviewPacketQueueSummary();
 
   assert.equal(
     new URL(calls[0].url).pathname,
     "/api/v1/reports/access-review-packet/snapshots/queue-summary",
+  );
+  assert.deepEqual(result, payload);
+  assertJsonRequest(calls[0]);
+});
+
+test("fetchReviewerMySummary surfaces non-2xx responses", async () => {
+  globalThis.fetch = async () =>
+    new Response(JSON.stringify({ detail: "failure" }), {
+      status: 503,
+      statusText: "Service Unavailable",
+      headers: { "Content-Type": "application/json" },
+    });
+
+  await assert.rejects(
+    () => api.fetchReviewerMySummary(),
+    /Request failed for \/api\/v1\/reports\/access-review-packet\/reviewer\/my-summary: 503 Service Unavailable/,
   );
 });
