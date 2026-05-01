@@ -2111,6 +2111,12 @@ main.page {
   cursor: not-allowed;
 }
 
+.manifest-textarea {
+  font-family: "Cascadia Code", "SFMono-Regular", Consolas, monospace;
+  resize: vertical;
+  min-height: 260px;
+}
+
 .form-footer {
   display: flex;
   gap: 0.5rem;

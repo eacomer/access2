@@ -6,6 +6,7 @@ import { usePathname } from "next/navigation";
 const NAV_ITEMS = [
   { href: "/patients", label: "Patients" },
   { href: "/audit-readiness", label: "Audit Readiness" },
+  { href: "/audit-bundle-verify", label: "Verify Bundle" },
 ];
 
 export default function AppNavigation() {
