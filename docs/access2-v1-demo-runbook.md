@@ -85,6 +85,15 @@ Warning: `localhost:3000` can be stale if an older frontend server is still runn
 
 The latest validated local read-only demo path used `http://localhost:3001`.
 
+For controlled local demos, start the current-workspace frontend and wait for HTTP readiness with:
+
+```powershell
+cd C:\dev\access2
+.\scripts\start-access2-demo-frontend.ps1
+```
+
+The helper starts the frontend on `http://localhost:3001`, waits for `http://localhost:3001/login`, and prints the process id to stop after the demo. Do not start Selenium until the helper reports that `/login` is reachable.
+
 Known local tool notes:
 
 - Pytest may emit local `.pytest_cache` permission warnings.
