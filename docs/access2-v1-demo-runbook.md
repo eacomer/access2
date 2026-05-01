@@ -330,7 +330,7 @@ Viewer should see:
 - Reviewer workload summary.
 - Audit-readiness table.
 - Read-only audit posture and clean empty states where applicable.
-- No approve, reject, assign, export, verify, or create-snapshot controls in read-only audit sections.
+- No approve, reject, assign, edit, or create-snapshot controls in read-only audit sections.
 
 4. Visit:
 
@@ -351,6 +351,22 @@ Viewer should see:
 - Snapshot, review state, next step, completion, and latest snapshot metadata where available.
 - No mutation controls in read-only audit panels.
 
+6. If the patient has an approved export-ready snapshot, use the patient review-packet backlog to download the audit bundle formats:
+
+- JSON
+- Markdown
+- PDF
+
+Viewer should see approved-only download actions. Non-approved snapshots should explain why downloads are unavailable.
+
+7. Visit:
+
+```text
+/audit-bundle-verify
+```
+
+Viewer should be able to paste a snapshot ID and the `audit_manifest` object from an exported JSON bundle, then verify it against persisted snapshot data.
+
 ## 8. Suggested Talk Track
 
 ACCESS2 is proving evidence posture, not just displaying tasks. The point of this V1 read-only demo is to show how the system connects patient-level workflow evidence to review packets and audit readiness.
@@ -359,14 +375,14 @@ On `/audit-readiness`, call out the reviewer workload summary and the audit-read
 
 On patient detail, call out the audit-status and review-packet backlog panels. These connect the patient's current audit posture to persisted review packet history and make the next review step visible.
 
-Mutation workflows and export/verification UI are intentionally deferred from this read-only V1 demo. Approve, reject, assign, export, verify, and create-snapshot actions should be demonstrated only in a future controlled mutation slice after that behavior is explicitly implemented and validated.
+Approved audit bundle downloads and manifest verification are now part of the controlled V1 frontend audit path. Approval, rejection, assignment, edit, and create-snapshot controls remain outside this read-only frontend demo and should only be demonstrated through explicit controlled backend/operator-flow validation.
 
 ## 9. Read-Only Guardrails to Call Out
 
-- Read-only audit panels should not expose approve, reject, assign, export, verify, or create-snapshot buttons.
+- Read-only audit panels should not expose approve, reject, assign, edit, or create-snapshot buttons.
 - Read-only endpoints must not mutate data.
 - Snapshot and packet reads must not rebuild persisted `packet_json` or `packet_markdown`.
-- Audit bundle export events should be logged only after successful export.
+- Approved audit bundle downloads should remain limited to approved snapshots, and export events should be logged only after successful export.
 - Audit bundle verification must compare supplied manifests against persisted snapshot data.
 - Tenant scoping and patient consistency must remain preserved across linked records.
 
@@ -374,9 +390,10 @@ Mutation workflows and export/verification UI are intentionally deferred from th
 
 - This is a controlled local demo and pilot-review runbook, not a production deployment guide.
 - `localhost:3000` can be stale unless restarted.
-- The current demo emphasizes read-only audit visibility and evidence posture.
-- Full UI mutation workflows are not represented by this runbook.
-- Export and verification UI remain outside this read-only demo path.
+- The current demo emphasizes audit visibility, approved bundle export support, verification support, and evidence posture.
+- Full UI mutation workflows for approval, rejection, assignment, editing, and snapshot creation are not represented by this runbook.
+- Approved bundle downloads require an approved export-ready snapshot.
+- Verification requires a real `audit_manifest` copied from an exported JSON audit bundle.
 - Selenium may skip paths when seeded patient cards are unavailable.
 - Local generated files must remain uncommitted.
 
