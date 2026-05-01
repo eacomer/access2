@@ -863,7 +863,7 @@ main.page {
 
 .audit-readiness-table {
   width: 100%;
-  min-width: 980px;
+  min-width: 1240px;
   border-collapse: collapse;
   font-size: 0.85rem;
 }
@@ -886,6 +886,16 @@ main.page {
 
 .audit-readiness-table tbody tr:last-child td {
   border-bottom: 0;
+}
+
+.table-link {
+  font-weight: 600;
+  color: #1d4ed8;
+  text-decoration: none;
+}
+
+.table-link:hover {
+  text-decoration: underline;
 }
 
 .worklist-context-header {

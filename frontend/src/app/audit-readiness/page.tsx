@@ -49,12 +49,23 @@ const parseStatus = (value?: string | string[]): AuditReadinessStatus | undefine
 
 const formatValue = (value?: string | null) => value || "—";
 
+const formatAuditStatusValue = (value?: string | null) =>
+  value
+    ? value
+        .split("_")
+        .filter(Boolean)
+        .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase())
+        .join(" ")
+    : "—";
+
 const formatExportFormats = (item: AuditReadinessItem) => {
   if (!item.audit_bundle.export_formats.length) {
     return "—";
   }
   return item.audit_bundle.export_formats.join(", ");
 };
+
+const patientDetailHref = (patientId: string) => `/patients/${encodeURIComponent(patientId)}`;
 
 const statusHref = (status?: AuditReadinessStatus) =>
   status ? `/audit-readiness?status=${encodeURIComponent(status)}` : "/audit-readiness";
@@ -244,12 +255,15 @@ export default async function AuditReadinessPage({ searchParams }: PageProps) {
                 <thead>
                   <tr>
                     <th>Patient ID</th>
+                    <th>Latest Snapshot ID</th>
                     <th>Snapshot Created</th>
+                    <th>Review Status</th>
                     <th>Completion</th>
                     <th>Review State</th>
                     <th>Reviewer</th>
                     <th>Next Step</th>
                     <th>Priority</th>
+                    <th>Bundle Available</th>
                     <th>Exported</th>
                     <th>Formats</th>
                   </tr>
@@ -257,13 +271,23 @@ export default async function AuditReadinessPage({ searchParams }: PageProps) {
                 <tbody>
                   {payload.items.map((item) => (
                     <tr key={item.latest_snapshot_id}>
-                      <td>{item.patient_id}</td>
+                      <td>
+                        <Link className="table-link" href={patientDetailHref(item.patient_id)}>
+                          {item.patient_id}
+                        </Link>
+                      </td>
+                      <td>{item.latest_snapshot_id}</td>
                       <td>{formatDateTime(item.latest_snapshot_created_at)}</td>
-                      <td>{item.completion_status}</td>
-                      <td>{item.review_state}</td>
+                      <td>{formatAuditStatusValue(item.review_status)}</td>
+                      <td>{formatAuditStatusValue(item.completion_status)}</td>
+                      <td>{formatAuditStatusValue(item.review_state)}</td>
                       <td>{formatValue(item.assigned_reviewer_user_id)}</td>
-                      <td>{item.next_step.action}</td>
+                      <td>
+                        <strong>{formatAuditStatusValue(item.next_step.action)}</strong>
+                        <p className="inline-helper">{item.next_step.reason}</p>
+                      </td>
                       <td>{formatPriority(item.next_step.priority)}</td>
+                      <td>{item.audit_bundle.available ? "Yes" : "No"}</td>
                       <td>{item.audit_bundle.exported ? "Yes" : "No"}</td>
                       <td>{formatExportFormats(item)}</td>
                     </tr>
