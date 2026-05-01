@@ -13,6 +13,7 @@ This is a frontend demo script. It does not add backend behavior, create snapsho
 ## Preconditions
 
 - Backend and frontend are running against a local demo or seeded database.
+- Backend auth must be reachable before the frontend steps can proceed past sign-in.
 - The operator has a valid ACCESS2 account. The established local demo account is:
 
 ```text
@@ -71,7 +72,7 @@ Expected result:
 
 - The operator reaches the authenticated app.
 - The main navigation shows `Patients`, `Audit Readiness`, and `Verify Bundle`.
-- If credentials are wrong or the session is expired, the login page remains visible with an error.
+- If credentials are wrong, the session is expired, or backend auth is unavailable, the login page remains visible with an error.
 
 ### 2. Open the Patient Worklist
 
@@ -254,6 +255,7 @@ Use these interpretations during the demo:
 ## Troubleshooting
 
 - If `/login` does not load, confirm the frontend is running at the URL you opened.
+- If login shows `Unable to sign in right now. Please try again.`, confirm the backend is running and the frontend API base URL points to it.
 - If authenticated pages redirect to login, sign in again and confirm cookies are enabled.
 - If `Audit Readiness` shows `Unable to load audit readiness`, check backend health and `NEXT_PUBLIC_API_BASE_URL`.
 - If no audit-readiness rows appear, the local database may not have persisted review-packet snapshots.
