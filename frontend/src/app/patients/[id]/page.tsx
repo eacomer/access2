@@ -51,6 +51,7 @@ import type {
 type WorklistSummaryResponse = Awaited<ReturnType<typeof fetchWorklistSummary>>;
 type TimelineResponse = Awaited<ReturnType<typeof fetchPatientTimeline>>;
 type PatientResponse = Awaited<ReturnType<typeof fetchPatient>>;
+type ReviewPacketSnapshot = PatientBacklogDrillInResponse["snapshots"][number];
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -185,6 +186,45 @@ const formatAuditStatusValue = (value?: string | null) =>
         .map((segment) => segment.charAt(0).toUpperCase() + segment.slice(1).toLowerCase())
         .join(" ")
     : "—";
+
+const AUDIT_BUNDLE_DOWNLOADS = [
+  { format: "json", label: "Download JSON" },
+  { format: "markdown", label: "Download Markdown" },
+  { format: "pdf", label: "Download PDF" },
+] as const;
+
+const getAuditBundleUnavailableMessage = ({
+  backlog,
+  snapshot,
+}: {
+  backlog: PatientBacklogDrillInResponse;
+  snapshot: ReviewPacketSnapshot;
+}) => {
+  if (snapshot.review_status === "rejected") {
+    return "Unavailable for rejected snapshots.";
+  }
+
+  if (snapshot.review_status !== "approved") {
+    return "Unavailable until approved.";
+  }
+
+  if (
+    snapshot.id === backlog.audit_status.latest_snapshot_id &&
+    !backlog.audit_status.audit_bundle.available
+  ) {
+    return "Approved snapshot is not export-ready.";
+  }
+
+  return null;
+};
+
+const getAuditBundleDownloadHref = ({
+  snapshotId,
+  format,
+}: {
+  snapshotId: string;
+  format: (typeof AUDIT_BUNDLE_DOWNLOADS)[number]["format"];
+}) => `/audit-bundles/${encodeURIComponent(snapshotId)}/${format}`;
 
 const renderAuditStatusPanel = ({
   auditStatus,
@@ -355,17 +395,51 @@ const renderPatientBacklogPanel = ({
                 <th>Review status</th>
                 <th>Review state</th>
                 <th>Assigned reviewer</th>
+                <th>Audit bundle export</th>
               </tr>
             </thead>
             <tbody>
-              {latestSnapshots.map((snapshot) => (
-                <tr key={snapshot.id}>
-                  <td>{formatDateTime(snapshot.created_at)}</td>
-                  <td>{formatAuditStatusValue(snapshot.review_status)}</td>
-                  <td>{snapshot.review_state.label}</td>
-                  <td>{snapshot.assigned_reviewer_user_id ?? "—"}</td>
-                </tr>
-              ))}
+              {latestSnapshots.map((snapshot) => {
+                const unavailableMessage = getAuditBundleUnavailableMessage({ backlog, snapshot });
+
+                return (
+                  <tr key={snapshot.id}>
+                    <td>{formatDateTime(snapshot.created_at)}</td>
+                    <td>{formatAuditStatusValue(snapshot.review_status)}</td>
+                    <td>{snapshot.review_state.label}</td>
+                    <td>{snapshot.assigned_reviewer_user_id ?? "—"}</td>
+                    <td>
+                      {unavailableMessage ? (
+                        <span>{unavailableMessage}</span>
+                      ) : (
+                        <>
+                          <div
+                            className="applied-filters-chips"
+                            data-testid="audit-bundle-download-actions"
+                          >
+                            {AUDIT_BUNDLE_DOWNLOADS.map((download) => (
+                              <a
+                                key={download.format}
+                                className="filter-chip-pill"
+                                href={getAuditBundleDownloadHref({
+                                  snapshotId: snapshot.id,
+                                  format: download.format,
+                                })}
+                              >
+                                {download.label}
+                              </a>
+                            ))}
+                          </div>
+                          <p className="inline-helper">
+                            Uses approved audit bundle export endpoints. Successful downloads may record
+                            audit_bundle_exported events.
+                          </p>
+                        </>
+                      )}
+                    </td>
+                  </tr>
+                );
+              })}
             </tbody>
           </table>
         </div>
