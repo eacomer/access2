@@ -99,6 +99,198 @@ Known local tool notes:
 - Pytest may emit local `.pytest_cache` permission warnings.
 - Next lint/build may show the existing plugin configuration warning.
 
+## 5a. Local Demo Readiness Checklist
+
+Run these checks before starting the manual frontend demo script in [access2-v1-frontend-demo-script.md](C:/dev/access2/docs/access2-v1-frontend-demo-script.md). They separate environment readiness, auth readiness, demo data readiness, and audit bundle readiness.
+
+### Environment readiness
+
+1. Confirm Docker Desktop is running.
+
+```powershell
+cd C:\dev\access2
+docker compose ps
+```
+
+Expected result:
+
+- Docker responds without `failed to connect to the docker API`.
+- If you see a Docker API or named-pipe error, start Docker Desktop first, then rerun the command.
+
+2. Start the backend stack if it is not already running.
+
+```powershell
+cd C:\dev\access2
+docker compose up --build
+```
+
+Expected result:
+
+- `access2-postgres`, `access2-redis`, and `access2-backend` start.
+- `postgres` and `redis` become healthy before the backend is ready.
+
+3. In a second PowerShell window, confirm the containers are up.
+
+```powershell
+cd C:\dev\access2
+docker compose ps
+```
+
+Expected result:
+
+- The backend, postgres, and redis services are listed.
+- If the backend exits or restarts repeatedly, inspect the Docker Compose logs before running the frontend demo.
+
+4. Confirm backend health.
+
+```powershell
+$BackendBase = "http://localhost:8000/api/v1"
+Invoke-WebRequest -UseBasicParsing -Uri "$BackendBase/health/live"
+Invoke-WebRequest -UseBasicParsing -Uri "$BackendBase/health/ready"
+```
+
+Expected result:
+
+- `/health/live` returns HTTP 200 when the backend process is alive.
+- `/health/ready` returns HTTP 200 only when database and Redis checks pass.
+- If `/health/ready` returns 503 or is unreachable, do not run the manual frontend demo yet.
+
+5. Start the current-workspace frontend for the demo.
+
+```powershell
+cd C:\dev\access2
+.\scripts\start-access2-demo-frontend.ps1
+```
+
+Expected result:
+
+- The helper reports `Frontend is reachable at http://localhost:3001/login (HTTP 200)`.
+- Use `http://localhost:3001` for the manual frontend demo.
+- If port `3001` is already in use, follow the helper output and stop the stale process or choose a clean port.
+
+### Auth readiness
+
+Use the documented local demo account only if your local seed data includes it:
+
+```text
+admin@example.com / Admin123!
+```
+
+Check backend auth directly before trying the browser login:
+
+```powershell
+$BackendBase = "http://localhost:8000/api/v1"
+$Login = Invoke-RestMethod `
+  -Method Post `
+  -Uri "$BackendBase/auth/login" `
+  -ContentType "application/json" `
+  -Body (@{
+    email = "admin@example.com"
+    password = "Admin123!"
+  } | ConvertTo-Json)
+
+$Headers = @{
+  Authorization = "Bearer $($Login.access_token)"
+}
+
+Invoke-RestMethod -Method Get -Uri "$BackendBase/auth/me" -Headers $Headers
+```
+
+Expected result:
+
+- Login returns an access token.
+- `/auth/me` returns the authenticated user.
+- If this fails with `401`, the account is not present or the password is different in this local database.
+- If this fails with connection errors, backend/auth is not reachable.
+
+Observed failure and meaning:
+
+```text
+Unable to sign in right now. Please try again.
+```
+
+This means the frontend login page loaded, but the frontend could not complete backend auth. Check, in order:
+
+- Docker Desktop is running.
+- `docker compose ps` shows backend, postgres, and redis running.
+- `$BackendBase/health/ready` returns HTTP 200.
+- `NEXT_PUBLIC_API_BASE_URL` points to the same backend, usually `http://localhost:8000/api/v1`.
+- The seeded admin account exists in the current local database.
+
+### Demo data readiness
+
+The frontend audit demo needs persisted patient and review-packet data. A plain login is not enough.
+
+1. Confirm patient/worklist data through the frontend smoke path after backend and auth are ready.
+
+```powershell
+cd C:\dev\access2
+py -3 -m pytest tests/e2e/test_access2_smoke.py --e2e-base-url http://localhost:3001 -q -rs
+```
+
+Expected result:
+
+- The login and read-only smoke checks pass.
+- Some data-creating checks may be skipped unless `--e2e-submit-bootstrap` is supplied.
+
+2. If you need to create a disposable validation patient, use the existing guarded bootstrap path against a disposable local database.
+
+```powershell
+cd C:\dev\access2
+py -3 -m pytest tests/e2e/test_access2_smoke.py::test_admin_can_submit_workflow_bootstrap --e2e-submit-bootstrap --e2e-base-url http://localhost:3001 -q
+```
+
+Expected result:
+
+- The bootstrap path creates a validation patient for queue/detail smoke coverage.
+- This creates data. Use it only against a disposable local database.
+
+3. Confirm at least one persisted snapshot exists before expecting audit-readiness rows.
+
+```powershell
+$BackendBase = "http://localhost:8000/api/v1"
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "$BackendBase/reports/access-review-packet/audit-readiness" `
+  -Headers $Headers
+```
+
+Expected result:
+
+- `total_count` is greater than `0`, or `items` contains rows.
+- If no rows exist, create or seed review-packet snapshots before running the full audit-readiness demo.
+
+### Audit bundle and verification readiness
+
+Approved bundle download and verification require more than a snapshot.
+
+- JSON, Markdown, and PDF bundle downloads appear only where the patient backlog contains an approved export-ready snapshot.
+- Non-approved snapshots should show `Unavailable until approved.`
+- Rejected snapshots should show `Unavailable for rejected snapshots.`
+- Verification requires a real `audit_manifest` copied from an exported JSON audit bundle.
+- A copied manifest must match the snapshot ID being verified.
+
+Use audit-readiness rows to find candidates:
+
+```powershell
+$BackendBase = "http://localhost:8000/api/v1"
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "$BackendBase/reports/access-review-packet/audit-readiness?status=approved_not_exported" `
+  -Headers $Headers
+
+Invoke-RestMethod `
+  -Method Get `
+  -Uri "$BackendBase/reports/access-review-packet/audit-readiness?status=audit_ready" `
+  -Headers $Headers
+```
+
+Expected result:
+
+- Rows with `audit_bundle.available = true` are candidates for approved bundle download.
+- Rows with `audit_bundle.exported = true` have already recorded at least one successful audit bundle export.
+- If no approved/export-ready rows exist, the manual frontend demo can still show unavailable states, but cannot complete JSON/Markdown/PDF download or manifest verification.
+
 ## 6. Seeded Patient Setup
 
 Seed one local patient through the existing admin workflow bootstrap UI:
