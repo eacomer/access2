@@ -31,9 +31,9 @@ Latest validated baseline:
 ## 3. What This Demo Does Not Yet Prove
 
 - It does not prove that all mutation workflows are complete in the UI.
-- It does not demonstrate approve, reject, assign, export, verify, or create-snapshot actions from read-only audit panels.
+- It does not demonstrate approve, reject, assign, edit, or create-snapshot actions from read-only audit panels.
 - It does not demonstrate real CMS submission, EHR integration, FHIR integration, billing, payment reconciliation, AI recommendations, or predictive analytics.
-- It does not replace targeted backend validation for future mutation, export, or verification slices.
+- It does not replace targeted backend validation for future mutation slices.
 
 ## 4. Preconditions
 
@@ -406,7 +406,7 @@ Stop the demo or validation pass and record a defect if:
 - Patient detail does not render.
 - The patient audit-status panel is missing.
 - The patient review-packet backlog panel is missing.
-- Read-only audit sections expose approve, reject, assign, export, verify, or create-snapshot controls.
+- Read-only audit sections expose approve, reject, assign, edit, or create-snapshot controls.
 - Read-only audit checks appear to mutate data.
 - Snapshot or packet reads appear to rebuild persisted audit artifacts.
 - Tenant scoping or patient consistency appears broken.
