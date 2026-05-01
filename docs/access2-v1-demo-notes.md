@@ -2,13 +2,14 @@
 
 ## 1. Demo Date
 
-April 30, 2026
+May 1, 2026
 
 ## 2. Demo Environment
 
 - Demo type: solo dry run.
 - Repo: `C:\dev\access2`
-- Intended frontend URL: `http://localhost:3001`
+- Frontend URL: `http://localhost:3001`
+- Frontend startup: `.\scripts\start-access2-demo-frontend.ps1`
 - Backend/container status: `docker compose ps` showed backend, postgres, and redis running.
 - Git hygiene before demo: only expected local-only files were present:
 
@@ -19,10 +20,11 @@ April 30, 2026
 
 ## 3. Demo Scope
 
-The dry run followed `docs/access2-v1-demo-runbook.md` as far as the local environment allowed.
+The dry run followed `docs/access2-v1-demo-runbook.md` with the deterministic startup helper.
 
-Intended surfaces:
+Validated surfaces:
 
+- `/login`
 - `/audit-readiness`
 - `/patients?active_only=0`
 - patient detail
@@ -32,21 +34,26 @@ Intended surfaces:
 - patient review-packet backlog panel
 - absence of mutation controls in read-only audit panels
 
-This V1 demo scope is read-only audit visibility and evidence posture. Mutation workflows and export/verification UI are not complete in this read-only demo unless separately implemented and validated.
+This V1 demo scope demonstrates read-only audit visibility and evidence posture. Mutation workflows and export/verification UI are not complete in this read-only demo unless separately implemented and validated.
 
 ## 4. What Worked
 
-- Required V1 scope and demo docs were available and consistent with the controlled local demo path.
-- `docker compose ps` showed the backend, postgres, and redis containers running.
-- A fresh current-workspace frontend process was started for `localhost:3001`.
-- `localhost:3001` opened a listening port after the frontend start attempt.
-- Generated frontend log files from the failed start attempts were removed before committing notes.
+- The demo frontend helper started the current-workspace frontend on `localhost:3001`.
+- `http://localhost:3001/login` returned HTTP 200.
+- The Selenium bootstrap seed path passed.
+- The read-only Selenium smoke path passed with expected guarded skips.
+- Manual Selenium checks confirmed `/login`, `/audit-readiness`, `/patients?active_only=0`, and patient detail rendered.
+- Reviewer workload summary rendered on `/audit-readiness`.
+- Audit-readiness table rendered.
+- Patient audit-status panel rendered.
+- Patient review-packet backlog panel rendered.
+- Read-only audit surfaces exposed no approve, reject, assign, export, verify, or create snapshot controls.
 
 ## 5. What Was Confusing
 
-- The frontend port could be open while page requests still timed out. This makes the environment look partially ready even though the UI is not reachable.
-- The existing Docker frontend service is running but exposes only container port `3000/tcp` in `docker compose ps`; the runbook's preferred current-workspace `localhost:3001` path still requires a separate local frontend process.
-- Selenium timeout behavior did not produce a useful pass/fail report during this dry run.
+- The startup helper may require elevated/local execution in this sandboxed environment. Non-elevated Next startup had previously exited before readiness.
+- The read-only smoke command reports 9 skipped tests by design; these are guarded data-creating or mutation-oriented checks that require `--e2e-submit-bootstrap`.
+- Pytest still emits the known local `.pytest_cache` permission warning.
 
 ## 6. Stakeholder Questions
 
@@ -55,45 +62,30 @@ This V1 demo scope is read-only audit visibility and evidence posture. Mutation 
 
 ## 7. Product Gaps Observed
 
-- No confirmed product defects were observed because the UI surfaces could not be reached during this dry run.
+- No confirmed product defects were observed.
 - Existing documented V1 gaps remain: mutation workflows and export/verification UI are outside the current read-only demo path unless implemented and validated separately.
 
 ## 8. Environment Issues
 
-- The Selenium bootstrap command timed out:
-
-```powershell
-py -3 -m pytest tests/e2e/test_access2_smoke.py::test_admin_can_submit_workflow_bootstrap --e2e-submit-bootstrap --e2e-base-url http://localhost:3001 -q
-```
-
-- The optional Selenium smoke command also timed out:
-
-```powershell
-py -3 -m pytest tests/e2e/test_access2_smoke.py --e2e-base-url http://localhost:3001 -q -rs
-```
-
-- Direct HTTP checks against `http://localhost:3001/login`, `http://localhost:3001/audit-readiness`, and `http://localhost:3001/patients?active_only=0` timed out.
-- An existing ACCESS2 frontend process on `localhost:3100` was also checked, but page requests timed out there as well.
-- The failed `localhost:3001` start attempts produced an `EADDRINUSE` log after a server process was already listening on that port.
-- Pytest/cache and git status continued to show the known local `.pytest_cache` permission warning.
+- Known `.pytest_cache` permission warning appeared during Selenium runs.
+- In-app browser manual inspection was unavailable because its Node runtime was older than the browser plugin requires. A focused Selenium manual check was used instead.
+- No generated frontend log files were produced or committed during this successful run.
 
 ## 9. Decisions Made
 
-- Do not treat this dry run as a product validation failure.
-- Do not change backend code, frontend app code, tests, or seed logic.
-- Record the run as blocked by local frontend reachability/page-serving behavior.
-- Preserve the existing read-only V1 scope and avoid adding mutation workflow assumptions.
+- Treat this as a successful controlled local solo dry run for the read-only V1 demo path.
+- Preserve the read-only V1 framing: evidence posture is demonstrable, but mutation workflows and export/verification UI are not implied complete.
+- Do not change backend code, frontend app code, Selenium tests, or seed logic.
 
 ## 10. Recommended Next Slice
 
-Local environment startup hardening for the demo path.
+Review queue visibility or controlled snapshot actions, if explicitly requested as the next V1 slice.
 
-Keep the slice docs/devops-focused unless a reproducible product defect appears. The useful next step is to make the current-workspace frontend startup path deterministic enough that `/login`, `/audit-readiness`, and `/patients?active_only=0` respond before Selenium bootstrap or smoke commands run.
+Keep the next slice narrow and tied to the V1 audit chain. Do not expand into broad workflow redesign, AI, integrations, billing, or general case-management features.
 
 ## 11. Follow-Up Actions
 
-- Reproduce frontend startup from a clean terminal and confirm which command should be canonical for `localhost:3001`.
-- Add or document a lightweight readiness check that requires an HTTP 200 page response, not just an open TCP port.
-- Re-run the Selenium bootstrap command only after `http://localhost:3001/login` responds.
-- Re-run the read-only smoke command with `-rs` after bootstrap succeeds.
+- Use `.\scripts\start-access2-demo-frontend.ps1` before future local demo runs.
+- Start Selenium only after `http://localhost:3001/login` returns HTTP 200.
+- Keep noting that the 9 read-only smoke skips are expected unless running guarded data-creating checks.
 - Keep `frontend/.env.local` and `frontend/tsconfig.tsbuildinfo` local and uncommitted.
