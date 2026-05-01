@@ -1,13 +1,16 @@
 .env
+frontend/.env.local
 .venv/
 __pycache__/
 *.pyc
 .pytest_cache/
+backend/.tmp/
 .mypy_cache/
 .coverage
 htmlcov/
 node_modules/
 .next/
+frontend/tsconfig.tsbuildinfo
 dist/
 build/
 .idea/

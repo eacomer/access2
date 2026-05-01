@@ -96,8 +96,29 @@ The helper starts the frontend on `http://localhost:3001`, waits for `http://loc
 
 Known local tool notes:
 
-- Pytest may emit local `.pytest_cache` permission warnings.
+- Pytest, `git status`, or backend watchfiles may emit local `.pytest_cache` or `backend/.tmp/pytest_cache` permission warnings. These warnings are non-blocking when backend health passes and tests complete; treat them as local cache friction unless a command actually fails.
 - Next lint/build may show the existing plugin configuration warning.
+- Do not commit local cache or generated files such as `frontend/.env.local`, `frontend/tsconfig.tsbuildinfo`, or `backend/.tmp/pytest_cache`.
+- The root `.dockerignore` excludes local/generated cache artifacts from Docker build context. If similar local artifacts appear, ignore them rather than adding them to a demo commit.
+
+### Frontend/backend environment wiring
+
+The Compose frontend and the current-workspace demo helper run in different network contexts:
+
+- The Docker Compose frontend uses the root `.env` and can reach the backend by the Compose service name, typically `http://backend:8000/api/v1`.
+- The demo helper runs the frontend on the Windows host at `http://localhost:3001`; it should reach the backend through the host-published backend URL, usually `http://localhost:8000/api/v1`. The frontend API helper also defaults to `http://localhost:8000/api/v1` when no override is set.
+- `frontend/.env.local` may exist for local host-run frontend overrides, but it must remain uncommitted.
+
+Use this readiness order before attempting browser login:
+
+1. Docker Desktop is running.
+2. Compose stack is running.
+3. Backend `/health/live` and `/health/ready` return HTTP 200.
+4. The frontend helper reports `http://localhost:3001/login` is reachable.
+5. Backend auth succeeds directly with the documented local credentials.
+6. Browser login succeeds.
+
+If the login page loads but sign-in fails with `Unable to sign in right now. Please try again.`, the frontend is reachable but backend/auth is not reachable or not seeded for that local environment. Check backend health, frontend API base URL, and seeded auth before changing product code.
 
 ## 5a. Local Demo Readiness Checklist
 
