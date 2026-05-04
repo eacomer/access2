@@ -5,7 +5,7 @@ description = "Backend for access2"
 requires-python = ">=3.12"
 dependencies = [
   "fastapi",
-  "uvicorn[standard]",
+  "uvicorn",
   "sqlalchemy>=2.0",
   "psycopg[binary]",
   "alembic",
