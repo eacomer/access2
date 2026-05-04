@@ -1,0 +1,51 @@
+services:
+  - type: web
+    name: access2-backend
+    runtime: python
+    rootDir: backend
+    buildCommand: pip install --upgrade pip && pip install -e .
+    startCommand: bash scripts/render-start.sh
+    healthCheckPath: /api/v1/health/live
+    envVars:
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: "false"
+      - key: SECRET_KEY
+        generateValue: true
+      - key: JWT_ALGORITHM
+        value: HS256
+      - key: ACCESS_TOKEN_EXPIRE_MINUTES
+        value: "60"
+      - key: DATABASE_URL
+        fromDatabase:
+          name: access2-postgres
+          property: connectionString
+      - key: REDIS_URL
+        fromService:
+          type: keyvalue
+          name: access2-redis
+          property: connectionString
+      - key: FRONTEND_ORIGIN
+        sync: false
+
+  - type: web
+    name: access2-frontend
+    runtime: node
+    rootDir: frontend
+    buildCommand: npm ci && npm run build
+    startCommand: npm run start -- -H 0.0.0.0 -p $PORT
+    envVars:
+      - key: NODE_ENV
+        value: production
+      - key: NEXT_PUBLIC_API_BASE_URL
+        sync: false
+
+  - type: keyvalue
+    name: access2-redis
+    ipAllowList: []
+
+databases:
+  - name: access2-postgres
+    databaseName: access2
+    user: access2

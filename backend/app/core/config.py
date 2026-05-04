@@ -1,5 +1,6 @@
 from functools import lru_cache
 from pydantic import computed_field
+from pydantic import field_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 
@@ -19,12 +20,20 @@ class Settings(BaseSettings):
 
     database_url: str = "postgresql+psycopg://access2:access2@localhost:5432/access2"
     redis_url: str = "redis://localhost:6379/0"
+    frontend_origin: str | None = None
 
     secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
     access_token_expire_minutes: int = 60
 
     sqlalchemy_echo: bool = False
+
+    @field_validator("database_url")
+    @classmethod
+    def normalize_database_url(cls, value: str) -> str:
+        if value.startswith("postgresql://"):
+            return value.replace("postgresql://", "postgresql+psycopg://", 1)
+        return value
 
     @computed_field  # type: ignore[misc]
     @property
