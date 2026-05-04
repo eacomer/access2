@@ -1,6 +1,8 @@
 #!/usr/bin/env bash
-set -euo pipefail
+set -e
 
-alembic -c alembic.ini upgrade head
+echo "Running database migrations..."
+python -m alembic upgrade head
 
-exec uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}"
+echo "Starting ACCESS2 backend..."
+python -m uvicorn app.main:app --host 0.0.0.0 --port "${PORT:-8000}"
