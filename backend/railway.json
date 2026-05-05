@@ -5,7 +5,7 @@
     "buildCommand": "python -m pip install --upgrade pip && python -m pip install -e . && python -m pip install alembic uvicorn"
   },
   "deploy": {
-    "startCommand": "python scripts/seed_demo_users.py",
+    "startCommand": "python -m pip install --upgrade pip && python -m pip install -e . && python scripts/seed_demo_users.py",
     "restartPolicyType": "ON_FAILURE",
     "restartPolicyMaxRetries": 3
   }
