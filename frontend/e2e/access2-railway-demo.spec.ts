@@ -1,4 +1,4 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type Page } from "@playwright/test";
 
 import {
   apiPatch,
@@ -17,6 +17,39 @@ const REJECTION_REASON =
 
 const OVERRIDE_REASON =
   "Approved for demo exception: source documentation exists outside the synthetic dataset and will be reconciled before production use.";
+
+async function expectEvidenceChainPanel(page: Page, expectedPostureText: RegExp[]) {
+  const panel = page.getByTestId("patient-evidence-chain-panel");
+
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("Evidence chain");
+  await expect(panel).toContainText("Proof path");
+  await expect(panel).toContainText(
+    "Shows whether this patient has the proof chain needed to connect interventions to measurable outcomes.",
+  );
+
+  const expectedRows = [
+    "Signal",
+    "Escalation",
+    "Intervention",
+    "Outcome",
+    "Evidence",
+    "Case Summary",
+    "Review Packet",
+    "Review State",
+    "Audit Bundle",
+  ];
+  for (const label of expectedRows) {
+    await expect(panel).toContainText(label);
+  }
+
+  for (const postureText of expectedPostureText) {
+    await expect(panel).toContainText(postureText);
+  }
+
+  await expect(panel.getByRole("button")).toHaveCount(0);
+  await expect(panel.getByRole("link")).toHaveCount(0);
+}
 
 test.describe("ACCESS2 Railway synthetic demo cases", () => {
   test("can log into the deployed ACCESS2 frontend", async ({ page }) => {
@@ -50,6 +83,7 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     expect(auditStatus.next_step.action).toMatch(/complete_missing_evidence|create_snapshot|review_snapshot/);
 
     await page.goto(`/patients/${patient.patient_id}`);
+    await expectEvidenceChainPanel(page, [/Evidence\s*Missing/i, /Audit Bundle\s*Export not available/i]);
     await expect(page.getByTestId("patient-audit-status-panel")).toContainText("Audit bundle available");
     await expect(page.getByTestId("patient-audit-status-panel")).toContainText("No");
     await expect(page.getByTestId("patient-audit-status-panel")).toContainText(/missing|required|snapshot/i);
@@ -111,6 +145,11 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     expect(verification.mismatches).toEqual([]);
 
     await page.goto(`/patients/${patient.patient_id}`);
+    await expectEvidenceChainPanel(page, [
+      /Evidence\s*Complete/i,
+      /Review State\s*Complete/i,
+      /Audit Bundle\s*(Export available|Complete)/i,
+    ]);
     await expect(page.getByTestId("patient-review-packet-backlog-panel")).toContainText("Download JSON");
     const frontendBundle = await page.request.get(`/audit-bundles/${snapshotId}/json`);
     expect(frontendBundle.ok(), await frontendBundle.text()).toBeTruthy();
@@ -150,6 +189,10 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     expect(after.packet_markdown).toEqual(before.packet_markdown);
 
     await page.goto(`/patients/${patient.patient_id}`);
+    await expectEvidenceChainPanel(page, [
+      /Review State\s*Review rejected/i,
+      /Audit Bundle\s*Export not available/i,
+    ]);
     await expect(page.getByTestId("patient-review-packet-backlog-panel")).toContainText("Rejected");
     await expect(page.getByTestId("patient-review-packet-backlog-panel")).toContainText(
       "Unavailable for rejected snapshots.",
@@ -190,6 +233,10 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     expect(verification.mismatches).toEqual([]);
 
     await page.goto(`/patients/${patient.patient_id}`);
+    await expectEvidenceChainPanel(page, [
+      /Review State\s*Approved With Override/i,
+      /Audit Bundle\s*(Export available|Complete)/i,
+    ]);
     await expect(page.getByTestId("patient-audit-status-panel")).toContainText(/Approved With Override/i);
   });
 
