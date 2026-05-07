@@ -1,0 +1,209 @@
+import { expect, test } from "@playwright/test";
+
+import {
+  apiPatch,
+  exportAuditBundle,
+  findDemoPatientCandidate,
+  getApiToken,
+  getPatientAuditStatus,
+  getSnapshot,
+  getSnapshotEvents,
+  login,
+  verifyAuditManifest,
+} from "./helpers/access2";
+
+const REJECTION_REASON =
+  "Outcome documentation does not clearly connect intervention to measurable improvement.";
+
+const OVERRIDE_REASON =
+  "Approved for demo exception: source documentation exists outside the synthetic dataset and will be reconciled before production use.";
+
+test.describe("ACCESS2 Railway synthetic demo cases", () => {
+  test("can log into the deployed ACCESS2 frontend", async ({ page }) => {
+    await login(page);
+    await page.getByRole("link", { name: "Patients" }).click();
+    await expect(page.getByRole("heading", { name: "Patient queue" })).toBeVisible();
+  });
+
+  test("Demo Patient 2 - Missing Evidence", async ({ page, request }) => {
+    await login(page);
+    const token = await getApiToken(request);
+    const patient = await findDemoPatientCandidate(request, token, {
+      label: "Demo Patient 2",
+      patientIdEnv: "ACCESS2_E2E_DEMO_PATIENT_2_ID",
+      matchesAuditStatus: (auditStatus) =>
+        !auditStatus.completion_summary.has_required_evidence &&
+        auditStatus.completion_summary.missing_evidence_count > 0,
+    });
+    if (!patient) {
+      test.skip(true, "Demo Patient 2 synthetic data is not present in this environment.");
+      return;
+    }
+
+    const auditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
+    expect(patient.total_events).toBeGreaterThan(0);
+    expect(patient.latest_open_escalation_id).toBeTruthy();
+    expect(patient.task_summary?.open_task_count || patient.task_summary?.in_progress_task_count || 0).toBeGreaterThan(0);
+    expect(auditStatus.completion_summary.has_required_evidence).toBe(false);
+    expect(auditStatus.completion_summary.missing_evidence_count).toBeGreaterThan(0);
+    expect(auditStatus.audit_bundle.available).toBe(false);
+    expect(auditStatus.next_step.action).toMatch(/complete_missing_evidence|create_snapshot|review_snapshot/);
+
+    await page.goto(`/patients/${patient.patient_id}`);
+    await expect(page.getByTestId("patient-audit-status-panel")).toContainText("Audit bundle available");
+    await expect(page.getByTestId("patient-audit-status-panel")).toContainText("No");
+    await expect(page.getByTestId("patient-audit-status-panel")).toContainText(/missing|required|snapshot/i);
+
+    if (auditStatus.latest_snapshot_id && auditStatus.review_status === "pending_review") {
+      const approvalAttempt = await apiPatch(
+        request,
+        token,
+        `/reports/access-review-packet/snapshots/${auditStatus.latest_snapshot_id}/review`,
+        {
+          review_status: "approved",
+          review_note: "Normal approval should remain blocked for missing evidence.",
+        },
+      );
+      expect(approvalAttempt.status()).toBe(409);
+      expect(await approvalAttempt.text()).toMatch(/missing|required|blocked/i);
+    } else {
+      test.info().annotations.push({
+        type: "product gap",
+        description:
+          "Normal approval blocking is verified only when the seeded missing-evidence case has a pending snapshot; this environment exposes no safe pending snapshot to patch.",
+      });
+    }
+  });
+
+  test("Demo Patient 1 - Audit Ready", async ({ page, request }) => {
+    await login(page);
+    const token = await getApiToken(request);
+    const patient = await findDemoPatientCandidate(request, token, {
+      label: "Demo Patient 1",
+      patientIdEnv: "ACCESS2_E2E_DEMO_PATIENT_1_ID",
+      matchesAuditStatus: (auditStatus) =>
+        auditStatus.review_status === "approved" &&
+        auditStatus.completion_summary.has_required_evidence &&
+        auditStatus.audit_bundle.available,
+    });
+    if (!patient) {
+      test.skip(true, "Demo Patient 1 synthetic data is not present in this environment.");
+      return;
+    }
+
+    const auditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
+    expect(patient.total_events).toBeGreaterThan(0);
+    expect(patient.latest_open_escalation_id || patient.workflow_status).toBeTruthy();
+    expect(auditStatus.has_snapshot).toBe(true);
+    expect(auditStatus.review_status).toBe("approved");
+    expect(auditStatus.completion_summary.has_required_evidence).toBe(true);
+    expect(auditStatus.completion_summary.has_approval).toBe(true);
+    expect(auditStatus.audit_bundle.available).toBe(true);
+    expect(auditStatus.latest_snapshot_id).toBeTruthy();
+
+    const snapshotId = auditStatus.latest_snapshot_id as string;
+    const bundle = await exportAuditBundle(request, token, snapshotId);
+    expect(bundle.audit_manifest.snapshot_id).toBe(snapshotId);
+    expect(bundle.audit_manifest.patient_id).toBe(patient.patient_id);
+
+    const verification = await verifyAuditManifest(request, token, snapshotId, bundle.audit_manifest);
+    expect(verification.verified).toBe(true);
+    expect(verification.mismatches).toEqual([]);
+
+    await page.goto(`/patients/${patient.patient_id}`);
+    await expect(page.getByTestId("patient-review-packet-backlog-panel")).toContainText("Download JSON");
+    const frontendBundle = await page.request.get(`/audit-bundles/${snapshotId}/json`);
+    expect(frontendBundle.ok(), await frontendBundle.text()).toBeTruthy();
+
+    await page.goto("/audit-bundle-verify");
+    await page.getByLabel("Snapshot ID").fill(snapshotId);
+    await page.getByLabel("Audit manifest JSON").fill(JSON.stringify(bundle.audit_manifest, null, 2));
+    await page.getByRole("button", { name: "Verify Manifest" }).click();
+    await expect(page.getByText("Verified", { exact: true })).toBeVisible();
+  });
+
+  test("Demo Patient 3 - Rejected Review", async ({ page, request }) => {
+    await login(page);
+    const token = await getApiToken(request);
+    const patient = await findDemoPatientCandidate(request, token, {
+      label: "Demo Patient 3",
+      patientIdEnv: "ACCESS2_E2E_DEMO_PATIENT_3_ID",
+      matchesAuditStatus: (auditStatus) => auditStatus.review_status === "rejected",
+    });
+    if (!patient) {
+      test.skip(true, "Demo Patient 3 synthetic data is not present in this environment.");
+      return;
+    }
+
+    const auditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
+    expect(auditStatus.review_status).toBe("rejected");
+    expect(auditStatus.next_step.action).toBe("create_snapshot");
+    expect(auditStatus.latest_snapshot_id).toBeTruthy();
+
+    const snapshotId = auditStatus.latest_snapshot_id as string;
+    const before = await getSnapshot(request, token, snapshotId);
+    expect(before.review_status).toBe("rejected");
+    const events = await getSnapshotEvents(request, token, snapshotId);
+    expect(JSON.stringify(events)).toContain(REJECTION_REASON);
+    const after = await getSnapshot(request, token, snapshotId);
+    expect(after.packet_json).toEqual(before.packet_json);
+    expect(after.packet_markdown).toEqual(before.packet_markdown);
+
+    await page.goto(`/patients/${patient.patient_id}`);
+    await expect(page.getByTestId("patient-review-packet-backlog-panel")).toContainText("Rejected");
+    await expect(page.getByTestId("patient-review-packet-backlog-panel")).toContainText(
+      "Unavailable for rejected snapshots.",
+    );
+  });
+
+  test("Demo Patient 4 - Override Approval", async ({ page, request }) => {
+    await login(page);
+    const token = await getApiToken(request);
+    const patient = await findDemoPatientCandidate(request, token, {
+      label: "Demo Patient 4",
+      patientIdEnv: "ACCESS2_E2E_DEMO_PATIENT_4_ID",
+      matchesAuditStatus: (auditStatus) =>
+        auditStatus.review_status === "approved" &&
+        Boolean(auditStatus.review_state?.approval_override_used),
+    });
+    if (!patient) {
+      test.skip(true, "Demo Patient 4 synthetic data is not present in this environment.");
+      return;
+    }
+
+    const auditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
+    expect(auditStatus.review_status).toBe("approved");
+    expect(auditStatus.review_state?.approval_override_used).toBe(true);
+    expect(auditStatus.audit_bundle.available).toBe(true);
+    expect(auditStatus.latest_snapshot_id).toBeTruthy();
+
+    const snapshotId = auditStatus.latest_snapshot_id as string;
+    const snapshot = await getSnapshot(request, token, snapshotId);
+    expect(snapshot.review_state?.approval_override_used).toBe(true);
+    const events = await getSnapshotEvents(request, token, snapshotId);
+    expect(JSON.stringify(events)).toContain(OVERRIDE_REASON);
+
+    const bundle = await exportAuditBundle(request, token, snapshotId);
+    expect(bundle.audit_manifest.approval_override_used).toBe(true);
+    const verification = await verifyAuditManifest(request, token, snapshotId, bundle.audit_manifest);
+    expect(verification.verified).toBe(true);
+    expect(verification.mismatches).toEqual([]);
+
+    await page.goto(`/patients/${patient.patient_id}`);
+    await expect(page.getByTestId("patient-audit-status-panel")).toContainText("Approved with override");
+  });
+
+  test("Demo Patient 3 reviewer rejection through UI", async () => {
+    test.skip(
+      true,
+      "Current frontend read-only audit panels do not expose reject controls; rejection is verified through existing backend snapshot/event state.",
+    );
+  });
+
+  test("Demo Patient 4 superuser override approval through UI", async () => {
+    test.skip(
+      true,
+      "Current frontend read-only audit panels do not expose approval override controls; override metadata is verified through existing backend snapshot/event/bundle state.",
+    );
+  });
+});
