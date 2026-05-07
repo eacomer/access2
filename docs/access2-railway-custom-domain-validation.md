@@ -106,6 +106,32 @@ The skipped tests are expected because ACCESS2 V1 frontend audit panels are read
 - Demo Patient 3 reviewer rejection through UI
 - Demo Patient 4 superuser override approval through UI
 
+## Latest Production Custom-Domain Validation
+
+Latest production custom-domain E2E validation confirmed the deployed patient detail page shows both the Evidence Chain panel and the Manifest Verification panel for all four seeded synthetic demo patients.
+
+Result:
+
+- 5 passed
+- 2 skipped
+- 0 failed
+
+Validated production demo baseline:
+
+- Deployed login works.
+- Seeded synthetic demo patients are reachable.
+- Evidence Chain panel is visible and validated for all four seeded demo patients.
+- Manifest Verification panel is visible and validated for all four seeded demo patients.
+- Missing-evidence posture is validated.
+- Audit-ready/export posture is validated.
+- Rejected-review posture is validated.
+- Override-approval posture is validated.
+- Read-only panel expectations remain valid.
+
+The skipped tests remain expected because ACCESS2 V1 exposes the reviewer rejection and superuser override approval states as read-only seeded demo postures rather than UI mutation workflows.
+
+Manifest Verification panel validation confirms the visible read-only verification posture shown by the deployed UI. It does not change workflow state, create exports, approve or reject snapshots, or imply real CMS submission.
+
 ## Playwright Cleanup Commands
 
 Run from PowerShell after E2E validation:
