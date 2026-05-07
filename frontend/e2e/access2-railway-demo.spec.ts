@@ -190,7 +190,7 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     expect(verification.mismatches).toEqual([]);
 
     await page.goto(`/patients/${patient.patient_id}`);
-    await expect(page.getByTestId("patient-audit-status-panel")).toContainText("Approved with override");
+    await expect(page.getByTestId("patient-audit-status-panel")).toContainText(/Approved With Override/i);
   });
 
   test("Demo Patient 3 reviewer rejection through UI", async () => {
