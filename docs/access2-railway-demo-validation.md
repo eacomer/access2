@@ -9,3 +9,24 @@ E2E command
 Expected E2E result: 5 passed, 2 skipped, 0 failed
 Reason for skipped tests
 Security reminder to rotate Railway public Postgres credentials
+
+Custom domain validation:
+
+Frontend:
+https://access2.salvardata.com
+
+Backend API:
+https://api.salvardata.com/api/v1
+
+Backend FRONTEND_ORIGIN:
+https://access2.salvardata.com
+
+E2E result:
+5 passed, 2 skipped, 0 failed
+
+Expected skips:
+- Demo Patient 3 reviewer rejection through UI
+- Demo Patient 4 superuser override approval through UI
+
+Reason:
+ACCESS2 V1 frontend audit panels are read-only; rejection and override approval are intentionally not exposed as frontend mutation controls.
