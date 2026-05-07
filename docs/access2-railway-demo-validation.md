@@ -6,7 +6,8 @@ Backend startup command
 Seeded demo users
 Seeded demo patient IDs
 E2E command
-Expected E2E result: 5 passed, 2 skipped, 0 failed
+Expected E2E result: 6 passed, 2 skipped, 0 failed
+Demo Guide coverage
 Reason for skipped tests
 Security reminder to rotate Railway public Postgres credentials
 
@@ -22,7 +23,15 @@ Backend FRONTEND_ORIGIN:
 https://access2.salvardata.com
 
 E2E result:
-5 passed, 2 skipped, 0 failed
+6 passed, 2 skipped, 0 failed
+
+Demo Guide coverage:
+- Protected Demo Guide page opens after login.
+- Proof chain text is present.
+- Four seeded patient scenario links are present.
+- Evidence Chain explanation is present.
+- Manifest Verification explanation is present.
+- Synthetic/no-PHI safety text is present.
 
 Expected skips:
 - Demo Patient 3 reviewer rejection through UI
@@ -40,4 +49,4 @@ postgres.railway.internal:5432/railway
 Post-rotation validation:
 - Backend /health/live returned ok.
 - Backend /health/ready returned ok with database=ok and redis=ok.
-- E2E against https://access2.salvardata.com returned 5 passed, 2 skipped, 0 failed.
+- E2E against https://access2.salvardata.com returned 6 passed, 2 skipped, 0 failed.

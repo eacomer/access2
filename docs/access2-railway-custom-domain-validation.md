@@ -97,7 +97,7 @@ npm run test:e2e
 
 Expected result:
 
-- 5 passed
+- 6 passed
 - 2 skipped
 - 0 failed
 
@@ -108,17 +108,19 @@ The skipped tests are expected because ACCESS2 V1 frontend audit panels are read
 
 ## Latest Production Custom-Domain Validation
 
-Latest production custom-domain E2E validation confirmed the deployed patient detail page shows both the Evidence Chain panel and the Manifest Verification panel for all four seeded synthetic demo patients.
+Latest production custom-domain E2E validation confirmed the deployed frontend login works, the Demo Guide page is protected and visible after login, and the deployed patient detail page shows both the Evidence Chain panel and the Manifest Verification panel for all four seeded synthetic demo patients.
 
 Result:
 
-- 5 passed
+- 6 passed
 - 2 skipped
 - 0 failed
 
 Validated production demo baseline:
 
 - Deployed login works.
+- Demo Guide coverage is included.
+- Demo Guide validates the proof chain, four seeded patient scenario links, Evidence Chain explanation, Manifest Verification explanation, and synthetic/no-PHI safety text.
 - Seeded synthetic demo patients are reachable.
 - Evidence Chain panel is visible and validated for all four seeded demo patients.
 - Manifest Verification panel is visible and validated for all four seeded demo patients.
@@ -126,9 +128,9 @@ Validated production demo baseline:
 - Audit-ready/export posture is validated.
 - Rejected-review posture is validated.
 - Override-approval posture is validated.
-- Read-only panel expectations remain valid.
+- Read-only page and panel expectations remain valid.
 
-The skipped tests remain expected because ACCESS2 V1 exposes the reviewer rejection and superuser override approval states as read-only seeded demo postures rather than UI mutation workflows.
+The skipped tests remain expected because ACCESS2 V1 exposes the reviewer rejection and superuser override approval states as read-only seeded demo postures rather than frontend mutation workflows.
 
 Manifest Verification panel validation confirms the visible read-only verification posture shown by the deployed UI. It does not change workflow state, create exports, approve or reject snapshots, or imply real CMS submission.
 
