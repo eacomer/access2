@@ -51,6 +51,36 @@ async function expectEvidenceChainPanel(page: Page, expectedPostureText: RegExp[
   await expect(panel.getByRole("link")).toHaveCount(0);
 }
 
+async function expectManifestVerificationPanel(page: Page, expectedPostureText: RegExp[]) {
+  const panel = page.getByTestId("patient-manifest-verification-panel");
+
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("Manifest verification");
+  await expect(panel).toContainText("Audit bundle verification posture");
+  await expect(panel).toContainText(
+    "Shows whether the persisted review packet and audit bundle posture can support verification without changing workflow state.",
+  );
+
+  const expectedRows = [
+    "Review Packet Snapshot",
+    "Review State",
+    "Audit Bundle",
+    "Export Status",
+    "Export Formats",
+    "Manifest Verification",
+  ];
+  for (const label of expectedRows) {
+    await expect(panel).toContainText(label);
+  }
+
+  for (const postureText of expectedPostureText) {
+    await expect(panel).toContainText(postureText);
+  }
+
+  await expect(panel.getByRole("button")).toHaveCount(0);
+  await expect(panel.getByRole("link")).toHaveCount(0);
+}
+
 test.describe("ACCESS2 Railway synthetic demo cases", () => {
   test("can log into the deployed ACCESS2 frontend", async ({ page }) => {
     await login(page);
@@ -84,6 +114,12 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
 
     await page.goto(`/patients/${patient.patient_id}`);
     await expectEvidenceChainPanel(page, [/Evidence\s*Missing/i, /Audit Bundle\s*Export not available/i]);
+    await expectManifestVerificationPanel(page, [
+      /Review State\s*Pending Review/i,
+      /Audit Bundle\s*Unavailable/i,
+      /Manifest Verification\s*Verification unavailable/i,
+      /Review packet approval is required/i,
+    ]);
     await expect(page.getByTestId("patient-audit-status-panel")).toContainText("Audit bundle available");
     await expect(page.getByTestId("patient-audit-status-panel")).toContainText("No");
     await expect(page.getByTestId("patient-audit-status-panel")).toContainText(/missing|required|snapshot/i);
@@ -150,6 +186,12 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
       /Review State\s*Complete/i,
       /Audit Bundle\s*(Export available|Complete)/i,
     ]);
+    await expectManifestVerificationPanel(page, [
+      /Review State\s*Approved/i,
+      /Audit Bundle\s*Available/i,
+      /Export Status\s*Exported/i,
+      /Manifest Verification\s*Verification-ready/i,
+    ]);
     await expect(page.getByTestId("patient-review-packet-backlog-panel")).toContainText("Download JSON");
     const frontendBundle = await page.request.get(`/audit-bundles/${snapshotId}/json`);
     expect(frontendBundle.ok(), await frontendBundle.text()).toBeTruthy();
@@ -192,6 +234,12 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     await expectEvidenceChainPanel(page, [
       /Review State\s*Review rejected/i,
       /Audit Bundle\s*Export not available/i,
+    ]);
+    await expectManifestVerificationPanel(page, [
+      /Review State\s*Rejected/i,
+      /Audit Bundle\s*Unavailable/i,
+      /Manifest Verification\s*Verification unavailable/i,
+      /latest review packet was rejected/i,
     ]);
     await expect(page.getByTestId("patient-review-packet-backlog-panel")).toContainText("Rejected");
     await expect(page.getByTestId("patient-review-packet-backlog-panel")).toContainText(
@@ -236,6 +284,11 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     await expectEvidenceChainPanel(page, [
       /Review State\s*Approved With Override/i,
       /Audit Bundle\s*(Export available|Complete)/i,
+    ]);
+    await expectManifestVerificationPanel(page, [
+      /Review State\s*Approved With Override/i,
+      /Audit Bundle\s*Available/i,
+      /Manifest Verification\s*Verification-ready/i,
     ]);
     await expect(page.getByTestId("patient-audit-status-panel")).toContainText(/Approved With Override/i);
   });
