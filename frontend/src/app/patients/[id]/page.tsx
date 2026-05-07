@@ -44,6 +44,7 @@ import type {
   InterventionTask,
   PatientEscalation,
   PatientBacklogDrillInResponse,
+  PatientTimelineDetailResponse,
   PatientTimelineFilters,
   PatientAuditStatus,
 } from "../../../types/patient";
@@ -52,6 +53,14 @@ type WorklistSummaryResponse = Awaited<ReturnType<typeof fetchWorklistSummary>>;
 type TimelineResponse = Awaited<ReturnType<typeof fetchPatientTimeline>>;
 type PatientResponse = Awaited<ReturnType<typeof fetchPatient>>;
 type ReviewPacketSnapshot = PatientBacklogDrillInResponse["snapshots"][number];
+type WorklistSummaryItem = WorklistSummaryResponse["items"][number];
+type EvidenceChainStatusTone = "positive" | "warning" | "critical" | "info";
+type EvidenceChainRow = {
+  label: string;
+  status: string;
+  tone: EvidenceChainStatusTone;
+  explanation: string;
+};
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -309,6 +318,193 @@ const renderAuditStatusPanel = ({
               <p className="inline-helper">{auditStatus.completion_summary.reason}</p>
             </td>
           </tr>
+        </tbody>
+      </table>
+    </div>
+  );
+};
+
+const renderEvidenceChainPanel = ({
+  auditStatus,
+  auditStatusLoadFailed,
+  patientBacklog,
+  patientBacklogLoadFailed,
+  worklistSummary,
+  timeline,
+  escalationEvidence,
+  taskSummary,
+  interventionEvidenceSummary,
+}: {
+  auditStatus: PatientAuditStatus | null;
+  auditStatusLoadFailed: boolean;
+  patientBacklog: PatientBacklogDrillInResponse | null;
+  patientBacklogLoadFailed: boolean;
+  worklistSummary: WorklistSummaryItem | null;
+  timeline: TimelineResponse;
+  escalationEvidence: PatientTimelineDetailResponse["escalation_evidence"] | null;
+  taskSummary: PatientTimelineDetailResponse["task_summary"] | WorklistSummaryItem["task_summary"] | null;
+  interventionEvidenceSummary: PatientTimelineDetailResponse["intervention_evidence_summary"] | null;
+}) => {
+  const totalEvents = worklistSummary?.total_events ?? timeline.total;
+  const hasSignal = totalEvents > 0 || Boolean(worklistSummary?.attention_reason);
+  const totalEscalations = interventionEvidenceSummary?.total_escalations ?? 0;
+  const openEscalations =
+    escalationEvidence?.open_escalation_count ?? worklistSummary?.open_escalation_count ?? 0;
+  const hasEscalation = totalEscalations > 0 || openEscalations > 0 || Boolean(worklistSummary?.latest_open_escalation_id);
+  const totalTasks =
+    interventionEvidenceSummary?.total_tasks ??
+    ((taskSummary?.open_task_count ?? 0) +
+      (taskSummary?.in_progress_task_count ?? 0) +
+      (taskSummary?.overdue_task_count ?? 0));
+  const completedTasks = interventionEvidenceSummary?.completed_tasks ?? 0;
+  const hasIntervention = totalTasks > 0 || completedTasks > 0;
+  const hasOutcome =
+    completedTasks > 0 ||
+    interventionEvidenceSummary?.recent_completed_interventions.some((item) => Boolean(item.detail)) ||
+    timeline.items.some((item) => item.related_outcome_id || item.event_type.toLowerCase().includes("outcome"));
+  const latestSnapshot = patientBacklog?.snapshots.find(
+    (snapshot) => snapshot.id === auditStatus?.latest_snapshot_id,
+  );
+  const hasSnapshot = auditStatus?.has_snapshot ?? Boolean(latestSnapshot);
+  const hasCaseSummary = Boolean(latestSnapshot?.packet_json) || hasSnapshot;
+  const hasRequiredEvidence = auditStatus?.completion_summary.has_required_evidence ?? false;
+  const missingEvidenceCount = auditStatus?.completion_summary.missing_evidence_count ?? 0;
+
+  const rows: EvidenceChainRow[] = [
+    {
+      label: "Signal",
+      status: hasSignal ? "Present" : "Not yet available",
+      tone: hasSignal ? "positive" : "info",
+      explanation: hasSignal
+        ? worklistSummary?.attention_reason ?? `${totalEvents} timeline event(s) available.`
+        : "No timeline signal is available from the current patient data.",
+    },
+    {
+      label: "Escalation",
+      status: hasEscalation ? "Present" : "Not yet available",
+      tone: hasEscalation ? "positive" : "info",
+      explanation: hasEscalation
+        ? openEscalations > 0
+          ? `${openEscalations} open escalation(s) currently visible.`
+          : "Escalation history is present in the intervention evidence summary."
+        : "No escalation evidence is available from the current patient data.",
+    },
+    {
+      label: "Intervention",
+      status: completedTasks > 0 ? "Complete" : hasIntervention ? "Present" : "Not yet available",
+      tone: completedTasks > 0 ? "positive" : hasIntervention ? "warning" : "info",
+      explanation:
+        completedTasks > 0
+          ? `${completedTasks} completed intervention task(s) are recorded.`
+          : hasIntervention
+            ? "Intervention work exists but completion evidence is not yet visible."
+            : "No intervention task evidence is available from the current patient data.",
+    },
+    {
+      label: "Outcome",
+      status: hasOutcome ? "Present" : "Not yet available",
+      tone: hasOutcome ? "positive" : "info",
+      explanation: hasOutcome
+        ? "Outcome or completed-intervention evidence is visible in the current evidence set."
+        : "No measurable outcome evidence is visible from the current patient data.",
+    },
+    {
+      label: "Evidence",
+      status: auditStatusLoadFailed
+        ? "Not yet available"
+        : hasRequiredEvidence
+          ? "Complete"
+          : missingEvidenceCount > 0
+            ? "Missing"
+            : "Not yet available",
+      tone: auditStatusLoadFailed ? "info" : hasRequiredEvidence ? "positive" : "critical",
+      explanation: auditStatusLoadFailed
+        ? "Audit-status data failed to load; timeline evidence remains available below."
+        : auditStatus?.completion_summary.reason ?? "Required-evidence status is not available.",
+    },
+    {
+      label: "Case Summary",
+      status: hasCaseSummary ? "Present" : "Not yet available",
+      tone: hasCaseSummary ? "positive" : "info",
+      explanation: hasCaseSummary
+        ? "A persisted review packet snapshot is available to carry the case summary."
+        : "No persisted review packet snapshot is available yet.",
+    },
+    {
+      label: "Review Packet",
+      status: hasSnapshot ? "Present" : "Not yet available",
+      tone: hasSnapshot ? "positive" : "info",
+      explanation: hasSnapshot
+        ? `Latest snapshot: ${auditStatus?.latest_snapshot_id ?? latestSnapshot?.id ?? "available"}.`
+        : "No immutable review packet snapshot is available for this patient.",
+    },
+    {
+      label: "Review State",
+      status:
+        auditStatus?.review_status === "rejected"
+          ? "Review rejected"
+          : auditStatus?.review_state?.approval_override_used
+            ? "Approved With Override"
+            : auditStatus?.review_status === "approved"
+              ? "Complete"
+              : auditStatus?.review_status
+                ? formatAuditStatusValue(auditStatus.review_status)
+                : "Not yet available",
+      tone:
+        auditStatus?.review_status === "rejected"
+          ? "critical"
+          : auditStatus?.review_status === "approved"
+            ? "positive"
+            : auditStatus?.review_status
+              ? "warning"
+              : "info",
+      explanation:
+        auditStatus?.review_state?.label ??
+        auditStatus?.review_action?.reason ??
+        "No review decision state is available yet.",
+    },
+    {
+      label: "Audit Bundle",
+      status: auditStatus?.audit_bundle.exported
+        ? "Complete"
+        : auditStatus?.audit_bundle.available
+          ? "Export available"
+          : "Export not available",
+      tone: auditStatus?.audit_bundle.exported
+        ? "positive"
+        : auditStatus?.audit_bundle.available
+          ? "positive"
+          : "warning",
+      explanation: auditStatus?.audit_bundle.available
+        ? auditStatus.audit_bundle.exported
+          ? `Exported${auditStatus.audit_bundle.last_exported_at ? ` ${formatDateTime(auditStatus.audit_bundle.last_exported_at)}` : ""}.`
+          : `Approved snapshot can be exported as ${formatAuditList(auditStatus.audit_bundle.export_formats)}.`
+        : patientBacklogLoadFailed
+          ? "Review-packet backlog failed to load; export posture may be incomplete."
+          : "Audit bundle export is unavailable until the snapshot is approved and export-ready.",
+    },
+  ];
+
+  return (
+    <div className="audit-readiness-table-wrap">
+      <table className="audit-readiness-table">
+        <thead>
+          <tr>
+            <th>Step</th>
+            <th>Status</th>
+            <th>Evidence basis</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((row) => (
+            <tr key={row.label}>
+              <th scope="row">{row.label}</th>
+              <td>
+                <span className={`badge badge--${row.tone}`}>{row.status}</span>
+              </td>
+              <td>{row.explanation}</td>
+            </tr>
+          ))}
         </tbody>
       </table>
     </div>
@@ -1009,6 +1205,28 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
         workflowStatus={workflowStatus}
       />
       <EscalationEvidenceCard evidence={escalationEvidence} />
+      <section className="section-card" data-testid="patient-evidence-chain-panel">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Evidence chain</p>
+            <h2 className="section-title">Proof path</h2>
+            <p className="section-subtitle">
+              Shows whether this patient has the proof chain needed to connect interventions to measurable outcomes.
+            </p>
+          </div>
+        </div>
+        {renderEvidenceChainPanel({
+          auditStatus,
+          auditStatusLoadFailed,
+          patientBacklog,
+          patientBacklogLoadFailed,
+          worklistSummary,
+          timeline,
+          escalationEvidence,
+          taskSummary,
+          interventionEvidenceSummary,
+        })}
+      </section>
       <section className="section-card" data-testid="patient-audit-status-panel">
         <div className="section-header">
           <div>
