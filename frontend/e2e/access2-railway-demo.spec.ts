@@ -88,6 +88,39 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     await expect(page.getByRole("heading", { name: "Patient queue" })).toBeVisible();
   });
 
+  test("Demo Guide explains the seeded production demo path", async ({ page }) => {
+    await login(page);
+
+    await page.getByRole("link", { name: "Demo Guide" }).click();
+    await expect(page).toHaveURL(/\/demo-guide$/);
+    await expect(page.getByRole("heading", { name: "Demo Guide" })).toBeVisible();
+
+    await expect(page.getByText(/signal -> escalation -> intervention -> outcome -> evidence/i)).toBeVisible();
+    await expect(page.getByText(/immutable review packet snapshot -> approval\/rejection/i)).toBeVisible();
+    await expect(page.getByText(/audit bundle -> manifest verification/i)).toBeVisible();
+
+    const seededPatients = [
+      "Demo Patient 1 - Audit Ready",
+      "Demo Patient 2 - Missing Evidence",
+      "Demo Patient 3 - Rejected Review",
+      "Demo Patient 4 - Override Approval",
+    ];
+    for (const patientName of seededPatients) {
+      await expect(page.getByRole("link", { name: patientName })).toBeVisible();
+    }
+
+    await expect(page.getByRole("heading", { name: "Evidence Chain" })).toBeVisible();
+    await expect(
+      page.getByText(/Summarizes whether the patient has the required signal-to-outcome proof chain/i),
+    ).toBeVisible();
+
+    await expect(page.getByRole("heading", { name: "Manifest Verification" })).toBeVisible();
+    await expect(page.getByText(/Summarizes persisted review packet, audit bundle, and export posture/i)).toBeVisible();
+
+    await expect(page.getByText("Synthetic/demo data only.")).toBeVisible();
+    await expect(page.getByText("No real PHI.")).toBeVisible();
+  });
+
   test("Demo Patient 2 - Missing Evidence", async ({ page, request }) => {
     await login(page);
     const token = await getApiToken(request);
