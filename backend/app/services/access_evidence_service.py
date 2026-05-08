@@ -279,6 +279,12 @@ def create_access_review_packet_snapshot(
     )
     db.add(snapshot)
     db.flush()
+    readiness_reasons = _build_access_review_packet_snapshot_event_readiness_reasons(
+        snapshot=snapshot,
+        state=_build_access_review_state(snapshot=snapshot, decision_event=None)["state"],
+        audit_bundle_available=False,
+        audit_bundle_exported=False,
+    )
     _record_access_review_packet_snapshot_event(
         db=db,
         snapshot=snapshot,
@@ -287,6 +293,7 @@ def create_access_review_packet_snapshot(
         metadata_json={
             "review_readiness_status": snapshot.review_readiness_status,
             "review_status": snapshot.review_status.value,
+            "readiness_reasons": readiness_reasons,
         },
     )
     db.commit()
@@ -1213,6 +1220,7 @@ def get_access_review_packet_snapshot_audit_bundle(
         for event in events
         if event["event_type"] in {"snapshot_approved", "snapshot_rejected"}
     ]
+    readiness_reasons = _readiness_reasons_from_event_metadata(events)
     approval_event = next(
         (event for event in reversed(decision_events) if event["event_type"] == "snapshot_approved"),
         None,
@@ -1236,6 +1244,7 @@ def get_access_review_packet_snapshot_audit_bundle(
         "packet_json": snapshot.packet_json,
         "packet_markdown": snapshot.packet_markdown,
         "review_checklist": snapshot.packet_json["review_checklist"],
+        "readiness_reasons": readiness_reasons,
         "audit_manifest": _build_access_review_packet_snapshot_audit_manifest(
             snapshot=snapshot,
             approval_event=approval_event,
@@ -1398,6 +1407,14 @@ def record_access_review_packet_snapshot_audit_bundle_export(
             "snapshot_id": snapshot.id,
             "recommended_filename": export_metadata["recommended_filename"],
             "content_type": export_metadata["content_type"],
+            "readiness_reasons": [
+                _readiness_reason(
+                    code="audit_bundle_exported",
+                    severity="satisfied",
+                    label="Audit bundle exported",
+                    detail="Successful audit bundle export is recorded for this patient.",
+                )
+            ],
         },
     )
     db.commit()
@@ -1768,6 +1785,20 @@ def update_access_review_packet_snapshot_review(
             if normalized_status == AccessReviewPacketSnapshotReviewStatus.APPROVED
             else AccessReviewPacketSnapshotEventType.SNAPSHOT_REJECTED
         )
+        approval_override_used = bool(
+            normalized_status == AccessReviewPacketSnapshotReviewStatus.APPROVED
+            and missing_count > 0
+            and override_missing_checklist
+        )
+        if normalized_status == AccessReviewPacketSnapshotReviewStatus.REJECTED:
+            readiness_state = "rejected"
+            audit_bundle_available = False
+        elif approval_override_used:
+            readiness_state = "approved_with_override"
+            audit_bundle_available = True
+        else:
+            readiness_state = "approved"
+            audit_bundle_available = True
         _record_access_review_packet_snapshot_event(
             db=db,
             snapshot=snapshot,
@@ -1778,17 +1809,19 @@ def update_access_review_packet_snapshot_review(
                 "new_review_status": normalized_status.value,
                 "decision_note": effective_decision_note,
                 "review_note": effective_decision_note,
-                "approval_override": bool(
-                    normalized_status == AccessReviewPacketSnapshotReviewStatus.APPROVED
-                    and missing_count > 0
-                    and override_missing_checklist
-                ),
+                "approval_override": approval_override_used,
                 "override_reason": normalized_override_reason,
                 "missing_checklist_items": (
                     missing_items
                     if normalized_status == AccessReviewPacketSnapshotReviewStatus.APPROVED
                     and missing_count > 0
                     else []
+                ),
+                "readiness_reasons": _build_access_review_packet_snapshot_event_readiness_reasons(
+                    snapshot=snapshot,
+                    state=readiness_state,
+                    audit_bundle_available=audit_bundle_available,
+                    audit_bundle_exported=False,
                 ),
             },
         )
@@ -2726,6 +2759,52 @@ def _readiness_reason_severity(checklist_status: str | None) -> str:
     if checklist_status == "warning":
         return "partial"
     return "missing"
+
+
+def _build_access_review_packet_snapshot_event_readiness_reasons(
+    *,
+    snapshot: AccessReviewPacketSnapshot,
+    state: str,
+    audit_bundle_available: bool,
+    audit_bundle_exported: bool,
+) -> list[dict[str, str]]:
+    return _build_access_review_packet_patient_readiness_reasons(
+        snapshot=snapshot,
+        review_state={"state": state},
+        audit_bundle={
+            "available": audit_bundle_available,
+            "exported": audit_bundle_exported,
+            "last_exported_at": None,
+            "export_formats": [],
+        },
+    )
+
+
+def _readiness_reasons_from_event_metadata(
+    events: list[dict[str, Any]],
+) -> list[dict[str, str]]:
+    reasons_by_code: dict[str, dict[str, str]] = {}
+    ordered_codes: list[str] = []
+    for event in events:
+        metadata = event.get("metadata") or {}
+        event_reasons = metadata.get("readiness_reasons") or []
+        if not isinstance(event_reasons, list):
+            continue
+        for reason in event_reasons:
+            if not isinstance(reason, dict):
+                continue
+            code = reason.get("code")
+            if not code:
+                continue
+            if code not in reasons_by_code:
+                ordered_codes.append(code)
+            reasons_by_code[code] = {
+                "code": str(code),
+                "severity": str(reason.get("severity") or ""),
+                "label": str(reason.get("label") or ""),
+                "detail": str(reason.get("detail") or ""),
+            }
+    return [reasons_by_code[code] for code in ordered_codes]
 
 
 def _build_access_review_packet_patient_readiness_reasons_without_snapshot() -> list[dict[str, str]]:

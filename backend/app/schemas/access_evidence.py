@@ -275,6 +275,9 @@ class AccessReviewPacketSnapshotAuditBundleResponse(BaseModel):
     packet_json: AccessReviewPacketResponse
     packet_markdown: str
     review_checklist: AccessReviewChecklist
+    readiness_reasons: list["AccessReviewPacketPatientReadinessReasonResponse"] = Field(
+        default_factory=list
+    )
     audit_manifest: AccessReviewPacketSnapshotAuditManifestResponse
     export_metadata: AccessReviewPacketSnapshotExportMetadataResponse
     decision_events: list[AccessReviewPacketSnapshotEventResponse] = Field(default_factory=list)

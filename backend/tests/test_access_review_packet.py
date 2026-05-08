@@ -813,10 +813,12 @@ def test_access_review_packet_snapshot_creation_writes_snapshot_created_event(
     event = payload["events"][0]
     assert event["event_type"] == "snapshot_created"
     assert event["actor_user_id"] == str(env["user"].id)
-    assert event["metadata"] == {
-        "review_readiness_status": snapshot["review_readiness_status"],
-        "review_status": "pending_review",
-    }
+    metadata = event["metadata"]
+    assert metadata["review_readiness_status"] == snapshot["review_readiness_status"]
+    assert metadata["review_status"] == "pending_review"
+    reasons = _readiness_reasons_by_code(metadata)
+    assert reasons["snapshot_present"]["severity"] == "satisfied"
+    assert reasons["audit_bundle_exported"]["severity"] == "missing"
 
 
 def test_access_review_packet_snapshot_review_can_be_approved_and_rejected_without_mutating_packet(
@@ -1057,7 +1059,16 @@ def test_access_review_packet_snapshot_approval_allowed_when_persisted_checklist
     assert approved["review_state"]["state"] == "approved"
     assert approved["review_state"]["approval_override_used"] is False
     approved_event = next(event for event in events["events"] if event["event_type"] == "snapshot_approved")
-    assert approved_event["metadata"] == {
+    metadata = approved_event["metadata"]
+    assert {key: metadata[key] for key in (
+        "previous_review_status",
+        "new_review_status",
+        "decision_note",
+        "review_note",
+        "approval_override",
+        "override_reason",
+        "missing_checklist_items",
+    )} == {
         "previous_review_status": "pending_review",
         "new_review_status": "approved",
         "decision_note": "Complete packet approved.",
@@ -1066,6 +1077,9 @@ def test_access_review_packet_snapshot_approval_allowed_when_persisted_checklist
         "override_reason": None,
         "missing_checklist_items": [],
     }
+    reasons = _readiness_reasons_by_code(metadata)
+    assert reasons["review_approved"]["severity"] == "satisfied"
+    assert reasons["audit_bundle_available"]["severity"] == "satisfied"
 
 
 def test_access_review_packet_snapshot_approval_blocked_when_persisted_checklist_has_missing_items(
@@ -1193,7 +1207,16 @@ def test_access_review_packet_snapshot_override_approval_succeeds_for_superuser_
     assert approved["review_state"]["approval_override_used"] is True
     assert approved["packet_json"] == original_packet_json
     assert approved["packet_markdown"] == original_packet_markdown
-    assert approved_event["metadata"] == {
+    metadata = approved_event["metadata"]
+    assert {key: metadata[key] for key in (
+        "previous_review_status",
+        "new_review_status",
+        "decision_note",
+        "review_note",
+        "approval_override",
+        "override_reason",
+        "missing_checklist_items",
+    )} == {
         "previous_review_status": "pending_review",
         "new_review_status": "approved",
         "decision_note": "Approved under documented exception.",
@@ -1202,6 +1225,9 @@ def test_access_review_packet_snapshot_override_approval_succeeds_for_superuser_
         "override_reason": "Time-sensitive payer submission with documented missing closure evidence.",
         "missing_checklist_items": ["has_signal", "has_escalation", "has_intervention", "has_outcome", "has_care_update", "has_resolution", "review_readiness"],
     }
+    reasons = _readiness_reasons_by_code(metadata)
+    assert reasons["review_override_approved"]["severity"] == "partial"
+    assert reasons["audit_bundle_available"]["severity"] == "satisfied"
 
 
 def test_access_review_packet_snapshot_rejection_allowed_when_persisted_checklist_has_missing_items(
@@ -1422,9 +1448,18 @@ def test_access_review_packet_snapshot_audit_bundle_returns_approved_snapshot(
     assert bundle["packet_json"] == approved["packet_json"]
     assert bundle["packet_markdown"] == approved["packet_markdown"]
     assert bundle["review_checklist"] == approved["packet_json"]["review_checklist"]
+    bundle_reasons = _readiness_reasons_by_code(bundle)
+    assert bundle_reasons["signal_present"]["severity"] == "satisfied"
+    assert bundle_reasons["evidence_present"]["severity"] == "satisfied"
+    assert bundle_reasons["review_approved"]["severity"] == "satisfied"
+    assert bundle_reasons["audit_bundle_available"]["severity"] == "satisfied"
+    assert bundle_reasons["audit_bundle_exported"]["severity"] == "missing"
     assert [event["event_type"] for event in bundle["decision_events"]] == ["snapshot_approved"]
     assert bundle["approval_event"]["event_type"] == "snapshot_approved"
     assert bundle["approval_event"]["metadata"]["approval_override"] is False
+    approval_reasons = _readiness_reasons_by_code(bundle["approval_event"]["metadata"])
+    assert approval_reasons["review_approved"]["severity"] == "satisfied"
+    assert approval_reasons["audit_bundle_available"]["severity"] == "satisfied"
     assert bundle["export_metadata"]["document_title"] == "ACCESS Review Packet Audit Bundle"
     assert bundle["export_metadata"]["export_kind"] == "approved_snapshot_audit_bundle"
     assert (
@@ -1454,12 +1489,16 @@ def test_access_review_packet_snapshot_audit_bundle_returns_approved_snapshot(
         "approval_override_used": False,
     }
     events = _get_review_packet_snapshot_events(client, env["headers"], snapshot["id"])
-    assert _export_events(events)[-1]["metadata"] == {
-        "export_format": "json",
-        "snapshot_id": snapshot["id"],
-        "recommended_filename": f"access-review-packet-audit-bundle-{snapshot['id']}.json",
-        "content_type": "application/json",
-    }
+    export_metadata = _export_events(events)[-1]["metadata"]
+    assert export_metadata["export_format"] == "json"
+    assert export_metadata["snapshot_id"] == snapshot["id"]
+    assert (
+        export_metadata["recommended_filename"]
+        == f"access-review-packet-audit-bundle-{snapshot['id']}.json"
+    )
+    assert export_metadata["content_type"] == "application/json"
+    export_reasons = _readiness_reasons_by_code(export_metadata)
+    assert export_reasons["audit_bundle_exported"]["severity"] == "satisfied"
 
 
 def test_access_review_packet_snapshot_audit_bundle_returns_override_metadata(
@@ -1493,6 +1532,9 @@ def test_access_review_packet_snapshot_audit_bundle_returns_override_metadata(
     assert bundle["approval_event"]["metadata"]["override_reason"] == "Compliance deadline exception."
     assert bundle["approval_event"]["metadata"]["missing_checklist_items"] == _expected_missing_checklist_keys(snapshot)
     assert bundle["audit_manifest"]["approval_override_used"] is True
+    override_reasons = _readiness_reasons_by_code(bundle)
+    assert override_reasons["review_override_approved"]["severity"] == "partial"
+    assert override_reasons["audit_bundle_available"]["severity"] == "satisfied"
 
 
 def test_access_review_packet_snapshot_audit_bundle_manifest_hashes_are_deterministic(
@@ -1941,6 +1983,10 @@ def test_access_review_packet_snapshot_audit_bundle_rejected_snapshot_conflicts(
     assert resp.status_code == 409
     events = _get_review_packet_snapshot_events(client, env["headers"], snapshot["id"])
     assert _export_events(events) == []
+    rejected_event = next(event for event in events["events"] if event["event_type"] == "snapshot_rejected")
+    rejected_reasons = _readiness_reasons_by_code(rejected_event["metadata"])
+    assert rejected_reasons["review_rejected"]["severity"] == "blocked"
+    assert rejected_reasons["audit_bundle_blocked_review_rejected"]["severity"] == "blocked"
 
 
 def test_access_review_packet_snapshot_audit_bundle_respects_tenant_scope(
@@ -1984,12 +2030,19 @@ def test_access_review_packet_snapshot_audit_bundle_read_does_not_mutate_packet(
     )
     original_packet_json = approved["packet_json"]
     original_packet_markdown = approved["packet_markdown"]
+    post_snapshot_escalation_id = _create_escalation(client, env["headers"], env["patient_id"])
+    _create_task(client, env["headers"], post_snapshot_escalation_id)
+    current_packet = _get_review_packet(client, env["headers"], env["patient_id"])
 
     bundle = _get_review_packet_snapshot_audit_bundle(client, env["headers"], snapshot["id"])
     detail = _get_review_packet_snapshot_detail(client, env["headers"], snapshot["id"])
+    bundle_reasons = _readiness_reasons_by_code(bundle)
 
+    assert current_packet["review_readiness"]["readiness_status"] == "active_open_work"
     assert bundle["packet_json"] == original_packet_json
     assert bundle["packet_markdown"] == original_packet_markdown
+    assert bundle_reasons["evidence_present"]["severity"] == "satisfied"
+    assert bundle_reasons["review_approved"]["severity"] == "satisfied"
     assert bundle["export_metadata"]["generated_at"] is not None
     assert detail["packet_json"] == original_packet_json
     assert detail["packet_markdown"] == original_packet_markdown
@@ -2084,12 +2137,16 @@ def test_access_review_packet_snapshot_audit_bundle_markdown_returns_approved_sn
     assert "## Immutable Review Packet" in markdown
     assert approved["packet_markdown"] in markdown
     events = _get_review_packet_snapshot_events(client, env["headers"], snapshot["id"])
-    assert _export_events(events)[-1]["metadata"] == {
-        "export_format": "markdown",
-        "snapshot_id": snapshot["id"],
-        "recommended_filename": f"access-review-packet-audit-bundle-{snapshot['id']}.md",
-        "content_type": "text/markdown",
-    }
+    export_metadata = _export_events(events)[-1]["metadata"]
+    assert export_metadata["export_format"] == "markdown"
+    assert export_metadata["snapshot_id"] == snapshot["id"]
+    assert (
+        export_metadata["recommended_filename"]
+        == f"access-review-packet-audit-bundle-{snapshot['id']}.md"
+    )
+    assert export_metadata["content_type"] == "text/markdown"
+    export_reasons = _readiness_reasons_by_code(export_metadata)
+    assert export_reasons["audit_bundle_exported"]["severity"] == "satisfied"
 
 
 def test_access_review_packet_snapshot_audit_bundle_markdown_returns_override_metadata(
@@ -2156,12 +2213,16 @@ def test_access_review_packet_snapshot_audit_bundle_pdf_returns_approved_snapsho
     assert detail["packet_json"] == original_packet_json
     assert detail["packet_markdown"] == original_packet_markdown
     events = _get_review_packet_snapshot_events(client, env["headers"], snapshot["id"])
-    assert _export_events(events)[-1]["metadata"] == {
-        "export_format": "pdf",
-        "snapshot_id": snapshot["id"],
-        "recommended_filename": f"access-review-packet-audit-bundle-{snapshot['id']}.pdf",
-        "content_type": "application/pdf",
-    }
+    export_metadata = _export_events(events)[-1]["metadata"]
+    assert export_metadata["export_format"] == "pdf"
+    assert export_metadata["snapshot_id"] == snapshot["id"]
+    assert (
+        export_metadata["recommended_filename"]
+        == f"access-review-packet-audit-bundle-{snapshot['id']}.pdf"
+    )
+    assert export_metadata["content_type"] == "application/pdf"
+    export_reasons = _readiness_reasons_by_code(export_metadata)
+    assert export_reasons["audit_bundle_exported"]["severity"] == "satisfied"
 
 
 def test_access_review_packet_snapshot_audit_bundle_pdf_returns_override_approved_snapshot(
@@ -2485,7 +2546,16 @@ def test_access_review_packet_snapshot_approval_writes_event_with_review_status_
     ]
     event = payload["events"][-1]
     assert event["actor_user_id"] == str(env["user"].id)
-    assert event["metadata"] == {
+    metadata = event["metadata"]
+    assert {key: metadata[key] for key in (
+        "previous_review_status",
+        "new_review_status",
+        "decision_note",
+        "review_note",
+        "approval_override",
+        "override_reason",
+        "missing_checklist_items",
+    )} == {
         "previous_review_status": "pending_review",
         "new_review_status": "approved",
         "decision_note": None,
@@ -2494,6 +2564,9 @@ def test_access_review_packet_snapshot_approval_writes_event_with_review_status_
         "override_reason": None,
         "missing_checklist_items": [],
     }
+    reasons = _readiness_reasons_by_code(metadata)
+    assert reasons["review_approved"]["severity"] == "satisfied"
+    assert reasons["audit_bundle_available"]["severity"] == "satisfied"
 
 
 def test_access_review_packet_snapshot_rejection_writes_event_with_review_status_metadata(
@@ -2518,7 +2591,16 @@ def test_access_review_packet_snapshot_rejection_writes_event_with_review_status
     ]
     event = payload["events"][-1]
     assert event["actor_user_id"] == str(env["user"].id)
-    assert event["metadata"] == {
+    metadata = event["metadata"]
+    assert {key: metadata[key] for key in (
+        "previous_review_status",
+        "new_review_status",
+        "decision_note",
+        "review_note",
+        "approval_override",
+        "override_reason",
+        "missing_checklist_items",
+    )} == {
         "previous_review_status": "pending_review",
         "new_review_status": "rejected",
         "decision_note": "Missing closure note.",
@@ -2527,6 +2609,9 @@ def test_access_review_packet_snapshot_rejection_writes_event_with_review_status
         "override_reason": None,
         "missing_checklist_items": [],
     }
+    reasons = _readiness_reasons_by_code(metadata)
+    assert reasons["review_rejected"]["severity"] == "blocked"
+    assert reasons["audit_bundle_blocked_review_rejected"]["severity"] == "blocked"
 
 
 def test_access_review_packet_snapshot_assignment_can_be_set_changed_and_cleared_without_mutating_packet(
@@ -5606,6 +5691,13 @@ def test_access_review_packet_snapshot_detail_returns_immutable_stored_packet(
     assert detail["packet_markdown"] == snapshot["packet_markdown"]
     assert detail["audit_timeline"] is not None
     assert _timeline_event_types(detail) == ["snapshot_created"]
+    events = _get_review_packet_snapshot_events(client, env["headers"], snapshot["id"])
+    created_reasons = _readiness_reasons_by_code(events["events"][0]["metadata"])
+    assert created_reasons["signal_present"]["severity"] == "satisfied"
+    assert created_reasons["outcome_present"]["severity"] == "satisfied"
+    assert created_reasons["evidence_present"]["severity"] == "satisfied"
+    assert created_reasons["snapshot_present"]["severity"] == "satisfied"
+    assert created_reasons["audit_bundle_exported"]["severity"] == "missing"
     assert detail["packet_json"]["review_readiness"]["readiness_status"] == "ready_for_review"
     assert detail["packet_json"]["case_summary"]["escalation_summary"]["open_count"] == 0
     assert "Review Readiness: ready_for_review" in detail["packet_markdown"]
