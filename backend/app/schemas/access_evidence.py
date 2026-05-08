@@ -372,6 +372,13 @@ class AccessReviewPacketPatientCompletionSummaryResponse(BaseModel):
     reason: str
 
 
+class AccessReviewPacketPatientReadinessReasonResponse(BaseModel):
+    code: str
+    severity: str
+    label: str
+    detail: str
+
+
 class AccessReviewPacketPatientAuditStatusResponse(BaseModel):
     patient_id: UUID
     has_snapshot: bool
@@ -386,6 +393,9 @@ class AccessReviewPacketPatientAuditStatusResponse(BaseModel):
     )
     next_step: AccessReviewPacketPatientNextStepResponse
     completion_summary: AccessReviewPacketPatientCompletionSummaryResponse
+    readiness_reasons: list[AccessReviewPacketPatientReadinessReasonResponse] = Field(
+        default_factory=list
+    )
 
 
 class AccessReviewPacketSnapshotPatientBacklogItem(BaseModel):

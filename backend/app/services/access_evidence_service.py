@@ -2705,6 +2705,217 @@ def _build_access_review_packet_patient_completion_summary(
     }
 
 
+def _readiness_reason(
+    *,
+    code: str,
+    severity: str,
+    label: str,
+    detail: str,
+) -> dict[str, str]:
+    return {
+        "code": code,
+        "severity": severity,
+        "label": label,
+        "detail": detail,
+    }
+
+
+def _readiness_reason_severity(checklist_status: str | None) -> str:
+    if checklist_status == "ready":
+        return "satisfied"
+    if checklist_status == "warning":
+        return "partial"
+    return "missing"
+
+
+def _build_access_review_packet_patient_readiness_reasons_without_snapshot() -> list[dict[str, str]]:
+    return [
+        _readiness_reason(
+            code="snapshot_present",
+            severity="missing",
+            label="Review packet snapshot",
+            detail="No immutable review packet snapshot exists for this patient.",
+        ),
+        _readiness_reason(
+            code="evidence_present",
+            severity="missing",
+            label="Required evidence",
+            detail="Required proof evidence has not been captured in a review packet snapshot.",
+        ),
+        _readiness_reason(
+            code="audit_bundle_available",
+            severity="missing",
+            label="Audit bundle available",
+            detail="Audit bundle export is unavailable until a review packet snapshot is approved.",
+        ),
+        _readiness_reason(
+            code="audit_bundle_exported",
+            severity="missing",
+            label="Audit bundle exported",
+            detail="No successful audit bundle export is recorded for this patient.",
+        ),
+    ]
+
+
+def _build_access_review_packet_patient_readiness_reasons(
+    *,
+    snapshot: AccessReviewPacketSnapshot,
+    review_state: dict[str, Any],
+    audit_bundle: dict[str, Any],
+) -> list[dict[str, str]]:
+    checklist = snapshot.packet_json.get("review_checklist") or {}
+    checklist_items = {
+        item.get("key"): item for item in checklist.get("items", []) if item.get("key")
+    }
+    missing_count = int(checklist.get("missing_count") or 0)
+    warning_count = int(checklist.get("warning_count") or 0)
+
+    def checklist_reason(*, key: str, code: str, label: str) -> dict[str, str]:
+        item = checklist_items.get(key) or {}
+        return _readiness_reason(
+            code=code,
+            severity=_readiness_reason_severity(item.get("status")),
+            label=label,
+            detail=str(item.get("reason") or f"{label} status is not available."),
+        )
+
+    reasons = [
+        checklist_reason(
+            key="has_signal",
+            code="signal_present",
+            label="Signal",
+        ),
+        checklist_reason(
+            key="has_escalation",
+            code="escalation_present",
+            label="Escalation",
+        ),
+        checklist_reason(
+            key="has_intervention",
+            code="intervention_present",
+            label="Intervention",
+        ),
+        checklist_reason(
+            key="has_outcome",
+            code="outcome_present",
+            label="Outcome",
+        ),
+        _readiness_reason(
+            code="evidence_present",
+            severity=(
+                "missing"
+                if missing_count > 0
+                else "partial"
+                if warning_count > 0
+                else "satisfied"
+            ),
+            label="Required evidence",
+            detail=(
+                "Review packet is missing required evidence."
+                if missing_count > 0
+                else "Review packet has warning-level evidence gaps."
+                if warning_count > 0
+                else "Review packet required evidence is satisfied."
+            ),
+        ),
+        _readiness_reason(
+            code="snapshot_present",
+            severity="satisfied",
+            label="Review packet snapshot",
+            detail="Immutable review packet snapshot exists for this patient.",
+        ),
+    ]
+
+    state = review_state["state"]
+    if state == "rejected":
+        reasons.append(
+            _readiness_reason(
+                code="review_rejected",
+                severity="blocked",
+                label="Review rejected",
+                detail="Latest review packet snapshot was rejected.",
+            )
+        )
+    elif state == "approved_with_override":
+        reasons.append(
+            _readiness_reason(
+                code="review_override_approved",
+                severity="partial",
+                label="Override approval",
+                detail="Latest review packet snapshot was approved with override or superuser review.",
+            )
+        )
+    elif state == "approved":
+        reasons.append(
+            _readiness_reason(
+                code="review_approved",
+                severity="satisfied",
+                label="Review approved",
+                detail="Latest review packet snapshot is approved.",
+            )
+        )
+    else:
+        reasons.append(
+            _readiness_reason(
+                code="review_approved",
+                severity="missing" if state != "blocked_missing_evidence" else "blocked",
+                label="Review approved",
+                detail="Review packet approval is required before audit bundle export.",
+            )
+        )
+
+    if audit_bundle["available"]:
+        reasons.append(
+            _readiness_reason(
+                code="audit_bundle_available",
+                severity="satisfied",
+                label="Audit bundle available",
+                detail="Approved review packet snapshot can support audit bundle export.",
+            )
+        )
+    elif state == "blocked_missing_evidence":
+        reasons.append(
+            _readiness_reason(
+                code="audit_bundle_blocked_missing_evidence",
+                severity="blocked",
+                label="Audit bundle blocked",
+                detail="Audit bundle export is blocked until missing evidence is resolved.",
+            )
+        )
+    elif state == "rejected":
+        reasons.append(
+            _readiness_reason(
+                code="audit_bundle_blocked_review_rejected",
+                severity="blocked",
+                label="Audit bundle blocked",
+                detail="Audit bundle export is blocked because the latest review packet was rejected.",
+            )
+        )
+    else:
+        reasons.append(
+            _readiness_reason(
+                code="audit_bundle_available",
+                severity="missing",
+                label="Audit bundle available",
+                detail="Audit bundle export is unavailable until the review packet is approved.",
+            )
+        )
+
+    reasons.append(
+        _readiness_reason(
+            code="audit_bundle_exported",
+            severity="satisfied" if audit_bundle["exported"] else "missing",
+            label="Audit bundle exported",
+            detail=(
+                "Successful audit bundle export is recorded for this patient."
+                if audit_bundle["exported"]
+                else "No successful audit bundle export is recorded for this patient."
+            ),
+        )
+    )
+    return reasons
+
+
 def _build_access_review_packet_patient_audit_status_without_snapshot(
     *,
     patient_id: Any,
@@ -2737,6 +2948,9 @@ def _build_access_review_packet_patient_audit_status_without_snapshot(
             "has_export": False,
             "reason": "No review packet snapshot exists for this patient.",
         },
+        "readiness_reasons": (
+            _build_access_review_packet_patient_readiness_reasons_without_snapshot()
+        ),
     }
 
 
@@ -2791,6 +3005,11 @@ def _build_access_review_packet_patient_audit_status_for_snapshot(
             audit_bundle=audit_bundle,
         ),
         "completion_summary": _build_access_review_packet_patient_completion_summary(
+            snapshot=snapshot,
+            review_state=review_state,
+            audit_bundle=audit_bundle,
+        ),
+        "readiness_reasons": _build_access_review_packet_patient_readiness_reasons(
             snapshot=snapshot,
             review_state=review_state,
             audit_bundle=audit_bundle,

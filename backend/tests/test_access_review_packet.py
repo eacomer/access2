@@ -163,6 +163,10 @@ def _expected_missing_checklist_keys(snapshot: dict) -> list[str]:
     ]
 
 
+def _readiness_reasons_by_code(payload: dict) -> dict[str, dict]:
+    return {item["code"]: item for item in payload["readiness_reasons"]}
+
+
 def _expected_packet_json_sha256(packet_json: dict) -> str:
     return hashlib.sha256(
         json.dumps(
@@ -2951,6 +2955,36 @@ def test_access_review_packet_patient_audit_status_returns_no_snapshot_state(
             "has_export": False,
             "reason": "No review packet snapshot exists for this patient.",
         },
+        "readiness_reasons": [
+            {
+                "code": "snapshot_present",
+                "severity": "missing",
+                "label": "Review packet snapshot",
+                "detail": "No immutable review packet snapshot exists for this patient.",
+            },
+            {
+                "code": "evidence_present",
+                "severity": "missing",
+                "label": "Required evidence",
+                "detail": (
+                    "Required proof evidence has not been captured in a review packet snapshot."
+                ),
+            },
+            {
+                "code": "audit_bundle_available",
+                "severity": "missing",
+                "label": "Audit bundle available",
+                "detail": (
+                    "Audit bundle export is unavailable until a review packet snapshot is approved."
+                ),
+            },
+            {
+                "code": "audit_bundle_exported",
+                "severity": "missing",
+                "label": "Audit bundle exported",
+                "detail": "No successful audit bundle export is recorded for this patient.",
+            },
+        ],
     }
 
 
@@ -3081,6 +3115,16 @@ def test_access_review_packet_patient_audit_status_uses_latest_snapshot_and_expo
         "has_export": True,
         "reason": "Approved audit bundle has been exported and is audit-ready.",
     }
+    reasons = _readiness_reasons_by_code(payload)
+    assert reasons["signal_present"]["severity"] == "satisfied"
+    assert reasons["escalation_present"]["severity"] == "satisfied"
+    assert reasons["intervention_present"]["severity"] == "satisfied"
+    assert reasons["outcome_present"]["severity"] == "satisfied"
+    assert reasons["evidence_present"]["severity"] == "satisfied"
+    assert reasons["snapshot_present"]["severity"] == "satisfied"
+    assert reasons["review_approved"]["severity"] == "satisfied"
+    assert reasons["audit_bundle_available"]["severity"] == "satisfied"
+    assert reasons["audit_bundle_exported"]["severity"] == "satisfied"
     assert events_after == events_before
 
 
@@ -3151,6 +3195,18 @@ def test_access_review_packet_patient_audit_status_override_approval_marks_bundl
         "has_export": False,
         "reason": "Snapshot is approved but audit bundle has not been exported.",
     }
+    reasons = _readiness_reasons_by_code(payload)
+    assert reasons["snapshot_present"]["severity"] == "satisfied"
+    assert reasons["review_override_approved"] == {
+        "code": "review_override_approved",
+        "severity": "partial",
+        "label": "Override approval",
+        "detail": (
+            "Latest review packet snapshot was approved with override or superuser review."
+        ),
+    }
+    assert reasons["audit_bundle_available"]["severity"] == "satisfied"
+    assert reasons["audit_bundle_exported"]["severity"] == "missing"
     assert events_after == events_before
 
 
@@ -3206,6 +3262,12 @@ def test_access_review_packet_patient_audit_status_pending_and_rejected_disable_
         "has_export": False,
         "reason": "Snapshot has required evidence and is awaiting review.",
     }
+    pending_reasons = _readiness_reasons_by_code(pending_payload)
+    assert pending_reasons["snapshot_present"]["severity"] == "satisfied"
+    assert pending_reasons["evidence_present"]["severity"] == "satisfied"
+    assert pending_reasons["review_approved"]["severity"] == "missing"
+    assert pending_reasons["audit_bundle_available"]["severity"] == "missing"
+    assert pending_reasons["audit_bundle_exported"]["severity"] == "missing"
     assert pending_events_after == pending_events_before
 
     rejected_env = _bootstrap_patient_env(client, db_session, slug="review-packet-audit-status-rejected")
@@ -3256,6 +3318,22 @@ def test_access_review_packet_patient_audit_status_pending_and_rejected_disable_
         "has_approval": False,
         "has_export": False,
         "reason": "Latest snapshot was rejected.",
+    }
+    rejected_reasons = _readiness_reasons_by_code(rejected_payload)
+    assert rejected_reasons["snapshot_present"]["severity"] == "satisfied"
+    assert rejected_reasons["review_rejected"] == {
+        "code": "review_rejected",
+        "severity": "blocked",
+        "label": "Review rejected",
+        "detail": "Latest review packet snapshot was rejected.",
+    }
+    assert rejected_reasons["audit_bundle_blocked_review_rejected"] == {
+        "code": "audit_bundle_blocked_review_rejected",
+        "severity": "blocked",
+        "label": "Audit bundle blocked",
+        "detail": (
+            "Audit bundle export is blocked because the latest review packet was rejected."
+        ),
     }
     assert rejected_events_after == rejected_events_before
 
@@ -3318,6 +3396,10 @@ def test_access_review_packet_patient_audit_status_next_step_covers_reviewer_rea
         "has_export": False,
         "reason": "Snapshot has required evidence and is awaiting review.",
     }
+    ready_reasons = _readiness_reasons_by_code(ready_payload)
+    assert ready_reasons["signal_present"]["severity"] == "satisfied"
+    assert ready_reasons["evidence_present"]["severity"] == "satisfied"
+    assert ready_reasons["review_approved"]["severity"] == "missing"
     assert ready_events_after == ready_events_before
 
     blocked_env = _bootstrap_patient_env(
@@ -3376,6 +3458,17 @@ def test_access_review_packet_patient_audit_status_next_step_covers_reviewer_rea
         "has_export": False,
         "reason": "Snapshot is missing required evidence.",
     }
+    blocked_reasons = _readiness_reasons_by_code(blocked_payload)
+    assert blocked_reasons["snapshot_present"]["severity"] == "satisfied"
+    assert blocked_reasons["evidence_present"]["severity"] == "missing"
+    assert blocked_reasons["review_approved"]["severity"] == "blocked"
+    assert blocked_reasons["audit_bundle_blocked_missing_evidence"] == {
+        "code": "audit_bundle_blocked_missing_evidence",
+        "severity": "blocked",
+        "label": "Audit bundle blocked",
+        "detail": "Audit bundle export is blocked until missing evidence is resolved.",
+    }
+    assert blocked_reasons["audit_bundle_exported"]["severity"] == "missing"
     assert blocked_events_after == blocked_events_before
 
 
