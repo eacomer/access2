@@ -182,11 +182,17 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
       /Outcome proof gaps remain/i,
       /Signal\s*Satisfied/i,
       /Escalation\s*Satisfied/i,
-      /Intervention\s*Partial/i,
+      /Intervention\s*Satisfied/i,
       /Outcome\s*Missing/i,
       /Evidence\s*Missing/i,
-      /Audit Bundle\s*Not ready/i,
-      /Audit bundle is not available until the proof packet is approved and export-ready/i,
+      /Review Posture\s*Blocked/i,
+      /Audit Bundle\s*Blocked/i,
+      /Audit Bundle\s*Missing/i,
+      /Snapshot is missing required evidence/i,
+      /No measured outcome is documented/i,
+      /Required evidence: Review packet is missing required evidence/i,
+      /Audit bundle export is blocked until missing evidence is resolved/i,
+      /No successful audit bundle export is recorded for this patient/i,
     ]);
     await expectEvidenceChainPanel(page, [/Evidence\s*Missing/i, /Audit Bundle\s*Export not available/i]);
     await expectManifestVerificationPanel(page, [
@@ -321,8 +327,11 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     await expectOutcomeProofGapsPanel(page, [
       /Proof packet rejected/i,
       /Case Summary \/ Snapshot\s*Satisfied/i,
-      /Review Posture\s*Rejected/i,
-      /Audit Bundle\s*Not ready/i,
+      /Review Posture\s*Blocked/i,
+      /Latest review packet snapshot was rejected/i,
+      /Audit Bundle\s*Blocked/i,
+      /Audit Bundle\s*Missing/i,
+      /Audit bundle export is blocked because the latest review packet was rejected/i,
       /No rejection controls are exposed here/i,
     ]);
     await expect(page.getByRole("button", { name: /reject/i })).toHaveCount(0);
@@ -379,8 +388,9 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     await expectOutcomeProofGapsPanel(page, [
       /Approval depends on override review/i,
       /override or superuser review/i,
-      /Review Posture\s*Override Approval/i,
-      /Audit Bundle\s*(Available|Exported)/i,
+      /Review Posture\s*Partial/i,
+      /Override approval: Latest review packet snapshot was approved with override or superuser review/i,
+      /Audit Bundle\s*Satisfied/i,
       /Override controls are not exposed in this read-only view/i,
     ]);
     await expect(page.getByRole("button", { name: /override/i })).toHaveCount(0);
