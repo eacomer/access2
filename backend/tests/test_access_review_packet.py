@@ -167,6 +167,18 @@ def _readiness_reasons_by_code(payload: dict) -> dict[str, dict]:
     return {item["code"]: item for item in payload["readiness_reasons"]}
 
 
+def _assert_readiness_reason(
+    reasons: dict[str, dict],
+    code: str,
+    severity: str,
+    *,
+    detail_contains: str | None = None,
+) -> None:
+    assert reasons[code]["severity"] == severity
+    if detail_contains is not None:
+        assert detail_contains.lower() in reasons[code]["detail"].lower()
+
+
 def _expected_packet_json_sha256(packet_json: dict) -> str:
     return hashlib.sha256(
         json.dumps(
@@ -3611,6 +3623,180 @@ def test_access_review_packet_patient_audit_status_next_step_covers_reviewer_rea
     }
     assert blocked_reasons["audit_bundle_exported"]["severity"] == "missing"
     assert blocked_events_after == blocked_events_before
+
+
+def test_access_review_packet_patient_audit_status_readiness_reasons_cover_core_postures(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    ready_env = _bootstrap_patient_env(
+        client,
+        db_session,
+        slug="review-packet-audit-status-reasons-ready",
+    )
+    _prepare_review_ready_patient(
+        client,
+        ready_env["headers"],
+        ready_env["patient_id"],
+        summary="Core posture audit-ready packet",
+    )
+    ready_snapshot = _create_review_packet_snapshot(
+        client,
+        ready_env["headers"],
+        ready_env["patient_id"],
+    )
+    _update_review_packet_snapshot_review(
+        client,
+        ready_env["headers"],
+        ready_snapshot["id"],
+        review_status="approved",
+        decision_note="Core posture audit-ready approval.",
+    )
+    _get_review_packet_snapshot_audit_bundle(
+        client,
+        ready_env["headers"],
+        ready_snapshot["id"],
+    )
+    ready_reasons = _readiness_reasons_by_code(
+        _get_review_packet_patient_audit_status(
+            client,
+            ready_env["headers"],
+            ready_env["patient_id"],
+        )
+    )
+    _assert_readiness_reason(ready_reasons, "signal_present", "satisfied")
+    _assert_readiness_reason(ready_reasons, "intervention_present", "satisfied")
+    _assert_readiness_reason(ready_reasons, "outcome_present", "satisfied")
+    _assert_readiness_reason(ready_reasons, "evidence_present", "satisfied")
+    _assert_readiness_reason(ready_reasons, "snapshot_present", "satisfied")
+    _assert_readiness_reason(ready_reasons, "review_approved", "satisfied")
+    _assert_readiness_reason(ready_reasons, "audit_bundle_available", "satisfied")
+    _assert_readiness_reason(
+        ready_reasons,
+        "audit_bundle_exported",
+        "satisfied",
+        detail_contains="successful audit bundle export",
+    )
+
+    missing_env = _bootstrap_patient_env(
+        client,
+        db_session,
+        slug="review-packet-audit-status-reasons-missing",
+    )
+    _create_review_packet_snapshot(
+        client,
+        missing_env["headers"],
+        missing_env["patient_id"],
+    )
+    missing_reasons = _readiness_reasons_by_code(
+        _get_review_packet_patient_audit_status(
+            client,
+            missing_env["headers"],
+            missing_env["patient_id"],
+        )
+    )
+    _assert_readiness_reason(missing_reasons, "snapshot_present", "satisfied")
+    _assert_readiness_reason(
+        missing_reasons,
+        "outcome_present",
+        "missing",
+        detail_contains="no measured outcome",
+    )
+    _assert_readiness_reason(
+        missing_reasons,
+        "evidence_present",
+        "missing",
+        detail_contains="missing required evidence",
+    )
+    _assert_readiness_reason(missing_reasons, "review_approved", "blocked")
+    _assert_readiness_reason(
+        missing_reasons,
+        "audit_bundle_blocked_missing_evidence",
+        "blocked",
+        detail_contains="missing evidence",
+    )
+
+    rejected_env = _bootstrap_patient_env(
+        client,
+        db_session,
+        slug="review-packet-audit-status-reasons-rejected",
+    )
+    rejected_snapshot = _create_review_packet_snapshot(
+        client,
+        rejected_env["headers"],
+        rejected_env["patient_id"],
+    )
+    _update_review_packet_snapshot_review(
+        client,
+        rejected_env["headers"],
+        rejected_snapshot["id"],
+        review_status="rejected",
+        review_note="Core posture rejection.",
+    )
+    rejected_reasons = _readiness_reasons_by_code(
+        _get_review_packet_patient_audit_status(
+            client,
+            rejected_env["headers"],
+            rejected_env["patient_id"],
+        )
+    )
+    _assert_readiness_reason(rejected_reasons, "snapshot_present", "satisfied")
+    _assert_readiness_reason(
+        rejected_reasons,
+        "review_rejected",
+        "blocked",
+        detail_contains="rejected",
+    )
+    _assert_readiness_reason(
+        rejected_reasons,
+        "audit_bundle_blocked_review_rejected",
+        "blocked",
+        detail_contains="rejected",
+    )
+
+    override_env = _bootstrap_patient_env(
+        client,
+        db_session,
+        slug="review-packet-audit-status-reasons-override",
+    )
+    override_user = create_user_for_org(
+        db_session,
+        organization=override_env["organization"],
+        email="review-packet-audit-status-reasons-override-superuser@example.com",
+        password="Secret123!",
+        is_superuser=True,
+    )
+    override_headers = auth_headers(client, override_user.email, "Secret123!")
+    override_snapshot = _create_review_packet_snapshot(
+        client,
+        override_env["headers"],
+        override_env["patient_id"],
+    )
+    _update_review_packet_snapshot_review(
+        client,
+        override_headers,
+        override_snapshot["id"],
+        review_status="approved",
+        decision_note="Core posture override approval.",
+        override_missing_checklist=True,
+        override_reason="Core posture override reason.",
+    )
+    override_reasons = _readiness_reasons_by_code(
+        _get_review_packet_patient_audit_status(
+            client,
+            override_env["headers"],
+            override_env["patient_id"],
+        )
+    )
+    _assert_readiness_reason(override_reasons, "snapshot_present", "satisfied")
+    _assert_readiness_reason(
+        override_reasons,
+        "review_override_approved",
+        "partial",
+        detail_contains="override",
+    )
+    _assert_readiness_reason(override_reasons, "audit_bundle_available", "satisfied")
+    _assert_readiness_reason(override_reasons, "audit_bundle_exported", "missing")
 
 
 def test_access_review_packet_patient_audit_status_is_tenant_scoped(
