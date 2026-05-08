@@ -24,6 +24,14 @@ test("patient detail renders outcome proof gaps as a read-only audit section", (
   assert.match(source, /data-testid="patient-outcome-proof-gaps-panel"/);
   assert.match(source, /Outcome Proof Gaps/);
   assert.match(source, /renderOutcomeProofGapsPanel\(\{/);
+  assert.match(source, /readiness_reasons/);
+  assert.match(source, /READINESS_REASON_PROOF_ELEMENT_LABELS/);
+  assert.match(source, /signal_present/);
+  assert.match(source, /review_rejected/);
+  assert.match(source, /review_override_approved/);
+  assert.match(source, /audit_bundle_blocked_missing_evidence/);
+  assert.match(renderer, /backendReadinessReasons\.length > 0/);
+  assert.match(renderer, /fallbackRows/);
 
   [
     "Signal",

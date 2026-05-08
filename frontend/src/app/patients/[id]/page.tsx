@@ -54,8 +54,10 @@ type TimelineResponse = Awaited<ReturnType<typeof fetchPatientTimeline>>;
 type PatientResponse = Awaited<ReturnType<typeof fetchPatient>>;
 type ReviewPacketSnapshot = PatientBacklogDrillInResponse["snapshots"][number];
 type WorklistSummaryItem = WorklistSummaryResponse["items"][number];
+type ReadinessReason = NonNullable<PatientAuditStatus["readiness_reasons"]>[number];
 type EvidenceChainStatusTone = "positive" | "warning" | "critical" | "info";
 type EvidenceChainRow = {
+  id?: string;
   label: string;
   status: string;
   tone: EvidenceChainStatusTone;
@@ -235,6 +237,35 @@ const getAuditBundleDownloadHref = ({
   format: (typeof AUDIT_BUNDLE_DOWNLOADS)[number]["format"];
 }) => `/audit-bundles/${encodeURIComponent(snapshotId)}/${format}`;
 
+const READINESS_REASON_PROOF_ELEMENT_LABELS: Record<string, string> = {
+  signal_present: "Signal",
+  escalation_present: "Escalation",
+  intervention_present: "Intervention",
+  outcome_present: "Outcome",
+  evidence_present: "Evidence",
+  snapshot_present: "Case Summary / Snapshot",
+  review_approved: "Review Posture",
+  review_rejected: "Review Posture",
+  review_override_approved: "Review Posture",
+  audit_bundle_available: "Audit Bundle",
+  audit_bundle_exported: "Audit Bundle",
+  audit_bundle_blocked_missing_evidence: "Audit Bundle",
+  audit_bundle_blocked_review_rejected: "Audit Bundle",
+};
+
+const getReadinessReasonTone = (severity: ReadinessReason["severity"]): EvidenceChainStatusTone => {
+  if (severity === "satisfied") {
+    return "positive";
+  }
+  if (severity === "partial") {
+    return "warning";
+  }
+  if (severity === "missing" || severity === "blocked") {
+    return "critical";
+  }
+  return "info";
+};
+
 const renderAuditStatusPanel = ({
   auditStatus,
   auditStatusLoadFailed,
@@ -373,6 +404,7 @@ const renderOutcomeProofGapsPanel = ({
   const isApproved = auditStatus?.review_status === "approved";
   const bundleAvailable = auditStatus?.audit_bundle.available ?? false;
   const bundleExported = auditStatus?.audit_bundle.exported ?? false;
+  const backendReadinessReasons = auditStatus?.readiness_reasons ?? [];
 
   const readinessSummary = auditStatusLoadFailed
     ? {
@@ -408,7 +440,7 @@ const renderOutcomeProofGapsPanel = ({
               tone: "warning" as const,
             };
 
-  const rows: EvidenceChainRow[] = [
+  const fallbackRows: EvidenceChainRow[] = [
     {
       label: "Signal",
       status: hasSignal ? "Satisfied" : "Missing",
@@ -494,6 +526,21 @@ const renderOutcomeProofGapsPanel = ({
           : "Audit bundle is not available until the proof packet is approved and export-ready.",
     },
   ];
+  const rows: EvidenceChainRow[] =
+    backendReadinessReasons.length > 0
+      ? backendReadinessReasons.map((reason, index) => {
+          const label = READINESS_REASON_PROOF_ELEMENT_LABELS[reason.code] ?? reason.label;
+          const explanation =
+            reason.label && reason.label !== label ? `${reason.label}: ${reason.detail}` : reason.detail;
+          return {
+            id: `${reason.code}:${index}`,
+            label,
+            status: formatAuditStatusValue(reason.severity),
+            tone: getReadinessReasonTone(reason.severity),
+            explanation,
+          };
+        })
+      : fallbackRows;
 
   return (
     <>
@@ -513,7 +560,7 @@ const renderOutcomeProofGapsPanel = ({
           </thead>
           <tbody>
             {rows.map((row) => (
-              <tr key={row.label}>
+              <tr key={row.id ?? row.label}>
                 <th scope="row">{row.label}</th>
                 <td>
                   <span className={`badge badge--${row.tone}`}>{row.status}</span>

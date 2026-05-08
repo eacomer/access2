@@ -338,6 +338,19 @@ export interface PatientAuditBundleStatus {
   export_formats: string[];
 }
 
+export type PatientAuditStatusReadinessReasonSeverity =
+  | "satisfied"
+  | "missing"
+  | "partial"
+  | "blocked";
+
+export interface PatientAuditStatusReadinessReason {
+  code: string;
+  severity: PatientAuditStatusReadinessReasonSeverity;
+  label: string;
+  detail: string;
+}
+
 export interface PatientAuditStatus {
   patient_id: string;
   has_snapshot: boolean;
@@ -350,6 +363,7 @@ export interface PatientAuditStatus {
   audit_bundle: PatientAuditBundleStatus;
   next_step: PatientAuditStatusNextStep;
   completion_summary: PatientAuditStatusCompletionSummary;
+  readiness_reasons?: PatientAuditStatusReadinessReason[];
 }
 
 export interface AuditReadinessItem {
