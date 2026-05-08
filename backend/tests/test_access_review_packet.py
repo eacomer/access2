@@ -2048,6 +2048,62 @@ def test_access_review_packet_snapshot_audit_bundle_read_does_not_mutate_packet(
     assert detail["packet_markdown"] == original_packet_markdown
 
 
+def test_access_review_packet_snapshot_audit_bundle_readiness_reasons_ignore_live_patient_changes(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(
+        client,
+        db_session,
+        slug="review-packet-audit-bundle-readiness-reasons-immutable",
+    )
+    _prepare_review_ready_patient(client, env["headers"], env["patient_id"])
+    snapshot = _create_review_packet_snapshot(client, env["headers"], env["patient_id"])
+    approved = _update_review_packet_snapshot_review(
+        client,
+        env["headers"],
+        snapshot["id"],
+        review_status="approved",
+        decision_note="Persisted readiness reasons approval.",
+    )
+    original_packet_json = approved["packet_json"]
+    original_packet_markdown = approved["packet_markdown"]
+
+    _get_review_packet_snapshot_audit_bundle(client, env["headers"], snapshot["id"])
+    persisted_bundle = _get_review_packet_snapshot_audit_bundle(
+        client,
+        env["headers"],
+        snapshot["id"],
+    )
+    persisted_reasons = persisted_bundle["readiness_reasons"]
+
+    post_snapshot_escalation_id = _create_escalation(
+        client,
+        env["headers"],
+        env["patient_id"],
+    )
+    _create_task(client, env["headers"], post_snapshot_escalation_id)
+    current_packet = _get_review_packet(client, env["headers"], env["patient_id"])
+    updated_bundle = _get_review_packet_snapshot_audit_bundle(
+        client,
+        env["headers"],
+        snapshot["id"],
+    )
+    updated_reasons = _readiness_reasons_by_code(updated_bundle)
+
+    assert current_packet["review_readiness"]["readiness_status"] == "active_open_work"
+    assert updated_bundle["readiness_reasons"] == persisted_reasons
+    assert updated_reasons["evidence_present"]["severity"] == "satisfied"
+    assert updated_reasons["review_approved"]["severity"] == "satisfied"
+    assert updated_reasons["audit_bundle_available"]["severity"] == "satisfied"
+    assert updated_reasons["audit_bundle_exported"]["severity"] == "satisfied"
+    assert updated_bundle["packet_json"] == original_packet_json
+    assert updated_bundle["packet_markdown"] == original_packet_markdown
+    detail = _get_review_packet_snapshot_detail(client, env["headers"], snapshot["id"])
+    assert detail["packet_json"] == original_packet_json
+    assert detail["packet_markdown"] == original_packet_markdown
+
+
 def test_access_review_packet_snapshot_audit_bundle_events_are_deterministically_ordered(
     client: TestClient,
     db_session: Session,
