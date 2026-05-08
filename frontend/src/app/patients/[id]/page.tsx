@@ -324,6 +324,210 @@ const renderAuditStatusPanel = ({
   );
 };
 
+const renderOutcomeProofGapsPanel = ({
+  auditStatus,
+  auditStatusLoadFailed,
+  patientBacklog,
+  patientBacklogLoadFailed,
+  worklistSummary,
+  timeline,
+  escalationEvidence,
+  taskSummary,
+  interventionEvidenceSummary,
+}: {
+  auditStatus: PatientAuditStatus | null;
+  auditStatusLoadFailed: boolean;
+  patientBacklog: PatientBacklogDrillInResponse | null;
+  patientBacklogLoadFailed: boolean;
+  worklistSummary: WorklistSummaryItem | null;
+  timeline: TimelineResponse;
+  escalationEvidence: PatientTimelineDetailResponse["escalation_evidence"] | null;
+  taskSummary: PatientTimelineDetailResponse["task_summary"] | WorklistSummaryItem["task_summary"] | null;
+  interventionEvidenceSummary: PatientTimelineDetailResponse["intervention_evidence_summary"] | null;
+}) => {
+  const totalEvents = worklistSummary?.total_events ?? timeline.total;
+  const hasSignal = totalEvents > 0 || Boolean(worklistSummary?.attention_reason);
+  const totalEscalations = interventionEvidenceSummary?.total_escalations ?? 0;
+  const openEscalations =
+    escalationEvidence?.open_escalation_count ?? worklistSummary?.open_escalation_count ?? 0;
+  const hasEscalation = totalEscalations > 0 || openEscalations > 0 || Boolean(worklistSummary?.latest_open_escalation_id);
+  const totalTasks =
+    interventionEvidenceSummary?.total_tasks ??
+    ((taskSummary?.open_task_count ?? 0) +
+      (taskSummary?.in_progress_task_count ?? 0) +
+      (taskSummary?.overdue_task_count ?? 0));
+  const completedTasks = interventionEvidenceSummary?.completed_tasks ?? 0;
+  const hasIntervention = totalTasks > 0 || completedTasks > 0;
+  const hasOutcome =
+    completedTasks > 0 ||
+    interventionEvidenceSummary?.recent_completed_interventions.some((item) => Boolean(item.detail)) ||
+    timeline.items.some((item) => item.related_outcome_id || item.event_type.toLowerCase().includes("outcome"));
+  const latestSnapshot = patientBacklog?.snapshots.find(
+    (snapshot) => snapshot.id === auditStatus?.latest_snapshot_id,
+  );
+  const hasSnapshot = auditStatus?.has_snapshot ?? Boolean(latestSnapshot);
+  const hasRequiredEvidence = auditStatus?.completion_summary.has_required_evidence ?? false;
+  const missingEvidenceCount = auditStatus?.completion_summary.missing_evidence_count ?? 0;
+  const isRejected = auditStatus?.review_status === "rejected";
+  const isOverrideApproval = Boolean(auditStatus?.review_state?.approval_override_used);
+  const isApproved = auditStatus?.review_status === "approved";
+  const bundleAvailable = auditStatus?.audit_bundle.available ?? false;
+  const bundleExported = auditStatus?.audit_bundle.exported ?? false;
+
+  const readinessSummary = auditStatusLoadFailed
+    ? {
+        title: "Proof gaps unavailable",
+        body: "Audit-status data failed to load, so outcome proof gaps cannot be fully evaluated from the persisted review packet.",
+        tone: "warning" as const,
+      }
+    : isRejected
+      ? {
+          title: "Proof packet rejected",
+          body: "A persisted proof packet exists, but the latest review posture is rejected. No rejection controls are exposed here.",
+          tone: "warning" as const,
+        }
+      : isOverrideApproval
+        ? {
+            title: "Approval depends on override review",
+            body: "The proof packet is approved with override or superuser review. Override controls are not exposed in this read-only view.",
+            tone: "info" as const,
+          }
+        : hasRequiredEvidence && isApproved && bundleAvailable
+          ? {
+              title: "Outcome proof supports audit readiness",
+              body: bundleExported
+                ? "Required proof elements are satisfied, review is approved, and an audit bundle export is recorded."
+                : "Required proof elements are satisfied and review is approved; the audit bundle is available for export.",
+              tone: "info" as const,
+            }
+          : {
+              title: "Outcome proof gaps remain",
+              body:
+                auditStatus?.completion_summary.reason ??
+                "The current patient data does not yet show every proof element needed for audit readiness.",
+              tone: "warning" as const,
+            };
+
+  const rows: EvidenceChainRow[] = [
+    {
+      label: "Signal",
+      status: hasSignal ? "Satisfied" : "Missing",
+      tone: hasSignal ? "positive" : "critical",
+      explanation: hasSignal
+        ? worklistSummary?.attention_reason ?? `${totalEvents} timeline event(s) support why this patient required action.`
+        : "No patient signal is visible from the current timeline or worklist summary.",
+    },
+    {
+      label: "Escalation",
+      status: hasEscalation ? "Satisfied" : "Missing",
+      tone: hasEscalation ? "positive" : "critical",
+      explanation: hasEscalation
+        ? openEscalations > 0
+          ? `${openEscalations} escalation(s) remain visible for audit context.`
+          : "Escalation evidence is present in the intervention evidence summary."
+        : "No escalation record is visible to connect the signal to action.",
+    },
+    {
+      label: "Intervention",
+      status: completedTasks > 0 ? "Satisfied" : hasIntervention ? "Partial" : "Missing",
+      tone: completedTasks > 0 ? "positive" : hasIntervention ? "warning" : "critical",
+      explanation:
+        completedTasks > 0
+          ? `${completedTasks} completed intervention task(s) are recorded.`
+          : hasIntervention
+            ? "Intervention work is present, but completion proof is not yet visible."
+            : "No intervention task evidence is visible.",
+    },
+    {
+      label: "Outcome",
+      status: hasOutcome ? "Satisfied" : "Missing",
+      tone: hasOutcome ? "positive" : "critical",
+      explanation: hasOutcome
+        ? "Outcome or completed-intervention evidence is visible for the patient."
+        : "No measurable outcome evidence is visible yet.",
+    },
+    {
+      label: "Evidence",
+      status: auditStatusLoadFailed ? "Unknown" : hasRequiredEvidence ? "Satisfied" : "Missing",
+      tone: auditStatusLoadFailed ? "info" : hasRequiredEvidence ? "positive" : "critical",
+      explanation: auditStatusLoadFailed
+        ? "Audit-status data failed to load."
+        : missingEvidenceCount > 0
+          ? `${missingEvidenceCount} required evidence item(s) are missing from the latest proof packet.`
+          : auditStatus?.completion_summary.reason ?? "Required-evidence status is not available.",
+    },
+    {
+      label: "Case Summary / Snapshot",
+      status: hasSnapshot ? "Satisfied" : "Missing",
+      tone: hasSnapshot ? "positive" : "critical",
+      explanation: hasSnapshot
+        ? `Persisted immutable snapshot is available${auditStatus?.latest_snapshot_id ? `: ${auditStatus.latest_snapshot_id}` : ""}.`
+        : patientBacklogLoadFailed
+          ? "Review-packet backlog failed to load, and no snapshot status is available."
+          : "No immutable review packet snapshot exists yet.",
+    },
+    {
+      label: "Review Posture",
+      status: isRejected
+        ? "Rejected"
+        : isOverrideApproval
+          ? "Override Approval"
+          : isApproved
+            ? "Satisfied"
+            : auditStatus?.review_status
+              ? formatAuditStatusValue(auditStatus.review_status)
+              : "Missing",
+      tone: isRejected ? "critical" : isApproved ? "positive" : auditStatus?.review_status ? "warning" : "critical",
+      explanation:
+        auditStatus?.review_state?.label ??
+        auditStatus?.review_action?.reason ??
+        "No review decision is visible yet.",
+    },
+    {
+      label: "Audit Bundle",
+      status: bundleExported ? "Exported" : bundleAvailable ? "Available" : "Not ready",
+      tone: bundleExported ? "positive" : bundleAvailable ? "positive" : "warning",
+      explanation: bundleExported
+        ? `Successful export recorded${auditStatus?.audit_bundle.last_exported_at ? ` ${formatDateTime(auditStatus.audit_bundle.last_exported_at)}` : ""}.`
+        : bundleAvailable
+          ? `Audit bundle can be exported as ${formatAuditList(auditStatus?.audit_bundle.export_formats ?? [])}.`
+          : "Audit bundle is not available until the proof packet is approved and export-ready.",
+    },
+  ];
+
+  return (
+    <>
+      <StateNotice
+        tone={readinessSummary.tone}
+        title={readinessSummary.title}
+        body={readinessSummary.body}
+      />
+      <div className="audit-readiness-table-wrap">
+        <table className="audit-readiness-table">
+          <thead>
+            <tr>
+              <th>Proof element</th>
+              <th>Status</th>
+              <th>Gap basis</th>
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.label}>
+                <th scope="row">{row.label}</th>
+                <td>
+                  <span className={`badge badge--${row.tone}`}>{row.status}</span>
+                </td>
+                <td>{row.explanation}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+};
+
 const renderEvidenceChainPanel = ({
   auditStatus,
   auditStatusLoadFailed,
@@ -1382,6 +1586,28 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
           </div>
         </div>
         {renderAuditStatusPanel({ auditStatus, auditStatusLoadFailed, detailRetryHref })}
+      </section>
+      <section className="section-card" data-testid="patient-outcome-proof-gaps-panel">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">Outcome proof</p>
+            <h2 className="section-title">Outcome Proof Gaps</h2>
+            <p className="section-subtitle">
+              Read-only proof checklist showing which outcome and evidence elements support audit readiness.
+            </p>
+          </div>
+        </div>
+        {renderOutcomeProofGapsPanel({
+          auditStatus,
+          auditStatusLoadFailed,
+          patientBacklog,
+          patientBacklogLoadFailed,
+          worklistSummary,
+          timeline,
+          escalationEvidence,
+          taskSummary,
+          interventionEvidenceSummary,
+        })}
       </section>
       <section className="section-card" data-testid="patient-manifest-verification-panel">
         <div className="section-header">
