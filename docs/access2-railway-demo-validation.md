@@ -42,10 +42,12 @@ Production E2E baseline:
 - Validates four seeded demo patient scenarios.
 - Validates Evidence Chain panel assertions.
 - Validates Manifest Verification panel assertions.
-- Validates Outcome Proof Gaps panel assertions.
+- Validates Outcome Proof Gaps panel assertions backed by backend audit-status `readiness_reasons`.
 
 Outcome Proof Gaps coverage:
 - The panel is visible on all four seeded patient detail pages.
+- The panel now prefers backend-owned `readiness_reasons` from the patient audit-status response.
+- E2E assertions validate rendered reason `severity`, `label`, and `detail` text for audit-ready, missing-evidence, rejected-review, and override-approval seeded patients.
 - The panel reinforces the ACCESS2 evidence chain:
 
 ```text

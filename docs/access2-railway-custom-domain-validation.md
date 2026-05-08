@@ -108,7 +108,7 @@ The skipped tests are expected because ACCESS2 V1 frontend audit panels are read
 
 ## Latest Production Custom-Domain Validation
 
-Latest production custom-domain E2E validation confirmed the deployed frontend login works, the Demo Guide page is protected and visible after login, and the deployed patient detail page shows the Evidence Chain, Manifest Verification, and Outcome Proof Gaps panels for all four seeded synthetic demo patients.
+Latest production custom-domain E2E validation confirmed the deployed frontend login works, the Demo Guide page is protected and visible after login, and the deployed patient detail page shows the Evidence Chain, Manifest Verification, and Outcome Proof Gaps panels for all four seeded synthetic demo patients. Outcome Proof Gaps now renders backend-owned audit-status `readiness_reasons` for the patient proof-gap explanation.
 
 Result:
 
@@ -125,6 +125,7 @@ Validated production demo baseline:
 - Evidence Chain panel is visible and validated for all four seeded demo patients.
 - Manifest Verification panel is visible and validated for all four seeded demo patients.
 - Outcome Proof Gaps panel is visible and validated for all four seeded demo patients.
+- Outcome Proof Gaps assertions validate backend-owned `readiness_reasons` rendered from the audit-status response, including `code`, `severity`, `label`, and `detail` reason text.
 - Outcome Proof Gaps reinforces the evidence chain:
 
   ```text
@@ -141,7 +142,7 @@ The skipped tests remain expected because ACCESS2 V1 exposes the reviewer reject
 
 Manifest Verification panel validation confirms the visible read-only verification posture shown by the deployed UI. It does not change workflow state, create exports, approve or reject snapshots, or imply real CMS submission.
 
-Outcome Proof Gaps validation confirms the visible read-only explanation of why each seeded patient is or is not audit-ready. It does not change workflow state, create snapshots, approve or reject snapshots, export bundles, or imply real CMS submission.
+Outcome Proof Gaps validation confirms the visible read-only explanation of why each seeded patient is or is not audit-ready. The panel is driven by backend `readiness_reasons` from the patient audit-status response so the deployed UI does not infer the core proof-gap reasons only from scattered page data. It does not change workflow state, create snapshots, approve or reject snapshots, export bundles, or imply real CMS submission.
 
 ## Production Operator Smoke Checklist
 
@@ -180,7 +181,7 @@ Use this lightweight human smoke check after a production deploy, custom-domain 
    - Patient audit posture/status.
    - Evidence Chain.
    - Manifest Verification.
-   - Outcome Proof Gaps.
+   - Outcome Proof Gaps, backed by backend audit-status `readiness_reasons`.
 
 7. Confirm ACCESS2 V1 does not expose frontend mutation controls for:
 
