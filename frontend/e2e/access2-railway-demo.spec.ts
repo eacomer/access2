@@ -81,6 +81,38 @@ async function expectManifestVerificationPanel(page: Page, expectedPostureText: 
   await expect(panel.getByRole("link")).toHaveCount(0);
 }
 
+async function expectOutcomeProofGapsPanel(page: Page, expectedPostureText: RegExp[]) {
+  const panel = page.getByTestId("patient-outcome-proof-gaps-panel");
+
+  await expect(panel).toBeVisible();
+  await expect(panel).toContainText("Outcome proof");
+  await expect(panel).toContainText("Outcome Proof Gaps");
+  await expect(panel).toContainText(
+    "Read-only proof checklist showing which outcome and evidence elements support audit readiness.",
+  );
+
+  const expectedRows = [
+    "Signal",
+    "Escalation",
+    "Intervention",
+    "Outcome",
+    "Evidence",
+    "Case Summary / Snapshot",
+    "Review Posture",
+    "Audit Bundle",
+  ];
+  for (const label of expectedRows) {
+    await expect(panel).toContainText(label);
+  }
+
+  for (const postureText of expectedPostureText) {
+    await expect(panel).toContainText(postureText);
+  }
+
+  await expect(panel.getByRole("button")).toHaveCount(0);
+  await expect(panel.getByRole("link")).toHaveCount(0);
+}
+
 test.describe("ACCESS2 Railway synthetic demo cases", () => {
   test("can log into the deployed ACCESS2 frontend", async ({ page }) => {
     await login(page);
@@ -146,6 +178,16 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     expect(auditStatus.next_step.action).toMatch(/complete_missing_evidence|create_snapshot|review_snapshot/);
 
     await page.goto(`/patients/${patient.patient_id}`);
+    await expectOutcomeProofGapsPanel(page, [
+      /Outcome proof gaps remain/i,
+      /Signal\s*Satisfied/i,
+      /Escalation\s*Satisfied/i,
+      /Intervention\s*Partial/i,
+      /Outcome\s*Missing/i,
+      /Evidence\s*Missing/i,
+      /Audit Bundle\s*Not ready/i,
+      /Audit bundle is not available until the proof packet is approved and export-ready/i,
+    ]);
     await expectEvidenceChainPanel(page, [/Evidence\s*Missing/i, /Audit Bundle\s*Export not available/i]);
     await expectManifestVerificationPanel(page, [
       /Review State\s*Pending Review/i,
@@ -214,6 +256,18 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     expect(verification.mismatches).toEqual([]);
 
     await page.goto(`/patients/${patient.patient_id}`);
+    await expectOutcomeProofGapsPanel(page, [
+      /Outcome proof supports audit readiness/i,
+      /Required proof elements are satisfied/i,
+      /Signal\s*Satisfied/i,
+      /Escalation\s*Satisfied/i,
+      /Intervention\s*Satisfied/i,
+      /Outcome\s*Satisfied/i,
+      /Evidence\s*Satisfied/i,
+      /Case Summary \/ Snapshot\s*Satisfied/i,
+      /Review Posture\s*Satisfied/i,
+      /Audit Bundle\s*Exported/i,
+    ]);
     await expectEvidenceChainPanel(page, [
       /Evidence\s*Complete/i,
       /Review State\s*Complete/i,
@@ -264,6 +318,14 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     expect(after.packet_markdown).toEqual(before.packet_markdown);
 
     await page.goto(`/patients/${patient.patient_id}`);
+    await expectOutcomeProofGapsPanel(page, [
+      /Proof packet rejected/i,
+      /Case Summary \/ Snapshot\s*Satisfied/i,
+      /Review Posture\s*Rejected/i,
+      /Audit Bundle\s*Not ready/i,
+      /No rejection controls are exposed here/i,
+    ]);
+    await expect(page.getByRole("button", { name: /reject/i })).toHaveCount(0);
     await expectEvidenceChainPanel(page, [
       /Review State\s*Review rejected/i,
       /Audit Bundle\s*Export not available/i,
@@ -314,6 +376,14 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     expect(verification.mismatches).toEqual([]);
 
     await page.goto(`/patients/${patient.patient_id}`);
+    await expectOutcomeProofGapsPanel(page, [
+      /Approval depends on override review/i,
+      /override or superuser review/i,
+      /Review Posture\s*Override Approval/i,
+      /Audit Bundle\s*(Available|Exported)/i,
+      /Override controls are not exposed in this read-only view/i,
+    ]);
+    await expect(page.getByRole("button", { name: /override/i })).toHaveCount(0);
     await expectEvidenceChainPanel(page, [
       /Review State\s*Approved With Override/i,
       /Audit Bundle\s*(Export available|Complete)/i,
