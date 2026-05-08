@@ -224,6 +224,93 @@ Clear:
 - `audit_bundle.exported`
 - `audit_bundle.last_exported_at`
 - `audit_bundle.export_formats`
+- `readiness_reasons`
+
+### Patient audit-status readiness reasons
+
+`readiness_reasons` is backend-owned structured explanatory data for why a patient is or is not audit-ready. It is returned by:
+
+`GET /api/v1/reports/access-review-packet/patients/{patient_id}/audit-status`
+
+Each reason has this shape:
+
+| Field | Type | Notes |
+| --- | --- | --- |
+| `code` | `string` | Machine-readable reason code. |
+| `severity` | `satisfied`, `missing`, `partial`, or `blocked` | Status for the proof element. |
+| `label` | `string` | Display-friendly short reason label. |
+| `detail` | `string` | Display-friendly explanation of the reason. |
+
+Purpose:
+
+- provide a backend-owned structured explanation of why the patient is or is not audit-ready
+- keep the core audit-readiness reason logic in backend services instead of requiring frontend inference from scattered page data
+- support the patient detail Outcome Proof Gaps panel
+
+The frontend renders Outcome Proof Gaps from `readiness_reasons` when the field is available. Older responses without `readiness_reasons` may still be displayed by frontend fallback logic, but the API contract source of truth is the backend field.
+
+The reasons reinforce the ACCESS2 evidence chain:
+
+```text
+signal → escalation → intervention → outcome → evidence → case summary → immutable review packet snapshot → approval/rejection → audit bundle → manifest verification
+```
+
+Known reason-code categories:
+
+- signal
+- escalation
+- intervention
+- outcome
+- evidence
+- snapshot/case summary
+- review posture
+- audit bundle availability/export status
+
+V1 guardrail: `readiness_reasons` are read-only explanatory data. They must not imply frontend mutation controls for reviewer rejection or superuser override approval. ACCESS2 V1 may show those postures in the frontend, but reviewer rejection and superuser override approval mutation controls remain outside the read-only patient detail proof panels.
+
+Synthetic/demo-safe example snippet:
+
+```json
+{
+  "patient_id": "00000000-0000-4000-8000-000000000001",
+  "has_snapshot": true,
+  "review_status": "pending_review",
+  "completion_summary": {
+    "status": "incomplete",
+    "missing_evidence_count": 2,
+    "has_required_evidence": false,
+    "has_approval": false,
+    "has_export": false,
+    "reason": "Snapshot is missing required evidence."
+  },
+  "audit_bundle": {
+    "available": false,
+    "exported": false,
+    "last_exported_at": null,
+    "export_formats": []
+  },
+  "readiness_reasons": [
+    {
+      "code": "signal_present",
+      "severity": "satisfied",
+      "label": "Signal",
+      "detail": "At least one patient signal is present."
+    },
+    {
+      "code": "outcome_present",
+      "severity": "missing",
+      "label": "Outcome",
+      "detail": "No measured outcome is documented."
+    },
+    {
+      "code": "audit_bundle_blocked_missing_evidence",
+      "severity": "blocked",
+      "label": "Audit bundle export",
+      "detail": "Audit bundle export is blocked until missing evidence is resolved."
+    }
+  ]
+}
+```
 
 ## Patient backlog endpoints
 
