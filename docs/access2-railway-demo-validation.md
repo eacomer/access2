@@ -44,6 +44,17 @@ Production E2E baseline:
 - Validates Manifest Verification panel assertions.
 - Validates Outcome Proof Gaps panel assertions backed by backend audit-status `readiness_reasons`.
 
+Readiness reason evidence:
+- `readiness_reasons` are backend-owned structured reason codes with `code`, `severity`, `label`, and `detail`.
+- The backend persists `readiness_reasons` into snapshot, review, and audit-bundle export event metadata.
+- Audit bundle JSON exposes `readiness_reasons` from persisted event metadata rather than recomputing from live patient state.
+- Snapshot `packet_json` and `packet_markdown` remain immutable.
+- This preserves the ACCESS2 evidence chain by carrying the reason-code basis forward into the evidence/export record:
+
+```text
+signal → escalation → intervention → outcome → evidence → case summary → immutable review packet snapshot → approval/rejection → audit bundle → manifest verification
+```
+
 Outcome Proof Gaps coverage:
 - The panel is visible on all four seeded patient detail pages.
 - The panel now prefers backend-owned `readiness_reasons` from the patient audit-status response.

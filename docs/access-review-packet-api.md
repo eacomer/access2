@@ -100,7 +100,7 @@ Audit bundle rules:
 - the audit bundle endpoint is tenant-scoped and persisted-only
 - it returns `409 Conflict` unless the snapshot `review_status` is `approved`
 - it never rebuilds `packet_json` or `packet_markdown`
-- it includes persisted `review_state`, persisted `review_checklist`, the persisted approval event, and persisted decision events ordered by `created_at asc, id asc`
+- it includes persisted `review_state`, persisted `review_checklist`, persisted `readiness_reasons`, the persisted approval event, and persisted decision events ordered by `created_at asc, id asc`
 - the markdown audit bundle endpoint uses the same approval and tenant-scope rules and appends the stored immutable `packet_markdown`
 - the pdf audit bundle endpoint uses the same approval and tenant-scope rules, generates from the persisted markdown audit bundle content, and returns `application/pdf`
 - successful approved audit bundle exports for json, markdown, and pdf each write one persisted `audit_bundle_exported` event
@@ -246,8 +246,23 @@ Purpose:
 - provide a backend-owned structured explanation of why the patient is or is not audit-ready
 - keep the core audit-readiness reason logic in backend services instead of requiring frontend inference from scattered page data
 - support the patient detail Outcome Proof Gaps panel
+- preserve the reason-code basis in snapshot/review/export evidence metadata for later audit review
 
 The frontend renders Outcome Proof Gaps from `readiness_reasons` when the field is available. Older responses without `readiness_reasons` may still be displayed by frontend fallback logic, but the API contract source of truth is the backend field.
+
+### Persisted readiness reason metadata
+
+`readiness_reasons` are also persisted into existing review packet event metadata:
+
+- `snapshot_created` events persist the snapshot-time reason-code basis.
+- `snapshot_approved` and `snapshot_rejected` events persist the review-posture reason-code basis.
+- `audit_bundle_exported` events persist successful export reason metadata for the exported format.
+
+The approved audit bundle JSON exposes top-level `readiness_reasons` by reading persisted event metadata. It does not recompute those reasons from live patient state during audit bundle reads. This preserves the principle that audit bundle reads use persisted snapshot and event data only.
+
+Snapshot `packet_json` and `packet_markdown` remain immutable. The persisted reason metadata supplements the evidence record; it does not rewrite the immutable packet body.
+
+This supports audit defensibility because a later reviewer can inspect the same backend-owned reason-code basis that existed at snapshot creation, approval/rejection, and export time.
 
 The reasons reinforce the ACCESS2 evidence chain:
 
@@ -267,6 +282,13 @@ Known reason-code categories:
 - audit bundle availability/export status
 
 V1 guardrail: `readiness_reasons` are read-only explanatory data. They must not imply frontend mutation controls for reviewer rejection or superuser override approval. ACCESS2 V1 may show those postures in the frontend, but reviewer rejection and superuser override approval mutation controls remain outside the read-only patient detail proof panels.
+
+Relationships:
+
+- Patient audit-status response: returns the current latest-snapshot audit readiness projection for the patient, including `readiness_reasons`.
+- Outcome Proof Gaps panel: renders backend-owned `readiness_reasons` when available and remains read-only.
+- Audit bundle JSON: exposes `readiness_reasons` from persisted event metadata for the approved snapshot evidence/export record.
+- Manifest verification: verifies the persisted snapshot manifest against persisted snapshot data. The reason metadata is audit evidence context alongside the manifest; it does not replace deterministic manifest hash verification.
 
 Synthetic/demo-safe example snippet:
 
@@ -309,6 +331,63 @@ Synthetic/demo-safe example snippet:
       "detail": "Audit bundle export is blocked until missing evidence is resolved."
     }
   ]
+}
+```
+
+Approved audit bundle JSON includes persisted readiness reasons as evidence context:
+
+```json
+{
+  "snapshot_id": "00000000-0000-4000-8000-000000000101",
+  "patient_id": "00000000-0000-4000-8000-000000000001",
+  "review_status": "approved",
+  "packet_json": {
+    "review_readiness": {
+      "readiness_status": "ready_for_review"
+    },
+    "review_checklist": {
+      "overall_status": "ready",
+      "missing_count": 0
+    }
+  },
+  "readiness_reasons": [
+    {
+      "code": "signal_present",
+      "severity": "satisfied",
+      "label": "Signal",
+      "detail": "At least one patient signal is present."
+    },
+    {
+      "code": "review_approved",
+      "severity": "satisfied",
+      "label": "Review approved",
+      "detail": "Latest review packet snapshot is approved."
+    },
+    {
+      "code": "audit_bundle_available",
+      "severity": "satisfied",
+      "label": "Audit bundle available",
+      "detail": "Approved review packet snapshot can support audit bundle export."
+    }
+  ],
+  "approval_event": {
+    "event_type": "snapshot_approved",
+    "metadata": {
+      "readiness_reasons": [
+        {
+          "code": "review_approved",
+          "severity": "satisfied",
+          "label": "Review approved",
+          "detail": "Latest review packet snapshot is approved."
+        }
+      ]
+    }
+  },
+  "audit_manifest": {
+    "generated_from": "persisted_snapshot",
+    "packet_json_sha256": "demo-sha256",
+    "packet_markdown_sha256": "demo-sha256"
+  }
 }
 ```
 
