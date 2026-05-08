@@ -108,7 +108,7 @@ The skipped tests are expected because ACCESS2 V1 frontend audit panels are read
 
 ## Latest Production Custom-Domain Validation
 
-Latest production custom-domain E2E validation confirmed the deployed frontend login works, the Demo Guide page is protected and visible after login, and the deployed patient detail page shows both the Evidence Chain panel and the Manifest Verification panel for all four seeded synthetic demo patients.
+Latest production custom-domain E2E validation confirmed the deployed frontend login works, the Demo Guide page is protected and visible after login, and the deployed patient detail page shows the Evidence Chain, Manifest Verification, and Outcome Proof Gaps panels for all four seeded synthetic demo patients.
 
 Result:
 
@@ -124,6 +124,13 @@ Validated production demo baseline:
 - Seeded synthetic demo patients are reachable.
 - Evidence Chain panel is visible and validated for all four seeded demo patients.
 - Manifest Verification panel is visible and validated for all four seeded demo patients.
+- Outcome Proof Gaps panel is visible and validated for all four seeded demo patients.
+- Outcome Proof Gaps reinforces the evidence chain:
+
+  ```text
+  signal → escalation → intervention → outcome → evidence → case summary → immutable review packet snapshot → approval/rejection → audit bundle → manifest verification
+  ```
+
 - Missing-evidence posture is validated.
 - Audit-ready/export posture is validated.
 - Rejected-review posture is validated.
@@ -133,6 +140,62 @@ Validated production demo baseline:
 The skipped tests remain expected because ACCESS2 V1 exposes the reviewer rejection and superuser override approval states as read-only seeded demo postures rather than frontend mutation workflows.
 
 Manifest Verification panel validation confirms the visible read-only verification posture shown by the deployed UI. It does not change workflow state, create exports, approve or reject snapshots, or imply real CMS submission.
+
+Outcome Proof Gaps validation confirms the visible read-only explanation of why each seeded patient is or is not audit-ready. It does not change workflow state, create snapshots, approve or reject snapshots, export bundles, or imply real CMS submission.
+
+## Production Operator Smoke Checklist
+
+Use this lightweight human smoke check after a production deploy, custom-domain change, or demo reset. This checklist is read-only and uses synthetic/demo data only.
+
+1. Open the production frontend:
+
+   ```text
+   https://access2.salvardata.com
+   ```
+
+2. Log in with synthetic demo credentials only:
+
+   ```text
+   admin@example.com / Admin123!
+   demo@example.com / Secret123!
+   ```
+
+3. Confirm the `Demo Guide` link is reachable from the app navigation.
+
+4. On the Demo Guide page, confirm it explains:
+
+   - `signal → escalation → intervention → outcome → evidence → case summary → immutable review packet snapshot → approval/rejection → audit bundle → manifest verification`
+   - Synthetic/demo-only safety expectations.
+   - No real PHI should be entered.
+
+5. Open each seeded synthetic demo patient from the app:
+
+   - Demo Patient 1 - Audit Ready: `f4c31931-8fc2-41d6-9f45-9ab0bd039088`
+   - Demo Patient 2 - Missing Evidence: `1c5c7db8-96f8-47af-a643-741641ecdcf3`
+   - Demo Patient 3 - Rejected Review: `4c1ef5ef-1216-453d-b317-b965a0dd1dea`
+   - Demo Patient 4 - Override Approval: `2e9dc25c-2e56-4d6a-aea0-8706d33b0444`
+
+6. For each patient, confirm these read-only proof panels are visible:
+
+   - Patient audit posture/status.
+   - Evidence Chain.
+   - Manifest Verification.
+   - Outcome Proof Gaps.
+
+7. Confirm ACCESS2 V1 does not expose frontend mutation controls for:
+
+   - Demo Patient 3 reviewer rejection through UI.
+   - Demo Patient 4 superuser override approval through UI.
+
+8. If automated confirmation is needed, run the production E2E command in this document using the existing `ACCESS2_E2E_*` environment variable pattern.
+
+Expected production E2E result:
+
+- 6 passed
+- 2 skipped
+- 0 failed
+
+The skipped tests remain expected because reviewer rejection and superuser override approval are not exposed as frontend mutation controls in ACCESS2 V1.
 
 ## Playwright Cleanup Commands
 

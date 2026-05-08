@@ -33,12 +33,37 @@ Demo Guide coverage:
 - Manifest Verification explanation is present.
 - Synthetic/no-PHI safety text is present.
 
+Production E2E baseline:
+- Frontend: https://access2.salvardata.com
+- Backend API: https://api.salvardata.com/api/v1
+- Result: 6 passed, 2 skipped, 0 failed
+- Validates login.
+- Validates Demo Guide.
+- Validates four seeded demo patient scenarios.
+- Validates Evidence Chain panel assertions.
+- Validates Manifest Verification panel assertions.
+- Validates Outcome Proof Gaps panel assertions.
+
+Outcome Proof Gaps coverage:
+- The panel is visible on all four seeded patient detail pages.
+- The panel reinforces the ACCESS2 evidence chain:
+
+```text
+signal → escalation → intervention → outcome → evidence → case summary → immutable review packet snapshot → approval/rejection → audit bundle → manifest verification
+```
+
+- Demo Patient 1 - Audit Ready shows satisfied proof elements and audit-readiness support.
+- Demo Patient 2 - Missing Evidence shows missing or partial outcome proof gaps and explains why audit readiness is incomplete.
+- Demo Patient 3 - Rejected Review shows the proof packet/snapshot exists and the review posture is rejected.
+- Demo Patient 4 - Override Approval shows the override/superuser review posture.
+
 Expected skips:
 - Demo Patient 3 reviewer rejection through UI
 - Demo Patient 4 superuser override approval through UI
 
 Reason:
 ACCESS2 V1 frontend audit panels are read-only; rejection and override approval are intentionally not exposed as frontend mutation controls.
+The skipped tests remain expected because ACCESS2 V1 exposes reviewer rejection and superuser override approval as read-only frontend audit postures, not frontend mutation workflows.
 
 Security cleanup:
 
