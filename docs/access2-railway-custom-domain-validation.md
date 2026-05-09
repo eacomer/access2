@@ -126,6 +126,10 @@ Validated production demo baseline:
 - Manifest Verification panel is visible and validated for all four seeded demo patients.
 - Outcome Proof Gaps panel is visible and validated for all four seeded demo patients.
 - Outcome Proof Gaps assertions validate backend-owned `readiness_reasons` rendered from the audit-status response, including `code`, `severity`, `label`, and `detail` reason text.
+- Demo Patient 1 - Audit Ready validates authenticated frontend proxy downloads for JSON, Markdown, and PDF audit bundles.
+- JSON audit bundle download validation confirms persisted `readiness_reasons` are present with `code`, `severity`, `label`, and `detail`.
+- Markdown audit bundle download validation confirms the `Audit Readiness Reasons` section is present.
+- PDF audit bundle download validation confirms non-empty PDF output.
 - Outcome Proof Gaps reinforces the evidence chain:
 
   ```text
@@ -183,12 +187,20 @@ Use this lightweight human smoke check after a production deploy, custom-domain 
    - Manifest Verification.
    - Outcome Proof Gaps, backed by backend audit-status `readiness_reasons`.
 
-7. Confirm ACCESS2 V1 does not expose frontend mutation controls for:
+7. For Demo Patient 1 - Audit Ready, confirm approved/export-ready audit bundle download actions are available for:
+
+   - JSON audit bundle.
+   - Markdown audit bundle.
+   - PDF audit bundle.
+
+   Automated E2E coverage validates these downloads through the authenticated frontend proxy. JSON is checked for persisted `readiness_reasons` with `code`, `severity`, `label`, and `detail`; Markdown is checked for the `Audit Readiness Reasons` section; PDF is checked as non-empty PDF output.
+
+8. Confirm ACCESS2 V1 does not expose frontend mutation controls for:
 
    - Demo Patient 3 reviewer rejection through UI.
    - Demo Patient 4 superuser override approval through UI.
 
-8. If automated confirmation is needed, run the production E2E command in this document using the existing `ACCESS2_E2E_*` environment variable pattern.
+9. If automated confirmation is needed, run the production E2E command in this document using the existing `ACCESS2_E2E_*` environment variable pattern.
 
 Expected production E2E result:
 

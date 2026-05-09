@@ -43,6 +43,10 @@ Production E2E baseline:
 - Validates Evidence Chain panel assertions.
 - Validates Manifest Verification panel assertions.
 - Validates Outcome Proof Gaps panel assertions backed by backend audit-status `readiness_reasons`.
+- Validates authenticated frontend proxy downloads for JSON, Markdown, and PDF audit bundles using Demo Patient 1 - Audit Ready.
+- Validates JSON audit bundle `readiness_reasons` shape: `code`, `severity`, `label`, and `detail`.
+- Validates Markdown audit bundle output includes `Audit Readiness Reasons`.
+- Validates PDF audit bundle output is non-empty PDF content.
 
 Readiness reason evidence:
 - `readiness_reasons` are backend-owned structured reason codes with `code`, `severity`, `label`, and `detail`.
