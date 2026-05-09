@@ -8,6 +8,7 @@ const NAV_ITEMS = [
   { href: "/audit-readiness", label: "Audit Readiness" },
   { href: "/audit-bundle-verify", label: "Verify Bundle" },
   { href: "/demo-guide", label: "Demo Guide" },
+  { href: "/demo/release-summary", label: "Release Summary" },
 ];
 
 export default function AppNavigation() {

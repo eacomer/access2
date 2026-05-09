@@ -356,12 +356,32 @@ Viewer should see:
 4. Visit:
 
 ```text
+/demo/release-summary
+```
+
+Viewer should see:
+
+- Production/demo frontend posture.
+- Frontend-configured backend API base URL.
+- Demo Guide availability.
+- Four seeded demo patient scenarios:
+  - Demo Patient 1 - Audit Ready.
+  - Demo Patient 2 - Missing Evidence.
+  - Demo Patient 3 - Rejected Review.
+  - Demo Patient 4 - Override Approval.
+- Expected production E2E baseline: `6 passed, 2 skipped, 0 failed`.
+- The skipped-test rationale: reviewer rejection and superuser override approval remain read-only frontend postures in ACCESS2 V1.
+- No mutation controls.
+
+5. Visit:
+
+```text
 /patients?active_only=0
 ```
 
 Viewer should see seeded patient cards after the bootstrap path has run.
 
-5. Open a seeded patient detail page.
+6. Open a seeded patient detail page.
 
 Viewer should see:
 
@@ -372,7 +392,7 @@ Viewer should see:
 - Snapshot, review state, next step, completion, and latest snapshot metadata where available.
 - No mutation controls in read-only audit panels.
 
-6. If the patient has an approved export-ready snapshot, use the patient review-packet backlog to download the audit bundle formats:
+7. If the patient has an approved export-ready snapshot, use the patient review-packet backlog to download the audit bundle formats:
 
 - JSON
 - Markdown
@@ -380,7 +400,7 @@ Viewer should see:
 
 Viewer should see approved-only download actions. Non-approved snapshots should explain why downloads are unavailable.
 
-7. Visit:
+8. Visit:
 
 ```text
 /audit-bundle-verify
@@ -393,6 +413,8 @@ Viewer should be able to paste a snapshot ID and the `audit_manifest` object fro
 ACCESS2 is proving evidence posture, not just displaying tasks. The point of this V1 read-only demo is to show how the system connects patient-level workflow evidence to review packets and audit readiness.
 
 On `/audit-readiness`, call out the reviewer workload summary and the audit-readiness table. These views help reviewers understand where evidence stands without mutating the underlying audit record.
+
+On `/demo/release-summary`, call out the current production/demo release posture. This is the single read-only operator page for confirming the seeded scenarios, latest production E2E baseline, and expected skip rationale before walking patient-level evidence.
 
 On patient detail, call out the audit-status and review-packet backlog panels. These connect the patient's current audit posture to persisted review packet history and make the next review step visible.
 
@@ -425,6 +447,7 @@ Stop the demo or validation pass and record a defect if:
 - `/audit-readiness` does not render.
 - `/patients?active_only=0` does not show seeded patient cards after bootstrap.
 - Patient detail does not render.
+- `/demo/release-summary` does not render.
 - The patient audit-status panel is missing.
 - The patient review-packet backlog panel is missing.
 - Read-only audit sections expose approve, reject, assign, edit, or create-snapshot controls.
@@ -449,6 +472,7 @@ Commands run:
 
 Screens visited:
 - /audit-readiness
+- /demo/release-summary
 - /patients?active_only=0
 - Patient detail:
 
@@ -463,6 +487,7 @@ Results:
 - Selenium bootstrap:
 - Selenium smoke:
 - Manual audit-readiness:
+- Manual demo release summary:
 - Manual patient detail:
 
 Defects found:

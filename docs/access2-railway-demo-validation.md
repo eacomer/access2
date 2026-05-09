@@ -48,6 +48,13 @@ Production E2E baseline:
 - Validates Markdown audit bundle output includes `Audit Readiness Reasons`.
 - Validates PDF audit bundle output is non-empty PDF content.
 
+Demo release summary:
+- Protected frontend route: `/demo/release-summary`
+- Purpose: one read-only operator/reviewer page for the current ACCESS2 V1 production/demo release posture.
+- Summarizes the production frontend URL, frontend-configured backend API base URL, Demo Guide availability, four seeded demo patient scenarios, expected operator messages, and the known production E2E baseline.
+- Records the expected skipped tests as V1 read-only constraints: no reviewer rejection mutation control and no superuser override approval mutation control in the frontend.
+- Does not create workflow state, export bundles, approve or reject snapshots, or add mutation controls.
+
 Readiness reason evidence:
 - `readiness_reasons` are backend-owned structured reason codes with `code`, `severity`, `label`, and `detail`.
 - The backend persists `readiness_reasons` into snapshot, review, and audit-bundle export event metadata.

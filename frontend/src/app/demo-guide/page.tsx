@@ -147,7 +147,7 @@ export default async function DemoGuidePage() {
       <section className="section-card" aria-labelledby="demo-guide-e2e">
         <h2 id="demo-guide-e2e">Expected E2E Baseline</h2>
         <p>
-          Latest production custom-domain validation result: <strong>5 passed, 2 skipped, 0 failed</strong>.
+          Latest production custom-domain validation result: <strong>6 passed, 2 skipped, 0 failed</strong>.
         </p>
         <p>
           The skipped tests are expected because V1 exposes reviewer rejection and override approval
