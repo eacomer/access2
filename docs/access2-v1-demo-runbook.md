@@ -369,7 +369,7 @@ Viewer should see:
   - Demo Patient 2 - Missing Evidence.
   - Demo Patient 3 - Rejected Review.
   - Demo Patient 4 - Override Approval.
-- Expected production E2E baseline: `6 passed, 2 skipped, 0 failed`.
+- Expected production E2E baseline: `7 passed, 2 skipped, 0 failed`.
 - The skipped-test rationale: reviewer rejection and superuser override approval remain read-only frontend postures in ACCESS2 V1.
 - No mutation controls.
 

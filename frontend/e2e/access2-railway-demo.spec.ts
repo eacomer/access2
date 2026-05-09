@@ -169,6 +169,45 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     await expect(page.getByText("No real PHI.")).toBeVisible();
   });
 
+  test("Demo Release Summary validates the production release posture", async ({ page }) => {
+    await login(page);
+
+    await page.getByRole("link", { name: "Release Summary" }).click();
+    await expect(page).toHaveURL(/\/demo\/release-summary$/);
+    await expect(page.getByRole("heading", { name: "Demo Release Summary" })).toBeVisible();
+
+    const pageRoot = page.getByTestId("demo-release-summary-page");
+    await expect(pageRoot).toContainText("https://access2.salvardata.com");
+    await expect(pageRoot).toContainText("Demo Guide");
+    await expect(pageRoot.getByRole("link", { name: "Available" })).toBeVisible();
+
+    for (const scenarioText of [
+      "Demo Patient 1 - Audit Ready",
+      "Demo Patient 2 - Missing Evidence",
+      "Demo Patient 3 - Rejected Review",
+      "Demo Patient 4 - Override Approval",
+      "Audit Ready",
+      "Missing Evidence",
+      "Rejected Review",
+      "Override Approval",
+    ]) {
+      await expect(pageRoot).toContainText(scenarioText);
+    }
+
+    await expect(pageRoot).toContainText("Production E2E baseline");
+    await expect(pageRoot).toContainText("6");
+    await expect(pageRoot).toContainText("Passed");
+    await expect(pageRoot).toContainText("2");
+    await expect(pageRoot).toContainText("Skipped");
+    await expect(pageRoot).toContainText("0");
+    await expect(pageRoot).toContainText("Failed");
+
+    await expect(pageRoot).toContainText("No reviewer rejection mutation control is exposed in the V1 frontend.");
+    await expect(pageRoot).toContainText(
+      "No superuser override approval mutation control is exposed in the V1 frontend.",
+    );
+  });
+
   test("Demo Patient 2 - Missing Evidence", async ({ page, request }) => {
     await login(page);
     const token = await getApiToken(request);

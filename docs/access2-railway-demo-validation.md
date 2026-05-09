@@ -6,7 +6,7 @@ Backend startup command
 Seeded demo users
 Seeded demo patient IDs
 E2E command
-Expected E2E result: 6 passed, 2 skipped, 0 failed
+Expected E2E result: 7 passed, 2 skipped, 0 failed
 Demo Guide coverage
 Reason for skipped tests
 Security reminder to rotate Railway public Postgres credentials
@@ -23,7 +23,7 @@ Backend FRONTEND_ORIGIN:
 https://access2.salvardata.com
 
 E2E result:
-6 passed, 2 skipped, 0 failed
+7 passed, 2 skipped, 0 failed
 
 Demo Guide coverage:
 - Protected Demo Guide page opens after login.
@@ -36,9 +36,10 @@ Demo Guide coverage:
 Production E2E baseline:
 - Frontend: https://access2.salvardata.com
 - Backend API: https://api.salvardata.com/api/v1
-- Result: 6 passed, 2 skipped, 0 failed
+- Result: 7 passed, 2 skipped, 0 failed
 - Validates login.
 - Validates Demo Guide.
+- Validates the protected `/demo/release-summary` page.
 - Validates four seeded demo patient scenarios.
 - Validates Evidence Chain panel assertions.
 - Validates Manifest Verification panel assertions.
@@ -52,6 +53,7 @@ Demo release summary:
 - Protected frontend route: `/demo/release-summary`
 - Purpose: one read-only operator/reviewer page for the current ACCESS2 V1 production/demo release posture.
 - Summarizes the production frontend URL, frontend-configured backend API base URL, Demo Guide availability, four seeded demo patient scenarios, expected operator messages, and the known production E2E baseline.
+- Production E2E directly validates the page heading, seeded scenario postures, baseline values, and expected V1 read-only skip rationale.
 - Records the expected skipped tests as V1 read-only constraints: no reviewer rejection mutation control and no superuser override approval mutation control in the frontend.
 - Does not create workflow state, export bundles, approve or reject snapshots, or add mutation controls.
 
@@ -100,4 +102,4 @@ postgres.railway.internal:5432/railway
 Post-rotation validation:
 - Backend /health/live returned ok.
 - Backend /health/ready returned ok with database=ok and redis=ok.
-- E2E against https://access2.salvardata.com returned 6 passed, 2 skipped, 0 failed.
+- E2E against https://access2.salvardata.com returned 7 passed, 2 skipped, 0 failed.
