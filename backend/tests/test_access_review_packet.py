@@ -167,6 +167,21 @@ def _readiness_reasons_by_code(payload: dict) -> dict[str, dict]:
     return {item["code"]: item for item in payload["readiness_reasons"]}
 
 
+def _assert_readiness_reasons_contract(reasons: list[dict]) -> None:
+    allowed_severities = {"satisfied", "missing", "partial", "blocked"}
+
+    assert reasons
+    for reason in reasons:
+        assert {"code", "severity", "label", "detail"} <= set(reason)
+        assert isinstance(reason["code"], str)
+        assert reason["code"]
+        assert reason["severity"] in allowed_severities
+        assert isinstance(reason["label"], str)
+        assert reason["label"]
+        assert isinstance(reason["detail"], str)
+        assert reason["detail"]
+
+
 def _assert_readiness_reason(
     reasons: dict[str, dict],
     code: str,
@@ -1511,6 +1526,83 @@ def test_access_review_packet_snapshot_audit_bundle_returns_approved_snapshot(
     assert export_metadata["content_type"] == "application/json"
     export_reasons = _readiness_reasons_by_code(export_metadata)
     assert export_reasons["audit_bundle_exported"]["severity"] == "satisfied"
+
+
+def test_access_review_packet_snapshot_audit_bundle_readiness_reasons_contract(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="review-packet-audit-bundle-readiness-contract")
+    _prepare_review_ready_patient(client, env["headers"], env["patient_id"])
+    snapshot = _create_review_packet_snapshot(client, env["headers"], env["patient_id"])
+    _update_review_packet_snapshot_review(
+        client,
+        env["headers"],
+        snapshot["id"],
+        review_status="approved",
+        decision_note="Approved for readiness reason contract.",
+    )
+
+    bundle = _get_review_packet_snapshot_audit_bundle(client, env["headers"], snapshot["id"])
+    bundle_reasons = _readiness_reasons_by_code(bundle)
+
+    _assert_readiness_reasons_contract(bundle["readiness_reasons"])
+    assert {
+        "signal_present",
+        "escalation_present",
+        "intervention_present",
+        "outcome_present",
+        "evidence_present",
+        "snapshot_present",
+        "review_approved",
+        "audit_bundle_available",
+        "audit_bundle_exported",
+    } <= set(bundle_reasons)
+    assert bundle_reasons["audit_bundle_exported"]["severity"] == "missing"
+
+    events_after_first_export = _get_review_packet_snapshot_events(
+        client,
+        env["headers"],
+        snapshot["id"],
+    )
+    created_event = next(
+        event
+        for event in events_after_first_export["events"]
+        if event["event_type"] == "snapshot_created"
+    )
+    approved_event = next(
+        event
+        for event in events_after_first_export["events"]
+        if event["event_type"] == "snapshot_approved"
+    )
+    export_event = _export_events(events_after_first_export)[-1]
+    created_reasons = _readiness_reasons_by_code(created_event["metadata"])
+    approved_reasons = _readiness_reasons_by_code(approved_event["metadata"])
+    export_reasons = _readiness_reasons_by_code(export_event["metadata"])
+
+    _assert_readiness_reasons_contract(created_event["metadata"]["readiness_reasons"])
+    _assert_readiness_reasons_contract(approved_event["metadata"]["readiness_reasons"])
+    _assert_readiness_reasons_contract(export_event["metadata"]["readiness_reasons"])
+    assert bundle_reasons["signal_present"] == created_reasons["signal_present"]
+    assert bundle_reasons["snapshot_present"] == created_reasons["snapshot_present"]
+    assert bundle_reasons["review_approved"] == approved_reasons["review_approved"]
+    assert bundle_reasons["audit_bundle_available"] == approved_reasons["audit_bundle_available"]
+
+    exported_bundle = _get_review_packet_snapshot_audit_bundle(client, env["headers"], snapshot["id"])
+    exported_reasons = _readiness_reasons_by_code(exported_bundle)
+
+    _assert_readiness_reasons_contract(exported_bundle["readiness_reasons"])
+    assert exported_reasons["audit_bundle_exported"] == export_reasons["audit_bundle_exported"]
+    assert exported_reasons["audit_bundle_exported"]["severity"] == "satisfied"
+
+    verification = _verify_review_packet_snapshot_audit_manifest(
+        client,
+        env["headers"],
+        snapshot["id"],
+        exported_bundle["audit_manifest"],
+    )
+    assert verification["verified"] is True
+    assert verification["mismatches"] == []
 
 
 def test_access_review_packet_snapshot_audit_bundle_returns_override_metadata(
