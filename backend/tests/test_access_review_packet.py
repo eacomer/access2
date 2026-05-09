@@ -2275,6 +2275,13 @@ def test_access_review_packet_snapshot_audit_bundle_markdown_returns_approved_sn
         decision_note="Approved for markdown audit bundle.",
     )
 
+    bundle = _get_review_packet_snapshot_audit_bundle(client, env["headers"], snapshot["id"])
+    verification = _verify_review_packet_snapshot_audit_manifest(
+        client,
+        env["headers"],
+        snapshot["id"],
+        bundle["audit_manifest"],
+    )
     markdown = _get_review_packet_snapshot_audit_bundle_markdown(client, env["headers"], snapshot["id"])
 
     assert "# ACCESS Review Packet Audit Bundle" in markdown
@@ -2291,11 +2298,19 @@ def test_access_review_packet_snapshot_audit_bundle_markdown_returns_approved_sn
     assert "## Audit Manifest" in markdown
     assert f"Packet JSON SHA-256: {_expected_packet_json_sha256(approved['packet_json'])}" in markdown
     assert f"Packet Markdown SHA-256: {_expected_packet_markdown_sha256(approved['packet_markdown'])}" in markdown
+    assert "## Audit Readiness Reasons" in markdown
+    assert "| signal_present | Satisfied |" in markdown
+    assert "| evidence_present | Satisfied |" in markdown
+    assert "| audit_bundle_available | Satisfied |" in markdown
+    assert "| audit_bundle_exported | Satisfied |" in markdown
+    assert "Successful audit bundle export is recorded for this patient." in markdown
     assert "## Approval Event" in markdown
     assert "## Review Checklist" in markdown
     assert "## Decision Event Trail" in markdown
     assert "## Immutable Review Packet" in markdown
     assert approved["packet_markdown"] in markdown
+    assert verification["verified"] is True
+    assert verification["mismatches"] == []
     events = _get_review_packet_snapshot_events(client, env["headers"], snapshot["id"])
     export_metadata = _export_events(events)[-1]["metadata"]
     assert export_metadata["export_format"] == "markdown"
@@ -2359,11 +2374,16 @@ def test_access_review_packet_snapshot_audit_bundle_pdf_returns_approved_snapsho
     )
     original_packet_json = approved["packet_json"]
     original_packet_markdown = approved["packet_markdown"]
+    _get_review_packet_snapshot_audit_bundle(client, env["headers"], snapshot["id"])
 
     response = _get_review_packet_snapshot_audit_bundle_pdf(client, env["headers"], snapshot["id"])
 
     assert response.content.startswith(b"%PDF")
     assert len(response.content) > 1000
+    assert b"Audit Readiness Reasons" in response.content
+    assert b"audit_bundle_available" in response.content
+    assert b"audit_bundle_exported" in response.content
+    assert b"Successful audit bundle export is recorded for this patient." in response.content
     assert (
         response.headers["content-disposition"]
         == f'attachment; filename="access-review-packet-audit-bundle-{snapshot["id"]}.pdf"'

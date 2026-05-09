@@ -1306,6 +1306,22 @@ def render_access_review_packet_snapshot_audit_bundle_markdown(bundle: dict[str,
             f"- Approval Event ID: {bundle['audit_manifest']['approval_event_id']}",
             f"- Approval Override Used: {_bool_label(bundle['audit_manifest']['approval_override_used'])}",
             "",
+            "## Audit Readiness Reasons",
+            "| Code | Severity | Label | Detail |",
+            "| --- | --- | --- | --- |",
+        ]
+    )
+    for reason in bundle.get("readiness_reasons") or []:
+        lines.append(
+            "| "
+            f"{reason['code']} | "
+            f"{_title_case(reason['severity'])} | "
+            f"{reason['label']} | "
+            f"{reason['detail']} |"
+        )
+    lines.extend(
+        [
+            "",
             "## Approval Event",
             f"- Event ID: {approval_event['id']}",
             f"- Event Type: {approval_event['event_type']}",
