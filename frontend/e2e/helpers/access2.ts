@@ -78,6 +78,12 @@ export type Snapshot = {
 export type AuditBundle = {
   snapshot_id: string;
   patient_id: string;
+  readiness_reasons: Array<{
+    code: string;
+    severity: string;
+    label: string;
+    detail: string;
+  }>;
   audit_manifest: Record<string, unknown>;
   export_metadata: Record<string, unknown>;
 };

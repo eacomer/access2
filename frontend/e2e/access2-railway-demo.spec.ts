@@ -113,6 +113,22 @@ async function expectOutcomeProofGapsPanel(page: Page, expectedPostureText: RegE
   await expect(panel.getByRole("link")).toHaveCount(0);
 }
 
+function expectReadinessReasonShape(reasons: unknown) {
+  expect(Array.isArray(reasons)).toBe(true);
+  const reasonList = reasons as Array<Record<string, unknown>>;
+  expect(reasonList.length).toBeGreaterThan(0);
+
+  for (const reason of reasonList) {
+    expect(typeof reason.code).toBe("string");
+    expect(reason.code).toBeTruthy();
+    expect(["satisfied", "missing", "partial", "blocked"]).toContain(reason.severity);
+    expect(typeof reason.label).toBe("string");
+    expect(reason.label).toBeTruthy();
+    expect(typeof reason.detail).toBe("string");
+    expect(reason.detail).toBeTruthy();
+  }
+}
+
 test.describe("ACCESS2 Railway synthetic demo cases", () => {
   test("can log into the deployed ACCESS2 frontend", async ({ page }) => {
     await login(page);
@@ -257,6 +273,12 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     expect(bundle.audit_manifest.snapshot_id).toBe(snapshotId);
     expect(bundle.audit_manifest.patient_id).toBe(patient.patient_id);
 
+    const persistedExportBundle = await exportAuditBundle(request, token, snapshotId);
+    expectReadinessReasonShape(persistedExportBundle.readiness_reasons);
+    expect(persistedExportBundle.readiness_reasons.map((reason) => reason.code)).toEqual(
+      expect.arrayContaining(["audit_bundle_exported"]),
+    );
+
     const verification = await verifyAuditManifest(request, token, snapshotId, bundle.audit_manifest);
     expect(verification.verified).toBe(true);
     expect(verification.mismatches).toEqual([]);
@@ -285,9 +307,38 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
       /Export Status\s*Exported/i,
       /Manifest Verification\s*Verification-ready/i,
     ]);
-    await expect(page.getByTestId("patient-review-packet-backlog-panel")).toContainText("Download JSON");
+    const backlogPanel = page.getByTestId("patient-review-packet-backlog-panel");
+    await expect(backlogPanel.getByTestId("audit-bundle-download-actions")).toBeVisible();
+    for (const label of ["Download JSON", "Download Markdown", "Download PDF"]) {
+      const downloadLink = backlogPanel.getByRole("link", { name: label });
+      await expect(downloadLink).toBeVisible();
+      await expect(downloadLink).toHaveAttribute("href", new RegExp(`/audit-bundles/${snapshotId}/`));
+    }
+
     const frontendBundle = await page.request.get(`/audit-bundles/${snapshotId}/json`);
-    expect(frontendBundle.ok(), await frontendBundle.text()).toBeTruthy();
+    const frontendBundleText = await frontendBundle.text();
+    expect(frontendBundle.ok(), frontendBundleText).toBeTruthy();
+    expect(frontendBundle.headers()["content-type"]).toContain("application/json");
+    const frontendBundlePayload = JSON.parse(frontendBundleText);
+    expect(frontendBundlePayload.audit_manifest.snapshot_id).toBe(snapshotId);
+    expectReadinessReasonShape(frontendBundlePayload.readiness_reasons);
+    expect(frontendBundlePayload.readiness_reasons.map((reason: { code: string }) => reason.code)).toEqual(
+      expect.arrayContaining(["audit_bundle_exported"]),
+    );
+
+    const markdownBundle = await page.request.get(`/audit-bundles/${snapshotId}/markdown`);
+    const markdown = await markdownBundle.text();
+    expect(markdownBundle.ok(), markdown).toBeTruthy();
+    expect(markdownBundle.headers()["content-type"]).toContain("text/markdown");
+    expect(markdown).toContain("Audit Readiness Reasons");
+    expect(markdown).toContain("audit_bundle_exported");
+
+    const pdfBundle = await page.request.get(`/audit-bundles/${snapshotId}/pdf`);
+    const pdf = await pdfBundle.body();
+    expect(pdfBundle.ok(), pdf.subarray(0, 200).toString("utf8")).toBeTruthy();
+    expect(pdfBundle.headers()["content-type"]).toContain("application/pdf");
+    expect(pdf.length).toBeGreaterThan(1000);
+    expect(pdf.subarray(0, 4).toString("ascii")).toBe("%PDF");
 
     await page.goto("/audit-bundle-verify");
     await page.getByLabel("Snapshot ID").fill(snapshotId);
