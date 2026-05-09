@@ -48,8 +48,10 @@ Readiness reason evidence:
 - `readiness_reasons` are backend-owned structured reason codes with `code`, `severity`, `label`, and `detail`.
 - The backend persists `readiness_reasons` into snapshot, review, and audit-bundle export event metadata.
 - Audit bundle JSON exposes `readiness_reasons` from persisted event metadata rather than recomputing from live patient state.
+- Audit bundle Markdown includes an `Audit Readiness Reasons` section with the persisted reason-code basis.
+- Audit bundle PDF includes the same section because it renders from the Markdown audit bundle payload.
 - Snapshot `packet_json` and `packet_markdown` remain immutable.
-- This preserves the ACCESS2 evidence chain by carrying the reason-code basis forward into the evidence/export record:
+- This preserves the ACCESS2 evidence chain by carrying the reason-code basis forward into both machine-readable and human-readable evidence/export records:
 
 ```text
 signal → escalation → intervention → outcome → evidence → case summary → immutable review packet snapshot → approval/rejection → audit bundle → manifest verification

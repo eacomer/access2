@@ -106,6 +106,9 @@ Audit bundle rules:
 - successful approved audit bundle exports for json, markdown, and pdf each write one persisted `audit_bundle_exported` event
 - both audit bundle exports include an `audit_manifest` with deterministic SHA-256 hashes of persisted `packet_json` and `packet_markdown`
 - both audit bundle exports include `export_metadata` describing the export contract, recommended filename, content type, source, and verification route
+- audit bundle JSON includes persisted `readiness_reasons`
+- audit bundle Markdown includes an `Audit Readiness Reasons` section
+- audit bundle PDF includes the same `Audit Readiness Reasons` section because it renders from the Markdown audit bundle content
 - `export_metadata.generated_at` may vary across reads, but `audit_manifest` remains deterministic for the same persisted snapshot
 - the verify endpoint compares a submitted manifest to the recalculated persisted manifest and returns `expected` vs `actual` field mismatches
 
@@ -260,9 +263,15 @@ The frontend renders Outcome Proof Gaps from `readiness_reasons` when the field 
 
 The approved audit bundle JSON exposes top-level `readiness_reasons` by reading persisted event metadata. It does not recompute those reasons from live patient state during audit bundle reads. This preserves the principle that audit bundle reads use persisted snapshot and event data only.
 
+Human-readable approved audit bundle exports also carry this evidence context:
+
+- Markdown exports include an `Audit Readiness Reasons` section with each reason's `code`, `severity`, `label`, and `detail`.
+- PDF exports include the same section because PDF generation renders from the Markdown audit bundle content.
+- JSON remains the machine-readable contract, while Markdown and PDF preserve the same reason-code basis for reviewer-facing audit packets.
+
 Snapshot `packet_json` and `packet_markdown` remain immutable. The persisted reason metadata supplements the evidence record; it does not rewrite the immutable packet body.
 
-This supports audit defensibility because a later reviewer can inspect the same backend-owned reason-code basis that existed at snapshot creation, approval/rejection, and export time.
+This supports audit defensibility because a later reviewer can inspect the same backend-owned reason-code basis that existed at snapshot creation, approval/rejection, and export time in both machine-readable and human-readable exports.
 
 The reasons reinforce the ACCESS2 evidence chain:
 
@@ -288,6 +297,8 @@ Relationships:
 - Patient audit-status response: returns the current latest-snapshot audit readiness projection for the patient, including `readiness_reasons`.
 - Outcome Proof Gaps panel: renders backend-owned `readiness_reasons` when available and remains read-only.
 - Audit bundle JSON: exposes `readiness_reasons` from persisted event metadata for the approved snapshot evidence/export record.
+- Audit bundle Markdown: renders a concise `Audit Readiness Reasons` section from the persisted audit bundle payload.
+- Audit bundle PDF: includes the same section because it renders from the Markdown audit bundle payload.
 - Manifest verification: verifies the persisted snapshot manifest against persisted snapshot data. The reason metadata is audit evidence context alongside the manifest; it does not replace deterministic manifest hash verification.
 
 Synthetic/demo-safe example snippet:
