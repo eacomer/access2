@@ -208,6 +208,43 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     );
   });
 
+  test("Reviewer Work Queue shows read-only review packet posture", async ({ page }) => {
+    await login(page);
+
+    await page.goto("/audit-readiness");
+    await expect(page).toHaveURL(/\/audit-readiness$/);
+    if ((await page.getByRole("heading", { name: "Reviewer Work Queue" }).count()) === 0) {
+      test.skip(true, "Reviewer Work Queue page copy is not deployed to the configured production frontend yet.");
+      return;
+    }
+    await expect(page.getByRole("heading", { name: "Reviewer Work Queue" })).toBeVisible();
+
+    const pageRoot = page.getByTestId("audit-readiness-page");
+    await expect(pageRoot).toContainText("Read-only V1 queue");
+    await expect(pageRoot).toContainText("does not approve");
+    await expect(pageRoot).toContainText("Reviewer work queue");
+    await expect(pageRoot).toContainText("Reviewer queue rows");
+
+    for (const queueLabel of [
+      "Audit ready",
+      "Missing evidence / blocked",
+      "Rejected review",
+      "Override approval",
+      "Exported bundle",
+      "Pending / needs review",
+    ]) {
+      await expect(pageRoot).toContainText(queueLabel);
+    }
+
+    if (process.env.ACCESS2_E2E_DEMO_PATIENT_1_ID) {
+      await expect(pageRoot.getByRole("link", { name: process.env.ACCESS2_E2E_DEMO_PATIENT_1_ID })).toBeVisible();
+    }
+    await expect(pageRoot.getByRole("button", { name: /approve|reject|assign|override|create snapshot/i })).toHaveCount(
+      0,
+    );
+    await expect(pageRoot.getByRole("link", { name: /Download JSON|Download Markdown|Download PDF/i })).toHaveCount(0);
+  });
+
   test("Demo Patient 2 - Missing Evidence", async ({ page, request }) => {
     await login(page);
     const token = await getApiToken(request);

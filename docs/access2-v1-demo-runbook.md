@@ -15,6 +15,7 @@ This runbook is not a production operations guide and does not claim the full mu
 ## 2. What This Demo Proves
 
 - ACCESS2 can show organization-level audit readiness from persisted workflow and review-packet data.
+- ACCESS2 can show a read-only reviewer work queue that groups latest review packets by audit-ready, blocked/missing-evidence, rejected, override-approved, pending-review, and exported-bundle posture.
 - ACCESS2 can link patient-level audit posture to review packets and audit-readiness views.
 - ACCESS2 can show evidence posture for a seeded patient without adding mutation controls to read-only audit panels.
 - The current read-only V1 audit visibility baseline has been validated locally with backend, frontend, and Selenium checks.
@@ -348,10 +349,13 @@ The 9 skipped tests are expected for the read-only smoke command. They are data-
 
 Viewer should see:
 
+- Reviewer Work Queue heading.
+- Read-only V1 queue copy.
 - Reviewer workload summary.
-- Audit-readiness table.
+- Review-packet lifecycle counts for pending/needs review, missing evidence/blocked, rejected review, override approval, and exported bundle.
+- Reviewer queue rows linked to patient detail.
 - Read-only audit posture and clean empty states where applicable.
-- No approve, reject, assign, edit, or create-snapshot controls in read-only audit sections.
+- No approve, reject, override, assign, export, edit, or create-snapshot controls in the read-only queue.
 
 4. Visit:
 
@@ -412,7 +416,7 @@ Viewer should be able to paste a snapshot ID and the `audit_manifest` object fro
 
 ACCESS2 is proving evidence posture, not just displaying tasks. The point of this V1 read-only demo is to show how the system connects patient-level workflow evidence to review packets and audit readiness.
 
-On `/audit-readiness`, call out the reviewer workload summary and the audit-readiness table. These views help reviewers understand where evidence stands without mutating the underlying audit record.
+On `/audit-readiness`, call out the Reviewer Work Queue, reviewer workload summary, lifecycle counts, and patient-detail links. These views help reviewers understand which packets are audit-ready, blocked by missing evidence, rejected, override-approved, pending review, or already exported without mutating the underlying audit record.
 
 On `/demo/release-summary`, call out the current production/demo release posture. This is the single read-only operator page for confirming the seeded scenarios, latest production E2E baseline, and expected skip rationale before walking patient-level evidence.
 
@@ -423,6 +427,7 @@ Approved audit bundle downloads and manifest verification are now part of the co
 ## 9. Read-Only Guardrails to Call Out
 
 - Read-only audit panels should not expose approve, reject, assign, edit, or create-snapshot buttons.
+- The Reviewer Work Queue should not expose approve, reject, override, assign, export, edit, or create-snapshot controls.
 - Read-only endpoints must not mutate data.
 - Snapshot and packet reads must not rebuild persisted `packet_json` or `packet_markdown`.
 - Approved audit bundle downloads should remain limited to approved snapshots, and export events should be logged only after successful export.
@@ -445,12 +450,14 @@ Approved audit bundle downloads and manifest verification are now part of the co
 Stop the demo or validation pass and record a defect if:
 
 - `/audit-readiness` does not render.
+- `/audit-readiness` does not show the Reviewer Work Queue read-only copy.
 - `/patients?active_only=0` does not show seeded patient cards after bootstrap.
 - Patient detail does not render.
 - `/demo/release-summary` does not render.
 - The patient audit-status panel is missing.
 - The patient review-packet backlog panel is missing.
 - Read-only audit sections expose approve, reject, assign, edit, or create-snapshot controls.
+- The Reviewer Work Queue exposes approve, reject, override, assign, export, edit, or create-snapshot controls.
 - Read-only audit checks appear to mutate data.
 - Snapshot or packet reads appear to rebuild persisted audit artifacts.
 - Tenant scoping or patient consistency appears broken.
@@ -478,7 +485,8 @@ Screens visited:
 
 Observed:
 - Reviewer workload summary:
-- Audit-readiness table:
+- Reviewer Work Queue lifecycle counts:
+- Reviewer queue table:
 - Patient audit-status panel:
 - Patient review-packet backlog panel:
 - Mutation controls absent from read-only audit panels:

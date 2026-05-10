@@ -13,7 +13,12 @@ test("audit readiness page renders key backend fields in the read-only worklist"
   const source = readPageSource();
 
   [
-    "Patient ID",
+    "Reviewer Work Queue",
+    "Read-only V1 queue",
+    "does not approve",
+    "Reviewer queue rows",
+    "Patient",
+    "Queue Posture",
     "Latest Snapshot ID",
     "Snapshot Created",
     "Review Status",
@@ -24,6 +29,11 @@ test("audit readiness page renders key backend fields in the read-only worklist"
     "Bundle Available",
     "Exported",
     "Formats",
+    "Audit ready",
+    "Missing evidence / blocked",
+    "Rejected review",
+    "Override approval",
+    "Needs review",
   ].forEach((label) => {
     assert.match(source, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
@@ -40,6 +50,10 @@ test("audit readiness page renders key backend fields in the read-only worklist"
     "item.audit_bundle.available",
     "item.audit_bundle.exported",
     "item.audit_bundle.export_formats",
+    "fetchReviewPacketQueueSummary",
+    "snapshot_audit_lifecycle",
+    "approved_with_override_count",
+    "exported_count",
   ].forEach((field) => {
     assert.match(source, new RegExp(field.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
@@ -51,10 +65,14 @@ test("audit readiness rows link to patient detail without exposing mutation cont
   assert.match(source, /href=\{patientDetailHref\(item\.patient_id\)\}/);
   assert.match(source, /\/patients\/\$\{encodeURIComponent\(patientId\)\}/);
   assert.doesNotMatch(source, /method:\s*"POST"/);
+  assert.doesNotMatch(source, /createWorkflowBootstrap/);
+  assert.doesNotMatch(source, /acknowledgeEscalation/);
   assert.doesNotMatch(source, /Download JSON/);
   assert.doesNotMatch(source, /Download Markdown/);
   assert.doesNotMatch(source, /Download PDF/);
   assert.doesNotMatch(source, />\s*Approve\s*</i);
   assert.doesNotMatch(source, />\s*Reject\s*</i);
   assert.doesNotMatch(source, />\s*Assign\s*</i);
+  assert.doesNotMatch(source, />\s*Override\s*</i);
+  assert.doesNotMatch(source, />\s*Create Snapshot\s*</i);
 });

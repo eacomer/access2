@@ -6,7 +6,7 @@ Backend startup command
 Seeded demo users
 Seeded demo patient IDs
 E2E command
-Expected E2E result: 7 passed, 2 skipped, 0 failed
+Expected E2E result after Reviewer Work Queue deployment: 8 passed, 2 skipped, 0 failed
 Demo Guide coverage
 Reason for skipped tests
 Security reminder to rotate Railway public Postgres credentials
@@ -22,8 +22,11 @@ https://api.salvardata.com/api/v1
 Backend FRONTEND_ORIGIN:
 https://access2.salvardata.com
 
-E2E result:
+E2E result before Reviewer Work Queue expansion:
 7 passed, 2 skipped, 0 failed
+
+Expected E2E result after Reviewer Work Queue deployment:
+8 passed, 2 skipped, 0 failed
 
 Demo Guide coverage:
 - Protected Demo Guide page opens after login.
@@ -36,10 +39,12 @@ Demo Guide coverage:
 Production E2E baseline:
 - Frontend: https://access2.salvardata.com
 - Backend API: https://api.salvardata.com/api/v1
-- Result: 7 passed, 2 skipped, 0 failed
+- Previous result: 7 passed, 2 skipped, 0 failed
+- Expected result after Reviewer Work Queue deployment: 8 passed, 2 skipped, 0 failed
 - Validates login.
 - Validates Demo Guide.
 - Validates the protected `/demo/release-summary` page.
+- Validates the protected Reviewer Work Queue at `/audit-readiness`.
 - Validates four seeded demo patient scenarios.
 - Validates Evidence Chain panel assertions.
 - Validates Manifest Verification panel assertions.
@@ -48,6 +53,22 @@ Production E2E baseline:
 - Validates JSON audit bundle `readiness_reasons` shape: `code`, `severity`, `label`, and `detail`.
 - Validates Markdown audit bundle output includes `Audit Readiness Reasons`.
 - Validates PDF audit bundle output is non-empty PDF content.
+
+Reviewer Work Queue:
+- Protected frontend route: `/audit-readiness`
+- Navigation label: `Reviewer Queue`
+- Purpose: a read-only reviewer/operator queue for seeing latest review-packet posture across audit-ready, missing-evidence/blocked, rejected-review, override-approval, pending/needs-review, and exported-bundle states.
+- Uses existing backend endpoints:
+  - `GET /reports/access-review-packet/audit-readiness`
+  - `GET /reports/access-review-packet/snapshots/queue-summary`
+  - `GET /reports/access-review-packet/reviewer/my-summary`
+- Links queue rows to patient detail through safe synthetic patient identifiers.
+- Does not approve, reject, override, assign, export, create snapshots, or mutate workflow state in V1.
+- Strengthens the ACCESS2 evidence chain by helping reviewers move from organization-level packet posture to patient-level proof without changing persisted audit artifacts:
+
+```text
+signal → escalation → intervention → outcome → evidence → case summary → immutable review packet snapshot → approval/rejection → audit bundle → manifest verification
+```
 
 Demo release summary:
 - Protected frontend route: `/demo/release-summary`

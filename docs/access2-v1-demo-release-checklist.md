@@ -36,7 +36,7 @@ admin@example.com / Admin123!
 
 - `/login`
 - `Patients`
-- `Audit Readiness`
+- `Reviewer Queue` at `/audit-readiness`
 - Patient detail page
 - Patient `ACCESS audit status` panel
 - Patient `Review packet backlog`
@@ -151,7 +151,7 @@ Invoke-RestMethod `
 
 - Backend live and ready checks return HTTP 200.
 - Browser login succeeds with the documented demo account.
-- `Audit Readiness` shows at least one latest-snapshot row.
+- `Reviewer Queue` shows read-only V1 copy, lifecycle counts, and at least one latest-snapshot row.
 - A patient detail page opens from an audit-readiness row.
 - Patient audit-status and review-packet backlog panels render.
 - Approved bundle download links work for JSON, Markdown, and PDF where an approved export-ready snapshot exists.
@@ -213,8 +213,8 @@ The V1 demo is ready to show when an operator can:
 
 1. Sign in.
 2. Open `Patients`.
-3. Open `Audit Readiness`.
-4. Explain a patient audit-readiness row.
+3. Open `Reviewer Queue`.
+4. Explain the read-only Reviewer Work Queue and a patient audit-readiness row.
 5. Navigate from that row to patient detail.
 6. Explain patient workflow evidence, audit status, and review-packet backlog.
 7. Download JSON, Markdown, and PDF audit bundles for an approved export-ready snapshot.

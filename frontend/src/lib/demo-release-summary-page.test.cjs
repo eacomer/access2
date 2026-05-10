@@ -45,6 +45,8 @@ test("demo release summary remains read-only and linked from primary navigation"
 
   assert.match(navSource, /href:\s*"\/demo\/release-summary"/);
   assert.match(navSource, /label:\s*"Release Summary"/);
+  assert.match(navSource, /href:\s*"\/audit-readiness"/);
+  assert.match(navSource, /label:\s*"Reviewer Queue"/);
   assert.doesNotMatch(pageSource, />\s*Approve\s*</i);
   assert.doesNotMatch(pageSource, />\s*Reject\s*</i);
   assert.doesNotMatch(pageSource, /method:\s*"POST"/i);

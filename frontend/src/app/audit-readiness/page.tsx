@@ -2,10 +2,15 @@ import Link from "next/link";
 import { Suspense } from "react";
 
 import StateNotice from "../../components/StateNotice";
-import { fetchAuditReadiness, fetchReviewerMySummary } from "../../lib/api";
+import { fetchAuditReadiness, fetchReviewerMySummary, fetchReviewPacketQueueSummary } from "../../lib/api";
 import { requireAuth } from "../../lib/auth/session";
 import { formatDateTime, formatPriority } from "../../lib/format";
-import type { AuditReadinessItem, AuditReadinessStatus, ReviewerMySummary } from "../../types/patient";
+import type {
+  AuditReadinessItem,
+  AuditReadinessStatus,
+  ReviewerMySummary,
+  ReviewPacketQueueSummary,
+} from "../../types/patient";
 
 export const dynamic = "force-dynamic";
 
@@ -63,6 +68,28 @@ const formatExportFormats = (item: AuditReadinessItem) => {
     return "—";
   }
   return item.audit_bundle.export_formats.join(", ");
+};
+
+const getQueuePosture = (item: AuditReadinessItem): { label: string; tone: string } => {
+  if (item.review_state === "approved_with_override") {
+    return { label: "Override approval", tone: "warning" };
+  }
+  if (item.completion_status === "audit_ready") {
+    return { label: "Audit ready", tone: "positive" };
+  }
+  if (item.completion_status === "rejected" || item.review_state === "rejected") {
+    return { label: "Rejected review", tone: "critical" };
+  }
+  if (item.completion_status === "incomplete" || item.review_state === "blocked_missing_evidence") {
+    return { label: "Missing evidence / blocked", tone: "critical" };
+  }
+  if (item.completion_status === "review_ready" || item.review_state === "pending_assigned_ready") {
+    return { label: "Needs review", tone: "info" };
+  }
+  if (item.completion_status === "approved_not_exported") {
+    return { label: "Approved, export pending", tone: "warning" };
+  }
+  return { label: "Needs snapshot review", tone: "info" };
 };
 
 const patientDetailHref = (patientId: string) => `/patients/${encodeURIComponent(patientId)}`;
@@ -150,6 +177,80 @@ async function ReviewerSummarySection({ retryHref }: { retryHref: string }) {
   );
 }
 
+const QueueLifecycleLoading = () => (
+  <section className="queue-impact" aria-label="Reviewer work queue lifecycle counts">
+    <div className="queue-impact-head">
+      <div>
+        <p className="worklist-context-label">Reviewer work queue</p>
+        <p className="queue-impact-summary">Loading review-packet lifecycle counts.</p>
+      </div>
+    </div>
+  </section>
+);
+
+async function QueueLifecycleSection({ retryHref }: { retryHref: string }) {
+  let summary: ReviewPacketQueueSummary | null = null;
+  try {
+    summary = await fetchReviewPacketQueueSummary({ authRedirectPath: retryHref });
+  } catch (error) {
+    if (isRedirectLikeError(error)) {
+      throw error;
+    }
+    console.error("Failed to load review packet queue summary", error);
+    return (
+      <StateNotice
+        tone="warning"
+        title="Review-packet queue summary unavailable"
+        body="The lifecycle summary request failed. The latest-snapshot reviewer rows remain available."
+      />
+    );
+  }
+
+  const lifecycle = summary.snapshot_audit_lifecycle;
+
+  return (
+    <section className="queue-impact" aria-label="Reviewer work queue lifecycle counts">
+      <div className="queue-impact-head">
+        <div>
+          <p className="worklist-context-label">Reviewer work queue</p>
+          <p className="queue-impact-summary">
+            Read-only lifecycle counts from persisted review-packet snapshots and audit export state.
+          </p>
+        </div>
+        <p className="worklist-context-helper">Total latest snapshots: {summary.total}</p>
+      </div>
+      <div className="queue-impact-grid">
+        <div className="queue-impact-stat">
+          <span className="queue-impact-value">{summary.total}</span>
+          <span className="queue-impact-label">Total packets</span>
+        </div>
+        <div className="queue-impact-stat queue-impact-stat--info">
+          <span className="queue-impact-value">
+            {lifecycle.pending_unassigned_count + lifecycle.pending_assigned_ready_count}
+          </span>
+          <span className="queue-impact-label">Pending / needs review</span>
+        </div>
+        <div className="queue-impact-stat queue-impact-stat--alert">
+          <span className="queue-impact-value">{lifecycle.blocked_missing_evidence_count}</span>
+          <span className="queue-impact-label">Missing evidence / blocked</span>
+        </div>
+        <div className="queue-impact-stat">
+          <span className="queue-impact-value">{lifecycle.rejected_count}</span>
+          <span className="queue-impact-label">Rejected review</span>
+        </div>
+        <div className="queue-impact-stat queue-impact-stat--warning">
+          <span className="queue-impact-value">{lifecycle.approved_with_override_count}</span>
+          <span className="queue-impact-label">Override approval</span>
+        </div>
+        <div className="queue-impact-stat queue-impact-stat--positive">
+          <span className="queue-impact-value">{lifecycle.exported_count}</span>
+          <span className="queue-impact-label">Exported bundle</span>
+        </div>
+      </div>
+    </section>
+  );
+}
+
 export default async function AuditReadinessPage({ searchParams }: PageProps) {
   const resolvedSearchParams =
     (searchParams ? await searchParams : {}) as Record<string, string | string[] | undefined>;
@@ -175,9 +276,14 @@ export default async function AuditReadinessPage({ searchParams }: PageProps) {
         <header className="patient-workflow-header">
           <div className="patient-workflow-header-main">
             <p className="eyebrow">ACCESS review packets</p>
-            <h1>Audit readiness</h1>
+            <h1>Reviewer Work Queue</h1>
             <p className="patient-workflow-header-subtitle">
-              Read-only latest-per-patient readiness view from persisted snapshot and event data.
+              Read-only V1 queue for audit-ready, blocked, rejected, override-approved, and export-ready review
+              packets.
+            </p>
+            <p className="inline-helper">
+              This page helps reviewers understand next steps from persisted evidence state. It does not approve,
+              reject, assign, export, or create snapshots.
             </p>
           </div>
           <div className="patient-workflow-cues" aria-label="Audit readiness filters">
@@ -199,6 +305,10 @@ export default async function AuditReadinessPage({ searchParams }: PageProps) {
 
         <Suspense fallback={<ReviewerSummaryLoading />}>
           <ReviewerSummarySection retryHref={retryHref} />
+        </Suspense>
+
+        <Suspense fallback={<QueueLifecycleLoading />}>
+          <QueueLifecycleSection retryHref={retryHref} />
         </Suspense>
 
         <section className="queue-impact" aria-label="Audit readiness status counts">
@@ -237,7 +347,7 @@ export default async function AuditReadinessPage({ searchParams }: PageProps) {
         <section className="worklist-results" aria-label="Audit readiness worklist">
           <div className="worklist-results-head">
             <div>
-              <p className="worklist-context-label">Worklist rows</p>
+              <p className="worklist-context-label">Reviewer queue rows</p>
               <p className="worklist-context-helper">
                 Showing {payload.items.length} of {payload.total_count} persisted latest-snapshot rows.
               </p>
@@ -254,7 +364,8 @@ export default async function AuditReadinessPage({ searchParams }: PageProps) {
               <table className="audit-readiness-table">
                 <thead>
                   <tr>
-                    <th>Patient ID</th>
+                    <th>Patient</th>
+                    <th>Queue Posture</th>
                     <th>Latest Snapshot ID</th>
                     <th>Snapshot Created</th>
                     <th>Review Status</th>
@@ -269,29 +380,36 @@ export default async function AuditReadinessPage({ searchParams }: PageProps) {
                   </tr>
                 </thead>
                 <tbody>
-                  {payload.items.map((item) => (
-                    <tr key={item.latest_snapshot_id}>
-                      <td>
-                        <Link className="table-link" href={patientDetailHref(item.patient_id)}>
-                          {item.patient_id}
-                        </Link>
-                      </td>
-                      <td>{item.latest_snapshot_id}</td>
-                      <td>{formatDateTime(item.latest_snapshot_created_at)}</td>
-                      <td>{formatAuditStatusValue(item.review_status)}</td>
-                      <td>{formatAuditStatusValue(item.completion_status)}</td>
-                      <td>{formatAuditStatusValue(item.review_state)}</td>
-                      <td>{formatValue(item.assigned_reviewer_user_id)}</td>
-                      <td>
-                        <strong>{formatAuditStatusValue(item.next_step.action)}</strong>
-                        <p className="inline-helper">{item.next_step.reason}</p>
-                      </td>
-                      <td>{formatPriority(item.next_step.priority)}</td>
-                      <td>{item.audit_bundle.available ? "Yes" : "No"}</td>
-                      <td>{item.audit_bundle.exported ? "Yes" : "No"}</td>
-                      <td>{formatExportFormats(item)}</td>
-                    </tr>
-                  ))}
+                  {payload.items.map((item) => {
+                    const posture = getQueuePosture(item);
+                    return (
+                      <tr data-review-state={item.review_state} key={item.latest_snapshot_id}>
+                        <td>
+                          <Link className="table-link" href={patientDetailHref(item.patient_id)}>
+                            {item.patient_id}
+                          </Link>
+                          <p className="inline-helper">Synthetic patient identifier</p>
+                        </td>
+                        <td>
+                          <span className={`badge badge--${posture.tone}`}>{posture.label}</span>
+                        </td>
+                        <td>{item.latest_snapshot_id}</td>
+                        <td>{formatDateTime(item.latest_snapshot_created_at)}</td>
+                        <td>{formatAuditStatusValue(item.review_status)}</td>
+                        <td>{formatAuditStatusValue(item.completion_status)}</td>
+                        <td>{formatAuditStatusValue(item.review_state)}</td>
+                        <td>{formatValue(item.assigned_reviewer_user_id)}</td>
+                        <td>
+                          <strong>{formatAuditStatusValue(item.next_step.action)}</strong>
+                          <p className="inline-helper">{item.next_step.reason}</p>
+                        </td>
+                        <td>{formatPriority(item.next_step.priority)}</td>
+                        <td>{item.audit_bundle.available ? "Yes" : "No"}</td>
+                        <td>{item.audit_bundle.exported ? "Yes" : "No"}</td>
+                        <td>{formatExportFormats(item)}</td>
+                      </tr>
+                    );
+                  })}
                 </tbody>
               </table>
             </div>
@@ -309,7 +427,7 @@ export default async function AuditReadinessPage({ searchParams }: PageProps) {
         <header className="patient-workflow-header">
           <div className="patient-workflow-header-main">
             <p className="eyebrow">ACCESS review packets</p>
-            <h1>Audit readiness</h1>
+            <h1>Reviewer Work Queue</h1>
             <p className="patient-workflow-header-subtitle">
               Read-only latest-per-patient readiness view from persisted snapshot and event data.
             </p>
