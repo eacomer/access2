@@ -195,17 +195,60 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     }
 
     await expect(pageRoot).toContainText("Production E2E baseline");
-    await expect(pageRoot).toContainText("6");
+    await expect(pageRoot).toContainText("8");
     await expect(pageRoot).toContainText("Passed");
     await expect(pageRoot).toContainText("2");
     await expect(pageRoot).toContainText("Skipped");
     await expect(pageRoot).toContainText("0");
     await expect(pageRoot).toContainText("Failed");
 
+    const proofChecklist = pageRoot.locator("section", { hasText: "Evidence Proof Checklist" });
+    await expect(proofChecklist).toBeVisible();
+    await expect(proofChecklist).toContainText(
+      "Read-only synthetic demo checklist for the ACCESS2 evidence story.",
+    );
+
+    for (const checklistText of [
+      "Demo Patient 1 - Audit Ready",
+      "Audit-ready because the signal-to-outcome proof chain is complete",
+      "outcome: measurable improvement documented",
+      "Demo Patient 2 - Missing Evidence",
+      "Missing evidence because the patient has the care workflow context",
+      "outcome: missing measurable outcome proof",
+      "Demo Patient 3 - Rejected Review",
+      "Rejected because the immutable review packet exists",
+      "immutable review packet snapshot: rejected",
+      "Demo Patient 4 - Override Approval",
+      "Override-approved because the snapshot carries an approved override posture",
+      "review posture: override-approved",
+    ]) {
+      await expect(proofChecklist).toContainText(checklistText);
+    }
+
+    for (const checklistLabel of [
+      /signal/i,
+      /escalation/i,
+      /intervention/i,
+      /outcome/i,
+      /evidence/i,
+      /case summary/i,
+      /immutable review packet snapshot/i,
+      /review posture/i,
+      /audit bundle/i,
+      /manifest verification/i,
+      /readiness reasons/i,
+      /next step/i,
+    ]) {
+      await expect(proofChecklist).toContainText(checklistLabel);
+    }
+
     await expect(pageRoot).toContainText("No reviewer rejection mutation control is exposed in the V1 frontend.");
     await expect(pageRoot).toContainText(
       "No superuser override approval mutation control is exposed in the V1 frontend.",
     );
+    await expect(
+      pageRoot.getByRole("button", { name: /approve|reject|assign|override|export|create snapshot/i }),
+    ).toHaveCount(0);
   });
 
   test("Reviewer Work Queue shows read-only review packet posture", async ({ page }) => {
