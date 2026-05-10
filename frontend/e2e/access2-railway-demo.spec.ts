@@ -213,15 +213,12 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
 
     await page.goto("/audit-readiness");
     await expect(page).toHaveURL(/\/audit-readiness$/);
-    if ((await page.getByRole("heading", { name: "Reviewer Work Queue" }).count()) === 0) {
-      test.skip(true, "Reviewer Work Queue page copy is not deployed to the configured production frontend yet.");
-      return;
-    }
-    await expect(page.getByRole("heading", { name: "Reviewer Work Queue" })).toBeVisible();
 
     const pageRoot = page.getByTestId("audit-readiness-page");
+    await expect(pageRoot).toContainText("ACCESS review packets");
+    await expect(pageRoot).toContainText("Reviewer Work Queue");
     await expect(pageRoot).toContainText("Read-only V1 queue");
-    await expect(pageRoot).toContainText("does not approve");
+    await expect(pageRoot).toContainText("does not approve, reject, assign, export, or create snapshots");
     await expect(pageRoot).toContainText("Reviewer work queue");
     await expect(pageRoot).toContainText("Reviewer queue rows");
 
@@ -239,9 +236,9 @@ test.describe("ACCESS2 Railway synthetic demo cases", () => {
     if (process.env.ACCESS2_E2E_DEMO_PATIENT_1_ID) {
       await expect(pageRoot.getByRole("link", { name: process.env.ACCESS2_E2E_DEMO_PATIENT_1_ID })).toBeVisible();
     }
-    await expect(pageRoot.getByRole("button", { name: /approve|reject|assign|override|create snapshot/i })).toHaveCount(
-      0,
-    );
+    await expect(
+      pageRoot.getByRole("button", { name: /approve|reject|assign|override|export|create snapshot/i }),
+    ).toHaveCount(0);
     await expect(pageRoot.getByRole("link", { name: /Download JSON|Download Markdown|Download PDF/i })).toHaveCount(0);
   });
 
