@@ -7,7 +7,7 @@ export const dynamic = "force-dynamic";
 const DEFAULT_API_BASE_URL = "http://localhost:8000/api/v1";
 const PRODUCTION_FRONTEND_URL = "https://access2.salvardata.com";
 const PRODUCTION_E2E_BASELINE = {
-  passed: 6,
+  passed: 8,
   skipped: 2,
   failed: 0,
 };
@@ -32,6 +32,21 @@ const DEMO_PATIENTS = [
     posture: "Audit Ready",
     message:
       "Complete proof chain with outcome evidence, approved review posture, audit bundle export coverage, and manifest verification support.",
+    checklist: [
+      "signal: present",
+      "escalation: present",
+      "intervention: present",
+      "outcome: measurable improvement documented",
+      "evidence: supporting documentation linked",
+      "case summary: complete",
+      "immutable review packet snapshot: approved",
+      "review posture: approved",
+      "audit bundle availability/export status: exported bundle available",
+      "manifest verification: supported by persisted snapshot data",
+    ],
+    readinessReasons:
+      "Audit-ready because the signal-to-outcome proof chain is complete, the immutable review packet is approved, and the exported audit bundle can be verified against persisted data.",
+    nextStep: "Use this patient to demonstrate the complete ACCESS2 evidence story.",
   },
   {
     name: "Demo Patient 2 - Missing Evidence",
@@ -39,6 +54,21 @@ const DEMO_PATIENTS = [
     posture: "Missing Evidence",
     message:
       "Demonstrates the missing outcome/evidence proof gap and why audit bundle readiness remains incomplete.",
+    checklist: [
+      "signal: present",
+      "escalation: present",
+      "intervention: present",
+      "outcome: missing measurable outcome proof",
+      "evidence: required evidence incomplete",
+      "case summary: blocked by missing proof",
+      "immutable review packet snapshot: not audit-ready",
+      "review posture: blocked / missing evidence",
+      "audit bundle availability/export status: not available for export",
+      "manifest verification: blocked until evidence is complete",
+    ],
+    readinessReasons:
+      "Missing evidence because the patient has the care workflow context, but does not yet prove the measurable outcome and supporting evidence required for audit readiness.",
+    nextStep: "Use this patient to explain why ACCESS2 blocks incomplete evidence from becoming audit-ready.",
   },
   {
     name: "Demo Patient 3 - Rejected Review",
@@ -46,6 +76,22 @@ const DEMO_PATIENTS = [
     posture: "Rejected Review",
     message:
       "Shows that a proof packet exists, but the review posture is rejected and export readiness is blocked.",
+    checklist: [
+      "signal: present",
+      "escalation: present",
+      "intervention: present",
+      "outcome: reviewed but not accepted",
+      "evidence: reviewer found proof insufficient",
+      "case summary: present for review",
+      "immutable review packet snapshot: rejected",
+      "review posture: rejected",
+      "audit bundle availability/export status: blocked by rejected review",
+      "manifest verification: blocked until the review posture changes",
+    ],
+    readinessReasons:
+      "Rejected because the immutable review packet exists, but reviewer state prevents the case from being treated as approved audit evidence.",
+    nextStep:
+      "Use this patient to show the read-only rejected posture; V1 intentionally does not expose reviewer rejection mutation controls on this demo page.",
   },
   {
     name: "Demo Patient 4 - Override Approval",
@@ -53,6 +99,22 @@ const DEMO_PATIENTS = [
     posture: "Override Approval",
     message:
       "Shows approval that depends on override/superuser review posture without exposing override mutation controls.",
+    checklist: [
+      "signal: present",
+      "escalation: present",
+      "intervention: present",
+      "outcome: accepted with override context",
+      "evidence: sufficient for override approval posture",
+      "case summary: present",
+      "immutable review packet snapshot: approved with override",
+      "review posture: override-approved",
+      "audit bundle availability/export status: available when approved snapshot supports export",
+      "manifest verification: supported by persisted approved snapshot and bundle state",
+    ],
+    readinessReasons:
+      "Override-approved because the snapshot carries an approved override posture that is visible as evidence state without exposing superuser mutation controls.",
+    nextStep:
+      "Use this patient to explain override approval as read-only review evidence; V1 intentionally skips the UI mutation test for override approval.",
   },
 ];
 
@@ -150,6 +212,53 @@ export default async function DemoReleaseSummaryPage() {
                   <td>{patient.id}</td>
                   <td>{patient.posture}</td>
                   <td>{patient.message}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      </section>
+
+      <section className="section-card" aria-labelledby="release-summary-proof-checklist">
+        <div className="section-header">
+          <div>
+            <h2 className="section-title" id="release-summary-proof-checklist">
+              Evidence Proof Checklist
+            </h2>
+            <p className="section-subtitle">
+              Read-only synthetic demo checklist for the ACCESS2 evidence story. No approval,
+              rejection, override, export, assignment, or snapshot actions are exposed here.
+            </p>
+          </div>
+        </div>
+        <div className="audit-readiness-table-wrap">
+          <table className="audit-readiness-table">
+            <thead>
+              <tr>
+                <th>Scenario</th>
+                <th>Checklist status</th>
+                <th>Readiness reasons</th>
+                <th>Next step</th>
+              </tr>
+            </thead>
+            <tbody>
+              {DEMO_PATIENTS.map((patient) => (
+                <tr key={`${patient.id}-proof`}>
+                  <td>
+                    <Link className="table-link" href={patientHref(patient.id)}>
+                      {patient.name}
+                    </Link>
+                    <p className="queue-impact-detail">{patient.posture}</p>
+                  </td>
+                  <td>
+                    <ul>
+                      {patient.checklist.map((item) => (
+                        <li key={item}>{item}</li>
+                      ))}
+                    </ul>
+                  </td>
+                  <td>{patient.readinessReasons}</td>
+                  <td>{patient.nextStep}</td>
                 </tr>
               ))}
             </tbody>
