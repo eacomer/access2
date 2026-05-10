@@ -373,7 +373,15 @@ Viewer should see:
   - Demo Patient 2 - Missing Evidence.
   - Demo Patient 3 - Rejected Review.
   - Demo Patient 4 - Override Approval.
-- Expected production E2E baseline: `7 passed, 2 skipped, 0 failed`.
+- Evidence Proof Checklist for all four seeded scenarios.
+- Checklist rows for signal, escalation, intervention, outcome, evidence, case summary, immutable review packet snapshot, review posture, audit bundle availability/export status, manifest verification, readiness reasons, and next step.
+- The explicit evidence chain:
+
+```text
+signal → escalation → intervention → outcome → evidence → case summary → immutable review packet snapshot → approval/rejection → audit bundle → manifest verification
+```
+
+- Expected production E2E baseline: `8 passed, 2 skipped, 0 failed`.
 - The skipped-test rationale: reviewer rejection and superuser override approval remain read-only frontend postures in ACCESS2 V1.
 - No mutation controls.
 
@@ -418,7 +426,7 @@ ACCESS2 is proving evidence posture, not just displaying tasks. The point of thi
 
 On `/audit-readiness`, call out the Reviewer Work Queue, reviewer workload summary, lifecycle counts, and patient-detail links. These views help reviewers understand which packets are audit-ready, blocked by missing evidence, rejected, override-approved, pending review, or already exported without mutating the underlying audit record.
 
-On `/demo/release-summary`, call out the current production/demo release posture. This is the single read-only operator page for confirming the seeded scenarios, latest production E2E baseline, and expected skip rationale before walking patient-level evidence.
+On `/demo/release-summary`, call out the current production/demo release posture. This is the single read-only operator page for confirming the seeded scenarios, Evidence Proof Checklist, latest production E2E baseline, and expected skip rationale before walking patient-level evidence.
 
 On patient detail, call out the audit-status and review-packet backlog panels. These connect the patient's current audit posture to persisted review packet history and make the next review step visible.
 

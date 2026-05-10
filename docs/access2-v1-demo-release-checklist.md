@@ -37,6 +37,7 @@ admin@example.com / Admin123!
 - `/login`
 - `Patients`
 - `Reviewer Queue` at `/audit-readiness`
+- `Release Summary` at `/demo/release-summary`
 - Patient detail page
 - Patient `ACCESS audit status` panel
 - Patient `Review packet backlog`
@@ -152,6 +153,8 @@ Invoke-RestMethod `
 - Backend live and ready checks return HTTP 200.
 - Browser login succeeds with the documented demo account.
 - `Reviewer Queue` shows read-only V1 copy, lifecycle counts, and at least one latest-snapshot row.
+- `Release Summary` shows the read-only Evidence Proof Checklist for all four seeded synthetic demo patients.
+- `Release Summary` shows the evidence chain from signal through manifest verification, plus readiness reasons and next step.
 - A patient detail page opens from an audit-readiness row.
 - Patient audit-status and review-packet backlog panels render.
 - Approved bundle download links work for JSON, Markdown, and PDF where an approved export-ready snapshot exists.
@@ -214,14 +217,16 @@ The V1 demo is ready to show when an operator can:
 1. Sign in.
 2. Open `Patients`.
 3. Open `Reviewer Queue`.
-4. Explain the read-only Reviewer Work Queue and a patient audit-readiness row.
-5. Navigate from that row to patient detail.
-6. Explain patient workflow evidence, audit status, and review-packet backlog.
-7. Download JSON, Markdown, and PDF audit bundles for an approved export-ready snapshot.
-8. Copy `audit_manifest` from the JSON bundle.
-9. Open `Verify Bundle`.
-10. Verify the manifest against persisted snapshot data.
-11. Explain mismatch, invalid JSON, missing-field, auth, and backend error states.
+4. Open `Release Summary`.
+5. Explain the read-only Evidence Proof Checklist and expected production E2E baseline.
+6. Explain the read-only Reviewer Work Queue and a patient audit-readiness row.
+7. Navigate from that row to patient detail.
+8. Explain patient workflow evidence, audit status, and review-packet backlog.
+9. Download JSON, Markdown, and PDF audit bundles for an approved export-ready snapshot.
+10. Copy `audit_manifest` from the JSON bundle.
+11. Open `Verify Bundle`.
+12. Verify the manifest against persisted snapshot data.
+13. Explain mismatch, invalid JSON, missing-field, auth, and backend error states.
 
 ## Scope Reminder
 

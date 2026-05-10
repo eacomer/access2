@@ -9,6 +9,8 @@ Use this handoff with:
 - [access2-v1-demo-release-checklist.md](C:/dev/access2/docs/access2-v1-demo-release-checklist.md)
 - [access2-v1-demo-runbook.md](C:/dev/access2/docs/access2-v1-demo-runbook.md)
 - [access2-v1-frontend-demo-script.md](C:/dev/access2/docs/access2-v1-frontend-demo-script.md)
+- [access2-railway-demo-validation.md](C:/dev/access2/docs/access2-railway-demo-validation.md)
+- [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md)
 
 The validated V1 path is:
 
@@ -21,6 +23,7 @@ login -> patient/worklist -> intervention/outcome evidence -> review packet -> a
 - A seeded operator can sign in.
 - Authenticated users can open patient/worklist surfaces.
 - Operators can view organization-level audit readiness.
+- Operators can open the Demo Release Summary and explain the read-only Evidence Proof Checklist across the four seeded synthetic demo patients.
 - Operators can open patient detail and review patient-level audit status.
 - Operators can inspect the review-packet backlog for persisted snapshots.
 - Approved export-ready snapshots expose JSON, Markdown, and PDF audit bundle downloads.
@@ -88,6 +91,14 @@ Selenium smoke:
 ```
 
 The skipped tests are expected for the read-only smoke command unless the documented data-creating bootstrap flag is supplied.
+
+Production Railway E2E:
+
+```text
+8 passed, 2 skipped, 0 failed
+```
+
+The two skipped production tests remain expected V1 read-only constraints for Demo Patient 3 reviewer rejection through UI and Demo Patient 4 superuser override approval through UI.
 
 ## Known Non-Blocking Warnings
 

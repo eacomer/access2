@@ -92,12 +92,12 @@ $env:ACCESS2_E2E_DEMO_PATIENT_2_ID="1c5c7db8-96f8-47af-a643-741641ecdcf3"
 $env:ACCESS2_E2E_DEMO_PATIENT_3_ID="4c1ef5ef-1216-453d-b317-b965a0dd1dea"
 $env:ACCESS2_E2E_DEMO_PATIENT_4_ID="2e9dc25c-2e56-4d6a-aea0-8706d33b0444"
 
-npm run test:e2e
+& 'C:\Program Files\nodejs\npm.cmd' run test:e2e
 ```
 
 Expected result:
 
-- 6 passed
+- 8 passed
 - 2 skipped
 - 0 failed
 
@@ -108,11 +108,11 @@ The skipped tests are expected because ACCESS2 V1 frontend audit panels are read
 
 ## Latest Production Custom-Domain Validation
 
-Latest production custom-domain E2E validation confirmed the deployed frontend login works, the Demo Guide page is protected and visible after login, and the deployed patient detail page shows the Evidence Chain, Manifest Verification, and Outcome Proof Gaps panels for all four seeded synthetic demo patients. Outcome Proof Gaps now renders backend-owned audit-status `readiness_reasons` for the patient proof-gap explanation.
+Latest production custom-domain E2E validation confirmed the deployed frontend login works, the Demo Guide page is protected and visible after login, the Demo Release Summary includes the read-only Evidence Proof Checklist, and the deployed patient detail page shows the Evidence Chain, Manifest Verification, and Outcome Proof Gaps panels for all four seeded synthetic demo patients. Outcome Proof Gaps now renders backend-owned audit-status `readiness_reasons` for the patient proof-gap explanation.
 
 Result:
 
-- 6 passed
+- 8 passed
 - 2 skipped
 - 0 failed
 
@@ -121,6 +121,19 @@ Validated production demo baseline:
 - Deployed login works.
 - Demo Guide coverage is included.
 - Demo Guide validates the proof chain, four seeded patient scenario links, Evidence Chain explanation, Manifest Verification explanation, and synthetic/no-PHI safety text.
+- Demo Release Summary coverage is included.
+- Demo Release Summary validates the read-only Evidence Proof Checklist for:
+  - Demo Patient 1 - Audit Ready: `f4c31931-8fc2-41d6-9f45-9ab0bd039088`
+  - Demo Patient 2 - Missing Evidence: `1c5c7db8-96f8-47af-a643-741641ecdcf3`
+  - Demo Patient 3 - Rejected Review: `4c1ef5ef-1216-453d-b317-b965a0dd1dea`
+  - Demo Patient 4 - Override Approval: `2e9dc25c-2e56-4d6a-aea0-8706d33b0444`
+- The checklist makes this ACCESS2 evidence chain explicit:
+
+  ```text
+  signal → escalation → intervention → outcome → evidence → case summary → immutable review packet snapshot → approval/rejection → audit bundle → manifest verification
+  ```
+
+- The checklist includes signal, escalation, intervention, outcome, evidence, case summary, immutable review packet snapshot, review posture, audit bundle availability/export status, manifest verification, readiness reasons, and next step.
 - Seeded synthetic demo patients are reachable.
 - Evidence Chain panel is visible and validated for all four seeded demo patients.
 - Manifest Verification panel is visible and validated for all four seeded demo patients.
@@ -173,21 +186,23 @@ Use this lightweight human smoke check after a production deploy, custom-domain 
    - Synthetic/demo-only safety expectations.
    - No real PHI should be entered.
 
-5. Open each seeded synthetic demo patient from the app:
+5. Open `Release Summary` and confirm the read-only Evidence Proof Checklist covers all four seeded synthetic demo patients and shows the signal-to-verification evidence chain, readiness reasons, and next step without mutation controls.
+
+6. Open each seeded synthetic demo patient from the app:
 
    - Demo Patient 1 - Audit Ready: `f4c31931-8fc2-41d6-9f45-9ab0bd039088`
    - Demo Patient 2 - Missing Evidence: `1c5c7db8-96f8-47af-a643-741641ecdcf3`
    - Demo Patient 3 - Rejected Review: `4c1ef5ef-1216-453d-b317-b965a0dd1dea`
    - Demo Patient 4 - Override Approval: `2e9dc25c-2e56-4d6a-aea0-8706d33b0444`
 
-6. For each patient, confirm these read-only proof panels are visible:
+7. For each patient, confirm these read-only proof panels are visible:
 
    - Patient audit posture/status.
    - Evidence Chain.
    - Manifest Verification.
    - Outcome Proof Gaps, backed by backend audit-status `readiness_reasons`.
 
-7. For Demo Patient 1 - Audit Ready, confirm approved/export-ready audit bundle download actions are available for:
+8. For Demo Patient 1 - Audit Ready, confirm approved/export-ready audit bundle download actions are available for:
 
    - JSON audit bundle.
    - Markdown audit bundle.
@@ -195,16 +210,16 @@ Use this lightweight human smoke check after a production deploy, custom-domain 
 
    Automated E2E coverage validates these downloads through the authenticated frontend proxy. JSON is checked for persisted `readiness_reasons` with `code`, `severity`, `label`, and `detail`; Markdown is checked for the `Audit Readiness Reasons` section; PDF is checked as non-empty PDF output.
 
-8. Confirm ACCESS2 V1 does not expose frontend mutation controls for:
+9. Confirm ACCESS2 V1 does not expose frontend mutation controls for:
 
    - Demo Patient 3 reviewer rejection through UI.
    - Demo Patient 4 superuser override approval through UI.
 
-9. If automated confirmation is needed, run the production E2E command in this document using the existing `ACCESS2_E2E_*` environment variable pattern.
+10. If automated confirmation is needed, run the production E2E command in this document using the existing `ACCESS2_E2E_*` environment variable pattern.
 
 Expected production E2E result:
 
-- 6 passed
+- 8 passed
 - 2 skipped
 - 0 failed
 

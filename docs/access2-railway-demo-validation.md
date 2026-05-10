@@ -6,8 +6,9 @@ Backend startup command
 Seeded demo users
 Seeded demo patient IDs
 E2E command
-Expected E2E result after Reviewer Work Queue deployment: 8 passed, 2 skipped, 0 failed
+Expected production E2E result after Release Summary Evidence Proof Checklist deployment: 8 passed, 2 skipped, 0 failed
 Demo Guide coverage
+Demo Release Summary Evidence Proof Checklist coverage
 Reason for skipped tests
 Security reminder to rotate Railway public Postgres credentials
 
@@ -28,6 +29,9 @@ E2E result before Reviewer Work Queue expansion:
 Expected E2E result after Reviewer Work Queue deployment:
 8 passed, 2 skipped, 0 failed
 
+Expected E2E result after Release Summary Evidence Proof Checklist deployment:
+8 passed, 2 skipped, 0 failed
+
 Demo Guide coverage:
 - Protected Demo Guide page opens after login.
 - Proof chain text is present.
@@ -39,8 +43,7 @@ Demo Guide coverage:
 Production E2E baseline:
 - Frontend: https://access2.salvardata.com
 - Backend API: https://api.salvardata.com/api/v1
-- Previous result: 7 passed, 2 skipped, 0 failed
-- Expected result after Reviewer Work Queue deployment: 8 passed, 2 skipped, 0 failed
+- Latest result: 8 passed, 2 skipped, 0 failed
 - Validates login.
 - Validates Demo Guide.
 - Validates the protected `/demo/release-summary` page.
@@ -53,6 +56,34 @@ Production E2E baseline:
 - Validates JSON audit bundle `readiness_reasons` shape: `code`, `severity`, `label`, and `detail`.
 - Validates Markdown audit bundle output includes `Audit Readiness Reasons`.
 - Validates PDF audit bundle output is non-empty PDF content.
+
+Production E2E command:
+
+```powershell
+cd C:\dev\access2\frontend
+
+$env:ACCESS2_E2E_BASE_URL="https://access2.salvardata.com"
+$env:ACCESS2_E2E_ADMIN_EMAIL="admin@example.com"
+$env:ACCESS2_E2E_ADMIN_PASSWORD="Admin123!"
+
+$env:ACCESS2_E2E_DEMO_PATIENT_1_ID="f4c31931-8fc2-41d6-9f45-9ab0bd039088"
+$env:ACCESS2_E2E_DEMO_PATIENT_2_ID="1c5c7db8-96f8-47af-a643-741641ecdcf3"
+$env:ACCESS2_E2E_DEMO_PATIENT_3_ID="4c1ef5ef-1216-453d-b317-b965a0dd1dea"
+$env:ACCESS2_E2E_DEMO_PATIENT_4_ID="2e9dc25c-2e56-4d6a-aea0-8706d33b0444"
+
+& 'C:\Program Files\nodejs\npm.cmd' run test:e2e
+```
+
+Cleanup after production E2E:
+
+```powershell
+cd C:\dev\access2
+
+Remove-Item -Recurse -Force frontend\playwright-report -ErrorAction SilentlyContinue
+Remove-Item -Recurse -Force frontend\test-results -ErrorAction SilentlyContinue
+
+git status --short
+```
 
 Reviewer Work Queue:
 - Protected frontend route: `/audit-readiness`
@@ -74,7 +105,19 @@ Demo release summary:
 - Protected frontend route: `/demo/release-summary`
 - Purpose: one read-only operator/reviewer page for the current ACCESS2 V1 production/demo release posture.
 - Summarizes the production frontend URL, frontend-configured backend API base URL, Demo Guide availability, four seeded demo patient scenarios, expected operator messages, and the known production E2E baseline.
-- Production E2E directly validates the page heading, seeded scenario postures, baseline values, and expected V1 read-only skip rationale.
+- Includes a read-only `Evidence Proof Checklist` that makes the ACCESS2 evidence chain explicit:
+
+```text
+signal → escalation → intervention → outcome → evidence → case summary → immutable review packet snapshot → approval/rejection → audit bundle → manifest verification
+```
+
+- The checklist covers all four seeded synthetic demo patients:
+  - Demo Patient 1 - Audit Ready: `f4c31931-8fc2-41d6-9f45-9ab0bd039088`
+  - Demo Patient 2 - Missing Evidence: `1c5c7db8-96f8-47af-a643-741641ecdcf3`
+  - Demo Patient 3 - Rejected Review: `4c1ef5ef-1216-453d-b317-b965a0dd1dea`
+  - Demo Patient 4 - Override Approval: `2e9dc25c-2e56-4d6a-aea0-8706d33b0444`
+- The checklist shows read-only rows for signal, escalation, intervention, outcome, evidence, case summary, immutable review packet snapshot, review posture, audit bundle availability/export status, manifest verification, readiness reasons, and next step.
+- Production E2E directly validates the page heading, seeded scenario postures, Evidence Proof Checklist copy, baseline values, and expected V1 read-only skip rationale.
 - Records the expected skipped tests as V1 read-only constraints: no reviewer rejection mutation control and no superuser override approval mutation control in the frontend.
 - Does not create workflow state, export bundles, approve or reject snapshots, or add mutation controls.
 
@@ -123,4 +166,4 @@ postgres.railway.internal:5432/railway
 Post-rotation validation:
 - Backend /health/live returned ok.
 - Backend /health/ready returned ok with database=ok and redis=ok.
-- E2E against https://access2.salvardata.com returned 7 passed, 2 skipped, 0 failed.
+- Latest E2E against https://access2.salvardata.com returned 8 passed, 2 skipped, 0 failed.
