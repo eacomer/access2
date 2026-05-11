@@ -132,6 +132,32 @@ Approval gate:
 }
 ```
 
+Reviewer rejection is the first controlled V2 workflow operation. The frontend exposes it only through a narrow patient-detail control for the latest `pending_review` snapshot and sends the request through a reject-only frontend proxy:
+
+`POST /review-packet-snapshots/{snapshot_id}/reject`
+
+The proxy validates a non-empty reason, forwards the authenticated user token to the backend, and calls:
+
+`PATCH /api/v1/reports/access-review-packet/snapshots/{snapshot_id}/review`
+
+with:
+
+```json
+{
+  "review_status": "rejected",
+  "decision_note": "Reviewer-visible rejection reason."
+}
+```
+
+Rejection guardrails:
+
+- `decision_note` or `review_note` must provide a non-blank rejection reason at the backend boundary; the frontend proxy sends `decision_note`.
+- Whitespace-only rejection reasons are invalid.
+- Approved and rejected snapshots are terminal review states and cannot be rewritten.
+- Tenant scoping remains backend-enforced through scoped snapshot lookup.
+- Rejection updates review metadata and decision events only; it does not mutate stored `packet_json` or `packet_markdown`.
+- Rejected snapshots continue to return conflicts for audit bundle generation and manifest verification paths that require an approved snapshot.
+
 Override approval example for an incomplete snapshot:
 
 ```json

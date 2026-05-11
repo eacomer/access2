@@ -125,6 +125,26 @@ This is the best first V2 operation because it maps directly to an existing skip
 
 Reviewer rejection also creates a clear bridge from V1 read-only evidence posture to V2 controlled mutation: only the correct snapshot state should expose the action, the reason must be required, and the result must be auditable without mutating immutable packet content.
 
+## Current Implementation Status
+
+The first controlled V2 workflow operation is now implemented as reviewer rejection of a review packet snapshot.
+
+- Backend uses the existing review endpoint: `PATCH /api/v1/reports/access-review-packet/snapshots/{snapshot_id}/review`.
+- The frontend uses a reject-only proxy route at `/review-packet-snapshots/{snapshot_id}/reject`.
+- The proxy sends `review_status="rejected"` and `decision_note` as the required, trimmed rejection reason.
+- The patient-detail page exposes the control only in the review packet backlog for the latest snapshot when `review_status == "pending_review"`.
+- Approved, rejected, and historical snapshots remain read-only.
+- The audit-readiness queue remains read-only and does not expose reject, approve, override, assignment, export, or create-snapshot mutation controls.
+
+Backend guardrails remain part of the contract:
+
+- Rejection requires a non-empty reason.
+- Whitespace-only reasons are invalid.
+- Terminal review states cannot be rewritten.
+- Tenant scoping is enforced by backend snapshot lookup and review update logic.
+- Snapshot `packet_json` and `packet_markdown` remain immutable.
+- Rejected snapshots continue to block audit bundle generation and manifest verification.
+
 ## Scope for Recommended Slice
 
 The V2 rejection slice should include only the minimum behavior needed for a controlled reviewer rejection.
@@ -198,6 +218,9 @@ Test scope:
 - Do not run production mutation tests against shared demo data unless a safe reset or reseed strategy is documented.
 - Keep the current production baseline of `8 passed, 2 skipped, 0 failed` until the controlled rejection operation is intentionally deployed and production demo data can be safely reset.
 - Treat shared demo state as synthetic but still operationally sensitive because mutation tests can alter future demos.
+- Demo Patient 3 is already seeded as rejected, so it is not a repeatable production mutation target.
+- Keep the Playwright test named `Demo Patient 3 reviewer rejection through UI` skipped until a safe reset or reseed strategy exists.
+- Future mutation E2E should use a local-only disposable pending-review patient or a documented reset/reseed path before any production activation.
 
 ## Rollout and Risk Notes
 
@@ -209,6 +232,7 @@ Test scope:
 - Keep Demo Patient 3 as the first end-to-end rejection scenario if it remains the seeded rejection-path patient.
 - Do not enable override approval in the same slice.
 - Do not run production mutation checks without a documented reset path.
+- Do not change Railway deployment configuration or the backend startup command for this rollout.
 
 ## Proposed Implementation Sequence
 

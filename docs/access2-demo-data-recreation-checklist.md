@@ -183,6 +183,8 @@ Expected result:
 - `packet_json` and `packet_markdown` are persisted.
 - Review status starts as `pending_review`.
 
+V2 reviewer rejection mutation testing requires a snapshot that is still `pending_review`. Production Demo Patient 3 is intentionally seeded as already rejected, so it is useful for read-only rejected-posture validation but not for repeatable rejection mutation E2E. Do not activate production rejection mutation tests until reset/reseed instructions define how shared demo data is restored.
+
 ### 5. Approve The Snapshot
 
 Use normal approval when the packet is ready:
@@ -319,6 +321,7 @@ Record these values for the demo handoff:
 - No patients: run the existing guarded Selenium bootstrap path against a disposable local database.
 - No snapshots: use the existing operator-flow snapshot creation step.
 - Snapshot is `blocked_missing_evidence`: approve normally only if evidence is ready; for local demo data only, use the documented override path with a reason.
+- Rejection mutation test needs a `pending_review` snapshot: use a disposable local patient or a documented reset/reseed flow. Shared production demo data must remain stable for demos.
 - No approved export-ready snapshot: complete approval first, then export the JSON bundle.
 - JSON download works but verification fails: confirm you copied only the `audit_manifest` object from the matching snapshot bundle.
 - Invalid JSON: recopy the manifest object including opening and closing braces.

@@ -156,8 +156,11 @@ Expected skips:
 - Demo Patient 4 superuser override approval through UI
 
 Reason:
-ACCESS2 V1 frontend audit panels are read-only; rejection and override approval are intentionally not exposed as frontend mutation controls.
-The skipped tests remain expected because ACCESS2 V1 exposes reviewer rejection and superuser override approval as read-only frontend audit postures, not frontend mutation workflows.
+ACCESS2 V2 now supports controlled reviewer rejection through the patient detail page for the latest `pending_review` snapshot only, routed through a reject-only frontend proxy and the existing backend review endpoint. Production mutation E2E remains skipped because shared seeded demo data must stay stable for demos, and Demo Patient 3 is already seeded as rejected rather than pending review.
+
+The skipped `Demo Patient 3 reviewer rejection through UI` test must remain skipped until there is a safe reset/reseed strategy or a local-only disposable pending-review patient for mutation E2E. The Demo Patient 4 superuser override approval path also remains skipped because override approval UI is not part of the controlled rejection rollout.
+
+Do not run production mutation E2E against shared seeded demo data until reset/reseed steps are documented.
 
 Security cleanup:
 
