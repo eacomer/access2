@@ -4,6 +4,26 @@
 
 ACCESS2 V1 is ready to demo when the documented local prerequisites are satisfied.
 
+## Start Here / Handoff Map
+
+Current known baseline:
+
+- Production frontend: https://access2.salvardata.com
+- Production backend API: https://api.salvardata.com/api/v1
+- Production E2E latest known baseline: `8 passed, 2 skipped, 0 failed`
+- The skipped tests are intentional V1 read-only constraints for reviewer rejection through UI and superuser override approval through UI.
+
+Use these documents by job:
+
+- Run the stakeholder demo: [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md)
+- Validate production readiness: [access2-v1-demo-release-checklist.md](C:/dev/access2/docs/access2-v1-demo-release-checklist.md), [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md), and [access2-railway-demo-validation.md](C:/dev/access2/docs/access2-railway-demo-validation.md)
+- Troubleshoot production E2E: [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md)
+- Recreate synthetic demo data: [access2-demo-data-recreation-checklist.md](C:/dev/access2/docs/access2-demo-data-recreation-checklist.md)
+- Understand API/evidence contracts: [access-review-packet-api.md](C:/dev/access2/docs/access-review-packet-api.md)
+- Preserve V1 scope guardrails: [access2-v1-scope-control.md](C:/dev/access2/docs/access2-v1-scope-control.md)
+
+Do not expand V1 during handoff. Do not add real PHI, frontend mutation controls, approval/rejection/override/export/assign controls, deployment changes, Railway startup changes, broad refactors, or architecture redesign.
+
 Use this handoff with:
 
 - [access2-v1-demo-release-checklist.md](C:/dev/access2/docs/access2-v1-demo-release-checklist.md)
