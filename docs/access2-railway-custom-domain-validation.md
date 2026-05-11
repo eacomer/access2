@@ -155,6 +155,8 @@ Result:
 - 2 skipped
 - 0 failed
 
+Fresh production validation on 2026-05-11 returned the same baseline against `https://access2.salvardata.com`: 8 passed, 2 skipped, 0 failed. An earlier transient login-helper assertion failure passed on rerun and did not indicate a production auth outage.
+
 Validated production demo baseline:
 
 - Deployed login works.

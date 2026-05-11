@@ -44,6 +44,8 @@ Production E2E baseline:
 - Frontend: https://access2.salvardata.com
 - Backend API: https://api.salvardata.com/api/v1
 - Latest result: 8 passed, 2 skipped, 0 failed
+- Fresh production validation on 2026-05-11 returned 8 passed, 2 skipped, 0 failed against https://access2.salvardata.com.
+- One earlier transient login-helper assertion failure was resolved by rerun and did not indicate a production auth outage.
 - Validates login.
 - Validates Demo Guide.
 - Validates the protected `/demo/release-summary` page.

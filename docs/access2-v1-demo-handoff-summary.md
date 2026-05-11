@@ -121,6 +121,8 @@ Production Railway E2E:
 8 passed, 2 skipped, 0 failed
 ```
 
+Fresh production validation on 2026-05-11 returned this baseline against `https://access2.salvardata.com`. One earlier transient login-helper assertion failure passed on rerun and did not indicate a production auth outage.
+
 The two skipped production tests remain expected V1 read-only constraints for Demo Patient 3 reviewer rejection through UI and Demo Patient 4 superuser override approval through UI.
 
 ## Known Non-Blocking Warnings

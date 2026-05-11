@@ -7,6 +7,7 @@ Use this checklist before demo or release handoff. The goal is to preserve the v
 - Production frontend remains `https://access2.salvardata.com`.
 - Production backend API remains `https://api.salvardata.com/api/v1`.
 - Production E2E baseline remains `8 passed, 2 skipped, 0 failed`.
+- Latest fresh production validation on 2026-05-11 returned `8 passed, 2 skipped, 0 failed` against `https://access2.salvardata.com`.
 - The two skipped production E2E tests remain expected V1 read-only constraints:
   - Demo Patient 3 reviewer rejection through UI.
   - Demo Patient 4 superuser override approval through UI.
