@@ -205,8 +205,23 @@ Guardrails:
 - The marker is separate from `access2-railway-demo:*`; the four Railway demo patients remain unchanged.
 - Demo Patient 3 remains the production read-only rejected-posture scenario and should not be reused for repeatable mutation E2E.
 - After a prior local rejection, rerunning the script creates a new latest `pending_review` snapshot instead of rewriting the rejected terminal snapshot.
-- No Playwright mutation test is enabled yet; future local mutation E2E should target this disposable marker/patient.
+- No production Playwright mutation test is enabled; local mutation E2E must target this disposable marker/patient only.
 - Non-goals remain: no real PHI, no production mutation E2E, no Railway seed change, no deployment config change, no override approval UI, and no audit-readiness queue mutation controls.
+
+When the local backend, local frontend, and disposable local seed are ready, run the gated local mutation spec only against localhost:
+
+```powershell
+cd C:\dev\access2\frontend
+$env:ACCESS2_ENABLE_LOCAL_MUTATION_E2E="true"
+$env:ACCESS2_E2E_BASE_URL="http://localhost:3001"
+$env:ACCESS2_E2E_API_BASE_URL="http://localhost:8000/api/v1"
+$env:ACCESS2_E2E_ADMIN_EMAIL="admin@example.com"
+$env:ACCESS2_E2E_ADMIN_PASSWORD="Admin123!"
+$env:ACCESS2_LOCAL_V2_REJECTION_PATIENT_ID="<value printed by seed script>"
+npm run test:e2e:local-mutation
+```
+
+The local mutation spec is separate from the production Railway demo spec. It skips unless `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` is set and fails closed if the configured frontend or API target contains `access2.salvardata.com`, `api.salvardata.com`, `railway.app`, or `up.railway.app`.
 
 ### 5. Approve The Snapshot
 

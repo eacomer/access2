@@ -88,6 +88,8 @@ export type AuditBundle = {
   export_metadata: Record<string, unknown>;
 };
 
+export const LOCAL_V2_REJECTION_MUTATION_MARKER = "access2-local-v2-mutation:reviewer-rejection";
+
 type SnapshotEventList = {
   events: Array<{
     event_type: string;
@@ -202,6 +204,23 @@ export async function findDemoPatientCandidate(
     }
   }
   return null;
+}
+
+export async function findLocalV2RejectionMutationPatient(
+  request: APIRequestContext,
+  token: string,
+): Promise<WorklistItem | null> {
+  const worklist = await getWorklist(request, token);
+  const patientId = process.env.ACCESS2_LOCAL_V2_REJECTION_PATIENT_ID;
+  if (patientId) {
+    return worklist.items.find((item) => item.patient_id === patientId) ?? null;
+  }
+
+  return (
+    worklist.items.find((item) =>
+      item.patient_display_name.toLowerCase().includes("local v2 rejection mutation"),
+    ) ?? null
+  );
 }
 
 async function getWorklist(request: APIRequestContext, token: string): Promise<WorklistResponse> {

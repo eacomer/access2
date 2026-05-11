@@ -1,0 +1,139 @@
+import { expect, test } from "@playwright/test";
+
+import {
+  findLocalV2RejectionMutationPatient,
+  getApiBaseUrl,
+  getApiToken,
+  getPatientAuditStatus,
+  getSnapshot,
+  getSnapshotEvents,
+  LOCAL_V2_REJECTION_MUTATION_MARKER,
+  login,
+} from "./helpers/access2";
+
+const ENABLE_LOCAL_MUTATION_ENV = "ACCESS2_ENABLE_LOCAL_MUTATION_E2E";
+const LOCAL_MUTATION_REASON =
+  "Synthetic local V2 rejection mutation test reason: outcome evidence needs correction.";
+const PRODUCTION_HOST_MARKERS = [
+  "access2.salvardata.com",
+  "api.salvardata.com",
+  "railway.app",
+  "up.railway.app",
+];
+
+const localMutationEnabled = process.env[ENABLE_LOCAL_MUTATION_ENV]?.trim().toLowerCase() === "true";
+
+function assertSafeLocalTargets() {
+  const targets = [
+    process.env.ACCESS2_E2E_BASE_URL || "http://localhost:3000",
+    process.env.ACCESS2_E2E_API_BASE_URL || getApiBaseUrl(),
+  ];
+
+  const productionLikeTarget = targets.find((target) =>
+    PRODUCTION_HOST_MARKERS.some((marker) => target.toLowerCase().includes(marker)),
+  );
+  if (productionLikeTarget) {
+    throw new Error(
+      `Refusing to run local mutation E2E against production/Railway-like target: ${productionLikeTarget}`,
+    );
+  }
+}
+
+test.describe.serial("ACCESS2 local V2 reviewer rejection mutation", () => {
+  test.skip(
+    !localMutationEnabled,
+    `${ENABLE_LOCAL_MUTATION_ENV}=true is required to run local mutation E2E.`,
+  );
+
+  test.beforeAll(() => {
+    assertSafeLocalTargets();
+  });
+
+  test("rejects the disposable local pending-review snapshot through the patient UI", async ({
+    page,
+    request,
+  }) => {
+    await login(page);
+    const token = await getApiToken(request);
+    const patient = await findLocalV2RejectionMutationPatient(request, token);
+    if (!patient) {
+      test.skip(
+        true,
+        `Local mutation patient ${LOCAL_V2_REJECTION_MUTATION_MARKER} is not present; run backend/scripts/seed_local_v2_rejection_mutation.py first.`,
+      );
+      return;
+    }
+
+    const beforeAuditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
+    expect(beforeAuditStatus.review_status).toBe("pending_review");
+    expect(beforeAuditStatus.latest_snapshot_id).toBeTruthy();
+    expect(beforeAuditStatus.audit_bundle.available).toBe(false);
+
+    const snapshotId = beforeAuditStatus.latest_snapshot_id as string;
+    const beforeSnapshot = await getSnapshot(request, token, snapshotId);
+    expect(beforeSnapshot.review_status).toBe("pending_review");
+    expect(beforeSnapshot.packet_json).toBeTruthy();
+    expect(beforeSnapshot.packet_markdown).toBeTruthy();
+
+    await page.goto(`/patients/${patient.patient_id}`);
+    const backlogPanel = page.getByTestId("patient-review-packet-backlog-panel");
+    await expect(backlogPanel).toBeVisible();
+    await expect(backlogPanel).toContainText("Pending Review");
+    await expect(backlogPanel).toContainText("Unavailable until approved.");
+
+    const rejectionControls = backlogPanel.getByTestId("reviewer-rejection-control");
+    await expect(rejectionControls).toHaveCount(1);
+    const rejectionControl = rejectionControls.first();
+    await expect(rejectionControl).toBeVisible();
+    await expect(rejectionControl).toContainText("V2 controlled reviewer rejection");
+
+    await rejectionControl.getByRole("button", { name: "Reject snapshot" }).click();
+    await expect(rejectionControl.getByRole("alert")).toContainText("Rejection reason required.");
+
+    await rejectionControl.getByLabel("V2 controlled reviewer rejection").fill(LOCAL_MUTATION_REASON);
+    await rejectionControl.getByRole("button", { name: "Reject snapshot" }).click();
+
+    await expect
+      .poll(async () => {
+        const auditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
+        return auditStatus.review_status;
+      })
+      .toBe("rejected");
+
+    await expect(rejectionControls).toHaveCount(0);
+    await expect(backlogPanel).toContainText("Rejected");
+    await expect(backlogPanel).toContainText("Unavailable for rejected snapshots.");
+    await expect(page.getByRole("button", { name: /reject/i })).toHaveCount(0);
+
+    const afterAuditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
+    expect(afterAuditStatus.latest_snapshot_id).toBe(snapshotId);
+    expect(afterAuditStatus.next_step.action).toBe("create_snapshot");
+    expect(afterAuditStatus.audit_bundle.available).toBe(false);
+
+    const afterSnapshot = await getSnapshot(request, token, snapshotId);
+    expect(afterSnapshot.review_status).toBe("rejected");
+    expect(afterSnapshot.packet_json).toEqual(beforeSnapshot.packet_json);
+    expect(afterSnapshot.packet_markdown).toEqual(beforeSnapshot.packet_markdown);
+
+    const events = await getSnapshotEvents(request, token, snapshotId);
+    expect(JSON.stringify(events)).toContain("snapshot_rejected");
+    expect(JSON.stringify(events)).toContain(LOCAL_MUTATION_REASON);
+
+    const rejectedBundle = await request.get(
+      `${getApiBaseUrl()}/reports/access-review-packet/snapshots/${snapshotId}/audit-bundle`,
+      {
+        headers: { Authorization: `Bearer ${token}` },
+      },
+    );
+    expect(rejectedBundle.status()).toBe(409);
+    expect(await rejectedBundle.text()).toMatch(/rejected|approved/i);
+
+    await page.goto("/audit-readiness");
+    const auditReadinessPage = page.getByTestId("audit-readiness-page");
+    await expect(auditReadinessPage).toBeVisible();
+    await expect(auditReadinessPage).toContainText("Read-only V1 queue");
+    await expect(
+      auditReadinessPage.getByRole("button", { name: /approve|reject|assign|override|export|create snapshot/i }),
+    ).toHaveCount(0);
+  });
+});
