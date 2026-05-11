@@ -21,6 +21,7 @@ Use these documents by job:
 - Recreate synthetic demo data: [access2-demo-data-recreation-checklist.md](C:/dev/access2/docs/access2-demo-data-recreation-checklist.md)
 - Understand API/evidence contracts: [access-review-packet-api.md](C:/dev/access2/docs/access-review-packet-api.md)
 - Preserve V1 scope guardrails: [access2-v1-scope-control.md](C:/dev/access2/docs/access2-v1-scope-control.md)
+- Keep the release frozen: [access2-v1-release-freeze-checklist.md](C:/dev/access2/docs/access2-v1-release-freeze-checklist.md)
 
 Do not expand V1 during handoff. Do not add real PHI, frontend mutation controls, approval/rejection/override/export/assign controls, deployment changes, Railway startup changes, broad refactors, or architecture redesign.
 
@@ -29,6 +30,7 @@ Use this handoff with:
 - [access2-v1-demo-release-checklist.md](C:/dev/access2/docs/access2-v1-demo-release-checklist.md)
 - [access2-v1-demo-runbook.md](C:/dev/access2/docs/access2-v1-demo-runbook.md)
 - [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md)
+- [access2-v1-release-freeze-checklist.md](C:/dev/access2/docs/access2-v1-release-freeze-checklist.md)
 - [access2-v1-frontend-demo-script.md](C:/dev/access2/docs/access2-v1-frontend-demo-script.md)
 - [access2-railway-demo-validation.md](C:/dev/access2/docs/access2-railway-demo-validation.md)
 - [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md)
