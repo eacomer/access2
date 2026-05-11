@@ -8,6 +8,7 @@ Use this handoff with:
 
 - [access2-v1-demo-release-checklist.md](C:/dev/access2/docs/access2-v1-demo-release-checklist.md)
 - [access2-v1-demo-runbook.md](C:/dev/access2/docs/access2-v1-demo-runbook.md)
+- [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md)
 - [access2-v1-frontend-demo-script.md](C:/dev/access2/docs/access2-v1-frontend-demo-script.md)
 - [access2-railway-demo-validation.md](C:/dev/access2/docs/access2-railway-demo-validation.md)
 - [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md)
