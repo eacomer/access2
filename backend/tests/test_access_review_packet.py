@@ -877,10 +877,14 @@ def test_access_review_packet_snapshot_review_can_be_approved_and_rejected_witho
     assert approved["packet_json"] == original_packet_json
     assert approved["packet_markdown"] == original_packet_markdown
 
+    rejection_snapshot = _create_review_packet_snapshot(client, env["headers"], env["patient_id"])
+    rejection_original_packet_json = rejection_snapshot["packet_json"]
+    rejection_original_packet_markdown = rejection_snapshot["packet_markdown"]
+
     rejected = _update_review_packet_snapshot_review(
         client,
         env["headers"],
-        snapshot["id"],
+        rejection_snapshot["id"],
         review_status="rejected",
         review_note="Needs additional documentation.",
     )
@@ -888,14 +892,14 @@ def test_access_review_packet_snapshot_review_can_be_approved_and_rejected_witho
     assert rejected["reviewed_at"] is not None
     assert rejected["reviewed_by_user_id"] == str(env["user"].id)
     assert rejected["review_note"] == "Needs additional documentation."
-    assert rejected["packet_json"] == original_packet_json
-    assert rejected["packet_markdown"] == original_packet_markdown
+    assert rejected["packet_json"] == rejection_original_packet_json
+    assert rejected["packet_markdown"] == rejection_original_packet_markdown
 
-    detail = _get_review_packet_snapshot_detail(client, env["headers"], snapshot["id"])
+    detail = _get_review_packet_snapshot_detail(client, env["headers"], rejection_snapshot["id"])
     assert detail["review_status"] == "rejected"
     assert detail["review_note"] == "Needs additional documentation."
-    assert detail["packet_json"] == original_packet_json
-    assert detail["packet_markdown"] == original_packet_markdown
+    assert detail["packet_json"] == rejection_original_packet_json
+    assert detail["packet_markdown"] == rejection_original_packet_markdown
 
 
 def test_access_review_packet_snapshot_review_state_blocked_missing_evidence(
@@ -1276,6 +1280,154 @@ def test_access_review_packet_snapshot_rejection_allowed_when_persisted_checklis
     assert rejected["review_status"] == "rejected"
     assert rejected["review_state"]["state"] == "rejected"
     assert any(event["event_type"] == "snapshot_rejected" for event in events["events"])
+
+
+def test_access_review_packet_snapshot_rejection_requires_reason(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="review-packet-reject-reason-required")
+    snapshot = _create_review_packet_snapshot(client, env["headers"], env["patient_id"])
+    original_packet_json = snapshot["packet_json"]
+    original_packet_markdown = snapshot["packet_markdown"]
+
+    missing_reason = _update_review_packet_snapshot_review_raw(
+        client,
+        env["headers"],
+        snapshot["id"],
+        review_status="rejected",
+    )
+    whitespace_reason = _update_review_packet_snapshot_review_raw(
+        client,
+        env["headers"],
+        snapshot["id"],
+        review_status="rejected",
+        decision_note="   ",
+        review_note=" \t ",
+    )
+    detail = _get_review_packet_snapshot_detail(client, env["headers"], snapshot["id"])
+    events = _get_review_packet_snapshot_events(client, env["headers"], snapshot["id"])
+
+    assert missing_reason.status_code == 422
+    assert missing_reason.json()["detail"] == (
+        "decision_note or review_note is required when rejecting a snapshot."
+    )
+    assert whitespace_reason.status_code == 422
+    assert whitespace_reason.json()["detail"] == (
+        "decision_note or review_note is required when rejecting a snapshot."
+    )
+    assert detail["review_status"] == "pending_review"
+    assert detail["packet_json"] == original_packet_json
+    assert detail["packet_markdown"] == original_packet_markdown
+    assert not any(event["event_type"] == "snapshot_rejected" for event in events["events"])
+
+
+def test_access_review_packet_snapshot_rejection_accepts_decision_note(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="review-packet-reject-decision-note")
+    snapshot = _create_review_packet_snapshot(client, env["headers"], env["patient_id"])
+
+    rejected = _update_review_packet_snapshot_review(
+        client,
+        env["headers"],
+        snapshot["id"],
+        review_status="rejected",
+        decision_note="Outcome evidence does not support closure.",
+    )
+    events = _get_review_packet_snapshot_events(client, env["headers"], snapshot["id"])
+    rejected_event = next(event for event in events["events"] if event["event_type"] == "snapshot_rejected")
+
+    assert rejected["review_status"] == "rejected"
+    assert rejected["review_note"] == "Outcome evidence does not support closure."
+    assert rejected_event["metadata"]["decision_note"] == "Outcome evidence does not support closure."
+    assert rejected_event["metadata"]["review_note"] == "Outcome evidence does not support closure."
+
+
+def test_access_review_packet_snapshot_terminal_review_states_cannot_be_rewritten(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="review-packet-terminal-review-state")
+    _prepare_review_ready_patient(
+        client,
+        env["headers"],
+        env["patient_id"],
+        summary="Terminal review state packet",
+    )
+    approved_snapshot = _create_review_packet_snapshot(client, env["headers"], env["patient_id"])
+    approved = _update_review_packet_snapshot_review(
+        client,
+        env["headers"],
+        approved_snapshot["id"],
+        review_status="approved",
+        decision_note="Approved terminal state.",
+    )
+    rejected_snapshot = _create_review_packet_snapshot(client, env["headers"], env["patient_id"])
+    rejected = _update_review_packet_snapshot_review(
+        client,
+        env["headers"],
+        rejected_snapshot["id"],
+        review_status="rejected",
+        review_note="Rejected terminal state.",
+    )
+
+    approved_to_rejected = _update_review_packet_snapshot_review_raw(
+        client,
+        env["headers"],
+        approved["id"],
+        review_status="rejected",
+        review_note="Attempted rewrite.",
+    )
+    approved_to_approved = _update_review_packet_snapshot_review_raw(
+        client,
+        env["headers"],
+        approved["id"],
+        review_status="approved",
+        decision_note="Attempted idempotent rewrite.",
+    )
+    rejected_to_approved = _update_review_packet_snapshot_review_raw(
+        client,
+        env["headers"],
+        rejected["id"],
+        review_status="approved",
+        decision_note="Attempted rewrite.",
+    )
+    rejected_to_rejected = _update_review_packet_snapshot_review_raw(
+        client,
+        env["headers"],
+        rejected["id"],
+        review_status="rejected",
+        review_note="Attempted idempotent rewrite.",
+    )
+
+    for response in [
+        approved_to_rejected,
+        approved_to_approved,
+        rejected_to_approved,
+        rejected_to_rejected,
+    ]:
+        assert response.status_code == 409
+        assert response.json()["detail"] == "Terminal review packet snapshots cannot be changed."
+
+    approved_detail = _get_review_packet_snapshot_detail(client, env["headers"], approved["id"])
+    rejected_detail = _get_review_packet_snapshot_detail(client, env["headers"], rejected["id"])
+    approved_events = _get_review_packet_snapshot_events(client, env["headers"], approved["id"])
+    rejected_events = _get_review_packet_snapshot_events(client, env["headers"], rejected["id"])
+
+    assert approved_detail["review_status"] == "approved"
+    assert approved_detail["review_note"] == "Approved terminal state."
+    assert rejected_detail["review_status"] == "rejected"
+    assert rejected_detail["review_note"] == "Rejected terminal state."
+    assert [event["event_type"] for event in approved_events["events"]] == [
+        "snapshot_created",
+        "snapshot_approved",
+    ]
+    assert [event["event_type"] for event in rejected_events["events"]] == [
+        "snapshot_created",
+        "snapshot_rejected",
+    ]
 
 
 def test_access_review_packet_snapshot_approval_gate_uses_persisted_snapshot_only(

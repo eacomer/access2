@@ -32,6 +32,8 @@ from app.services.access_evidence_service import (
     AccessReviewPacketApprovalBlockedError,
     AccessReviewPacketAuditBundleConflictError,
     AccessReviewPacketApprovalOverrideAuthorizationError,
+    AccessReviewPacketReviewStateConflictError,
+    AccessReviewPacketReviewValidationError,
     build_access_case_summary,
     build_access_evidence_report,
     build_access_review_packet,
@@ -828,6 +830,16 @@ def update_access_review_packet_snapshot_review_endpoint(
         raise HTTPException(
             status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
             detail="Invalid review_status.",
+        )
+    except AccessReviewPacketReviewValidationError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_422_UNPROCESSABLE_CONTENT,
+            detail=str(exc),
+        )
+    except AccessReviewPacketReviewStateConflictError as exc:
+        raise HTTPException(
+            status_code=status.HTTP_409_CONFLICT,
+            detail=str(exc),
         )
     except AccessReviewPacketApprovalBlockedError as exc:
         raise HTTPException(

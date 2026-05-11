@@ -40,6 +40,14 @@ class AccessReviewPacketApprovalOverrideAuthorizationError(Exception):
     """Raised when a user is not allowed to override missing checklist items."""
 
 
+class AccessReviewPacketReviewValidationError(Exception):
+    """Raised when a review decision payload is invalid."""
+
+
+class AccessReviewPacketReviewStateConflictError(Exception):
+    """Raised when a review decision would rewrite a terminal snapshot state."""
+
+
 class AccessReviewPacketAuditBundleConflictError(Exception):
     """Raised when a snapshot is not in an approved state for audit bundle reads."""
 
@@ -1756,7 +1764,24 @@ def update_access_review_packet_snapshot_review(
         return None
 
     normalized_status = AccessReviewPacketSnapshotReviewStatus(review_status)
-    effective_decision_note = decision_note if decision_note is not None else review_note
+    normalized_decision_note = (decision_note or "").strip() or None
+    normalized_review_note = (review_note or "").strip() or None
+    effective_decision_note = normalized_decision_note or normalized_review_note
+    previous_status = snapshot.review_status.value
+    if snapshot.review_status in {
+        AccessReviewPacketSnapshotReviewStatus.APPROVED,
+        AccessReviewPacketSnapshotReviewStatus.REJECTED,
+    }:
+        raise AccessReviewPacketReviewStateConflictError(
+            "Terminal review packet snapshots cannot be changed."
+        )
+    if (
+        normalized_status == AccessReviewPacketSnapshotReviewStatus.REJECTED
+        and effective_decision_note is None
+    ):
+        raise AccessReviewPacketReviewValidationError(
+            "decision_note or review_note is required when rejecting a snapshot."
+        )
     missing_count = _snapshot_review_checklist_missing_count(snapshot)
     missing_items = _snapshot_review_checklist_missing_items(snapshot)
     if (
@@ -1778,7 +1803,6 @@ def update_access_review_packet_snapshot_review(
             )
     else:
         normalized_override_reason = (override_reason or "").strip() or None
-    previous_status = snapshot.review_status.value
     snapshot.review_status = normalized_status
     snapshot.review_note = effective_decision_note
     if normalized_status in {
