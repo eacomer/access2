@@ -22,6 +22,13 @@ from scripts.seed_railway_demo_cases import (
     _get_or_create_org,
     seed_demo_cases,
 )
+from scripts.seed_local_v2_rejection_mutation import (
+    ENABLE_ENV_VAR,
+    LOCAL_REJECTION_EXTERNAL_PATIENT_ID,
+    LocalMutationSeedGuardError,
+    assert_local_mutation_seed_enabled,
+    seed_local_v2_rejection_mutation_case,
+)
 
 
 def test_seed_railway_demo_cases_is_idempotent_and_printable(db_session: Session) -> None:
@@ -116,6 +123,145 @@ def test_seed_railway_demo_case_audit_postures(db_session: Session) -> None:
     )
     assert bundle_4["audit_manifest"]["approval_override_used"] is True
     assert _manifest_verifies(db_session, context, snapshot_4.id)
+
+
+def test_local_v2_rejection_mutation_seed_requires_explicit_guard() -> None:
+    try:
+        assert_local_mutation_seed_enabled(env={})
+    except LocalMutationSeedGuardError as exc:
+        assert f"{ENABLE_ENV_VAR}=true" in str(exc)
+    else:
+        raise AssertionError("Local V2 mutation seed guard allowed a missing opt-in.")
+
+
+def test_local_v2_rejection_mutation_seed_blocks_production_like_urls() -> None:
+    for key, value in (
+        ("ACCESS2_E2E_BASE_URL", "https://access2.salvardata.com"),
+        ("ACCESS2_E2E_API_BASE_URL", "https://api.salvardata.com/api/v1"),
+        ("FRONTEND_ORIGIN", "https://access2-frontend-production-c029.up.railway.app"),
+        ("API_BASE_URL", "https://example.railway.app/api/v1"),
+        ("RAILWAY_PUBLIC_DOMAIN", "access2-backend-production-881f.up.railway.app"),
+    ):
+        try:
+            assert_local_mutation_seed_enabled(
+                env={
+                    ENABLE_ENV_VAR: "true",
+                    key: value,
+                }
+            )
+        except LocalMutationSeedGuardError as exc:
+            assert key in str(exc)
+        else:
+            raise AssertionError(f"Local V2 mutation seed guard allowed {key}={value}.")
+
+
+def test_local_v2_rejection_mutation_seed_creates_pending_review_disposable_patient(
+    db_session: Session,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv(ENABLE_ENV_VAR, "true")
+
+    patient = seed_local_v2_rejection_mutation_case(db_session)
+    organization = _get_or_create_org(db_session)
+    admin = _get_or_create_admin(db_session, organization=organization)
+    context = RequestContext(user=admin, organization=organization)
+    audit_status = get_access_review_packet_patient_audit_status(
+        db=db_session,
+        context=context,
+        patient=patient,
+    )
+    latest_snapshot = list_access_review_packet_snapshots(
+        db=db_session,
+        context=context,
+        patient=patient,
+        limit=1,
+    )[0]
+
+    assert patient.external_patient_id == LOCAL_REJECTION_EXTERNAL_PATIENT_ID
+    assert not patient.external_patient_id.startswith("access2-railway-demo:")
+    assert audit_status["review_status"] == "pending_review"
+    assert audit_status["latest_snapshot_id"] == latest_snapshot.id
+    assert latest_snapshot.review_status == AccessReviewPacketSnapshotReviewStatus.PENDING_REVIEW
+    assert latest_snapshot.packet_json
+    assert latest_snapshot.packet_markdown
+    assert len(list_patient_signals(db=db_session, context=context, patient=patient)) >= 1
+    assert len(list_patient_escalations(db=db_session, context=context, patient=patient)) >= 1
+    assert any(
+        task.status.value == "completed"
+        for task in list_tasks_for_patient(db=db_session, context=context, patient=patient)
+    )
+
+
+def test_local_v2_rejection_mutation_seed_rerun_restores_latest_pending_review(
+    db_session: Session,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv(ENABLE_ENV_VAR, "true")
+
+    patient = seed_local_v2_rejection_mutation_case(db_session)
+    organization = _get_or_create_org(db_session)
+    admin = _get_or_create_admin(db_session, organization=organization)
+    context = RequestContext(user=admin, organization=organization)
+    first_snapshot = list_access_review_packet_snapshots(
+        db=db_session,
+        context=context,
+        patient=patient,
+        limit=1,
+    )[0]
+
+    update_access_review_packet_snapshot_review(
+        db=db_session,
+        context=context,
+        snapshot_id=first_snapshot.id,
+        review_status=AccessReviewPacketSnapshotReviewStatus.REJECTED.value,
+        review_note=None,
+        decision_note="Synthetic local mutation test rejection reason.",
+    )
+
+    restored_patient = seed_local_v2_rejection_mutation_case(db_session)
+    restored_status = get_access_review_packet_patient_audit_status(
+        db=db_session,
+        context=context,
+        patient=restored_patient,
+    )
+    snapshots = list_access_review_packet_snapshots(
+        db=db_session,
+        context=context,
+        patient=restored_patient,
+        limit=2,
+    )
+
+    assert restored_patient.id == patient.id
+    assert restored_status["review_status"] == "pending_review"
+    assert snapshots[0].review_status == AccessReviewPacketSnapshotReviewStatus.PENDING_REVIEW
+    assert snapshots[0].id != first_snapshot.id
+    assert snapshots[1].review_status == AccessReviewPacketSnapshotReviewStatus.REJECTED
+
+
+def test_local_v2_rejection_mutation_seed_does_not_change_railway_demo_cases(
+    db_session: Session,
+    monkeypatch,
+) -> None:
+    monkeypatch.setenv(ENABLE_ENV_VAR, "true")
+
+    seeded = seed_demo_cases(db_session)
+    local_patient = seed_local_v2_rejection_mutation_case(db_session)
+    seeded_again = seed_demo_cases(db_session)
+    organization = _get_or_create_org(db_session)
+    admin = _get_or_create_admin(db_session, organization=organization)
+    context = RequestContext(user=admin, organization=organization)
+    patient_3 = db_session.get(Patient, seeded_again[3])
+    status_3 = get_access_review_packet_patient_audit_status(
+        db=db_session,
+        context=context,
+        patient=patient_3,
+    )
+
+    assert seeded_again == seeded
+    assert sorted(seeded_again) == [1, 2, 3, 4]
+    assert local_patient.id not in set(seeded_again.values())
+    assert local_patient.external_patient_id == LOCAL_REJECTION_EXTERNAL_PATIENT_ID
+    assert status_3["review_status"] == "rejected"
 
 
 def _normal_approval_is_blocked(db: Session, context: RequestContext, snapshot_id) -> bool:
