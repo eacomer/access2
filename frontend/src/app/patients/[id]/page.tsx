@@ -10,6 +10,7 @@ import EscalationEvidenceCard from "../../../components/patients/EscalationEvide
 import PatientEvidenceSummary from "../../../components/patients/PatientEvidenceSummary";
 import PatientInterventionEvidenceSummary from "../../../components/patients/PatientInterventionEvidenceSummary";
 import PatientRecentActivityStrip from "../../../components/patients/PatientRecentActivityStrip";
+import ReviewerRejectionControl from "../../../components/patients/ReviewerRejectionControl";
 import PatientWorkflowHeader from "../../../components/patients/PatientWorkflowHeader";
 import PatientWhyNowSummary from "../../../components/patients/PatientWhyNowSummary";
 import { TaskActionRequest } from "../../../components/patients/TaskActionPanel";
@@ -943,6 +944,7 @@ const renderPatientBacklogPanel = ({
   }
 
   const latestSnapshots = sortSnapshotsByCreatedAtDesc(backlog.snapshots).slice(0, 3);
+  const latestSnapshotId = backlog.audit_status.latest_snapshot_id;
 
   return (
     <>
@@ -987,6 +989,7 @@ const renderPatientBacklogPanel = ({
                 <th>Review state</th>
                 <th>Assigned reviewer</th>
                 <th>Audit bundle export</th>
+                <th>Review action</th>
               </tr>
             </thead>
             <tbody>
@@ -1026,6 +1029,16 @@ const renderPatientBacklogPanel = ({
                             audit_bundle_exported events.
                           </p>
                         </>
+                      )}
+                    </td>
+                    <td>
+                      <ReviewerRejectionControl
+                        latestSnapshotId={latestSnapshotId}
+                        reviewStatus={snapshot.review_status}
+                        snapshotId={snapshot.id}
+                      />
+                      {snapshot.id === latestSnapshotId && snapshot.review_status === "pending_review" ? null : (
+                        <span>Read-only for this snapshot.</span>
                       )}
                     </td>
                   </tr>

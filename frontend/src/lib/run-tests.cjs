@@ -5,3 +5,5 @@ require("./demo-release-summary-page.test.cjs");
 require("./patient-detail-page.test.cjs");
 require("./audit-bundle-verify-route.test.cjs");
 require("./audit-bundle-verify-page.test.cjs");
+require("./reviewer-rejection-route.test.cjs");
+require("./reviewer-rejection-control.test.cjs");
