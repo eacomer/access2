@@ -145,6 +145,14 @@ Backend guardrails remain part of the contract:
 - Snapshot `packet_json` and `packet_markdown` remain immutable.
 - Rejected snapshots continue to block audit bundle generation and manifest verification.
 
+Local mutation test setup is separate from production demo data:
+
+- `backend/scripts/seed_local_v2_rejection_mutation.py` creates or repairs one disposable local synthetic patient marked `access2-local-v2-mutation:reviewer-rejection`.
+- The script requires `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` and fails closed when production-like domains such as `access2.salvardata.com`, `api.salvardata.com`, `railway.app`, or `up.railway.app` appear in configured URL/domain/base/origin environment variables.
+- Rerunning the script leaves the disposable local scenario ready for another rejection test; after a prior rejection, it creates a new latest `pending_review` snapshot rather than rewriting the rejected terminal snapshot.
+- This path is not a Railway seed path, does not modify `access2-railway-demo:*` patients, and must not be used against shared production demo data.
+- No Playwright mutation test is enabled yet; the skipped Demo Patient 3 reviewer rejection path remains skipped for production.
+
 ## Scope for Recommended Slice
 
 The V2 rejection slice should include only the minimum behavior needed for a controlled reviewer rejection.
@@ -220,7 +228,8 @@ Test scope:
 - Treat shared demo state as synthetic but still operationally sensitive because mutation tests can alter future demos.
 - Demo Patient 3 is already seeded as rejected, so it is not a repeatable production mutation target.
 - Keep the Playwright test named `Demo Patient 3 reviewer rejection through UI` skipped until a safe reset or reseed strategy exists.
-- Future mutation E2E should use a local-only disposable pending-review patient or a documented reset/reseed path before any production activation.
+- Future local mutation E2E should use the disposable local marker `access2-local-v2-mutation:reviewer-rejection`, not Demo Patient 3.
+- Future production mutation E2E still requires documented reset/reseed steps before any activation.
 
 ## Rollout and Risk Notes
 
@@ -229,7 +238,7 @@ Test scope:
 - Deploy to Railway only after focused backend, frontend, and E2E tests pass.
 - Update the demo data recreation checklist if the rejection action changes demo state or expected reset steps.
 - Preserve the V1 read-only demo posture until the controlled operation is intentionally enabled.
-- Keep Demo Patient 3 as the first end-to-end rejection scenario if it remains the seeded rejection-path patient.
+- Keep Demo Patient 3 as the production read-only rejected-posture scenario.
 - Do not enable override approval in the same slice.
 - Do not run production mutation checks without a documented reset path.
 - Do not change Railway deployment configuration or the backend startup command for this rollout.

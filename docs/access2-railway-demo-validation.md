@@ -160,6 +160,8 @@ ACCESS2 V2 now supports controlled reviewer rejection through the patient detail
 
 The skipped `Demo Patient 3 reviewer rejection through UI` test must remain skipped until there is a safe reset/reseed strategy or a local-only disposable pending-review patient for mutation E2E. The Demo Patient 4 superuser override approval path also remains skipped because override approval UI is not part of the controlled rejection rollout.
 
+A separate local-only seed/reset script exists for future local mutation E2E: `backend/scripts/seed_local_v2_rejection_mutation.py`. It uses marker `access2-local-v2-mutation:reviewer-rejection`, requires `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true`, and must not be run against Railway, production, or shared seeded demo data.
+
 Do not run production mutation E2E against shared seeded demo data until reset/reseed steps are documented.
 
 Security cleanup:

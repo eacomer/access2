@@ -185,6 +185,29 @@ Expected result:
 
 V2 reviewer rejection mutation testing requires a snapshot that is still `pending_review`. Production Demo Patient 3 is intentionally seeded as already rejected, so it is useful for read-only rejected-posture validation but not for repeatable rejection mutation E2E. Do not activate production rejection mutation tests until reset/reseed instructions define how shared demo data is restored.
 
+### Local V2 Reviewer Rejection Mutation Seed
+
+Use this local-only seed/reset path only against a disposable local database when preparing future reviewer rejection mutation testing:
+
+```powershell
+cd C:\dev\access2\backend
+$env:ACCESS2_ENABLE_LOCAL_MUTATION_E2E="true"
+py -3 scripts\seed_local_v2_rejection_mutation.py
+```
+
+The script at `backend/scripts/seed_local_v2_rejection_mutation.py` creates or repairs one disposable synthetic patient with marker `access2-local-v2-mutation:reviewer-rejection`. Its latest review packet snapshot is `pending_review` with persisted `packet_json` and `packet_markdown`, so it is suitable for local reviewer rejection UI testing.
+
+Guardrails:
+
+- `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` is required; without it, the script fails closed.
+- The script fails closed if configured URL, URI, origin, host, domain, or base environment variables point to `access2.salvardata.com`, `api.salvardata.com`, `railway.app`, or `up.railway.app`.
+- Do not run this script against Railway, production, or shared seeded demo data.
+- The marker is separate from `access2-railway-demo:*`; the four Railway demo patients remain unchanged.
+- Demo Patient 3 remains the production read-only rejected-posture scenario and should not be reused for repeatable mutation E2E.
+- After a prior local rejection, rerunning the script creates a new latest `pending_review` snapshot instead of rewriting the rejected terminal snapshot.
+- No Playwright mutation test is enabled yet; future local mutation E2E should target this disposable marker/patient.
+- Non-goals remain: no real PHI, no production mutation E2E, no Railway seed change, no deployment config change, no override approval UI, and no audit-readiness queue mutation controls.
+
 ### 5. Approve The Snapshot
 
 Use normal approval when the packet is ready:
