@@ -1,0 +1,227 @@
+# ACCESS2 V2 Planning Outline
+
+This document is a planning artifact only. It does not authorize implementation by itself, and it must not change the ACCESS2 V1 production demo posture until a separate V2 implementation slice is explicitly approved.
+
+ACCESS2 V2 should extend the V1 evidence chain carefully:
+
+signal -> escalation -> intervention -> outcome -> evidence -> case summary -> immutable review packet snapshot -> approval/rejection -> audit bundle -> manifest verification
+
+The core product question remains whether ACCESS2 can prove that chronic care interventions led to measurable outcomes and that the evidence was reviewed through a defensible audit lifecycle.
+
+## V1 Recap
+
+### Complete
+
+- Production frontend is available at `https://access2.salvardata.com`.
+- Backend API is available at `https://api.salvardata.com/api/v1`.
+- Production E2E baseline is `8 passed, 2 skipped, 0 failed`.
+- Demo data is synthetic-only and intended for CMS ACCESS-aligned workflow demonstration.
+- The V1 demo path covers login, audit-readiness visibility, patient evidence chain visibility, immutable review packet snapshots, persisted readiness reasons, audit bundle export, and manifest verification.
+- Audit bundle reads use persisted snapshot, evidence, and event metadata rather than rebuilding packet content during audit reads.
+- Manifest verification validates exported audit bundles against persisted snapshot data.
+- Tenant scoping remains a required invariant across workflow objects.
+
+### Intentionally read-only
+
+- The V1 frontend demo posture is read-only for workflow mutation.
+- No frontend controls are exposed for approve, reject, assign, create-snapshot, override approval, or audit-bundle export mutation as uncontrolled workflow actions.
+- The two expected production E2E skips remain:
+  - Demo Patient 3 reviewer rejection through UI.
+  - Demo Patient 4 superuser override approval through UI.
+- Rejection and override postures are represented in synthetic seeded demo data for evidence review, but they are not currently operated through frontend mutation controls.
+
+### Must not regress
+
+- Do not introduce real PHI.
+- Do not commit secrets or production credentials.
+- Do not break the V1 read-only demo posture accidentally.
+- Do not change Railway deployment configuration.
+- Do not change the backend startup command, which should remain `bash scripts/render-start.sh`.
+- Do not leave seed commands as Railway startup commands.
+- Do not mutate immutable review packet snapshots.
+- Do not rebuild persisted `packet_json` or `packet_markdown` during audit reads.
+- Do not weaken tenant scoping or patient consistency across linked records.
+- Do not replace thin routes and service-owned business logic with route-level workflow logic.
+
+## V2 Product Question
+
+What is the first controlled workflow operation ACCESS2 should support after V1?
+
+The first V2 operation should be narrow enough to preserve the V1 production baseline while proving that ACCESS2 can safely transition from read-only evidence display into an auditable workflow action.
+
+## Candidate V2 Options
+
+### Reviewer rejection action
+
+Allow a reviewer to reject an immutable review packet snapshot with a required rejection reason.
+
+Evaluation:
+
+- Directly maps to an existing expected skipped production E2E test for Demo Patient 3.
+- Already represented in seeded synthetic demo data.
+- Has a clear audit contract: who rejected, when, why, which snapshot was rejected, and what state changed afterward.
+- Strengthens the review lifecycle without adding broad workflow mutation.
+- Safer than approval override because rejection blocks or returns the case for correction instead of creating a payment-ready posture.
+
+### Superuser override approval action
+
+Allow a privileged user to approve a snapshot despite unresolved readiness concerns.
+
+Evaluation:
+
+- Maps to the second expected skipped production E2E test for Demo Patient 4.
+- Useful for demonstrating exception handling.
+- Higher risk than rejection because it can move a case toward audit-ready or exportable posture despite gaps.
+- Should wait until the rejection path proves the frontend, backend, audit event, and test pattern for controlled mutation.
+
+### Controlled audit bundle export action
+
+Expose a controlled frontend action for exporting an approved audit bundle.
+
+Evaluation:
+
+- Important to the end-to-end evidence story.
+- Requires careful treatment of successful-export event logging and failure behavior.
+- Should not be first if approval/rejection lifecycle operation is still read-only.
+- Safer after the review state machine and event recording are proven through rejection.
+
+### Reviewer assignment action
+
+Allow assigning a snapshot to a reviewer.
+
+Evaluation:
+
+- Useful operationally, but less central to proving that interventions led to measurable outcomes.
+- Can introduce user and permission assumptions that are broader than the first V2 slice needs.
+- Should be deferred unless assignment is required to safely gate reviewer rejection.
+
+### Intervention/task update action
+
+Allow care teams to update intervention or task status.
+
+Evaluation:
+
+- Moves ACCESS2 closer to operational care management.
+- Broader than the V2 first operation because it touches earlier workflow-chain state and may require task ownership, due dates, status rules, and additional UI.
+- Risks expanding into generic case management if not tightly scoped.
+
+### Outcome/evidence capture improvement
+
+Improve how outcomes and supporting evidence are captured or attached.
+
+Evaluation:
+
+- Strongly aligned with the principle that ACCESS2 must prove interventions led to measurable outcomes.
+- Likely valuable after V1, but can become larger than a first controlled mutation slice.
+- Should be planned as a separate evidence-quality slice after the review lifecycle has a safe mutation pattern.
+
+## Recommendation
+
+The smallest safe V2 slice is:
+
+**Controlled reviewer rejection action**
+
+This is the best first V2 operation because it maps directly to an existing skipped E2E test, is already represented in seeded synthetic demo data, has clear audit requirements, and is safer than override approval. It proves that ACCESS2 can support a controlled review lifecycle action without opening broad workflow mutation or changing the product into a general case-management tool.
+
+Reviewer rejection also creates a clear bridge from V1 read-only evidence posture to V2 controlled mutation: only the correct snapshot state should expose the action, the reason must be required, and the result must be auditable without mutating immutable packet content.
+
+## Scope for Recommended Slice
+
+The V2 rejection slice should include only the minimum behavior needed for a controlled reviewer rejection.
+
+Backend scope:
+
+- Add or confirm the backend endpoint for rejecting a review packet snapshot if it is missing.
+- Keep the route thin and place workflow validation in the service layer.
+- Require a non-empty rejection reason.
+- Validate snapshot state before rejection.
+- Preserve tenant scoping on every read and mutation.
+- Preserve patient consistency across the rejected snapshot and linked workflow records.
+- Record an audit event for successful rejection only.
+- Do not mutate immutable snapshot packet content.
+- Ensure rejected state is persisted deterministically and visible through existing read models.
+
+Frontend scope:
+
+- Add the rejection control only where the snapshot is in the correct state for reviewer rejection.
+- Require a rejection reason before submitting.
+- Show clear disabled or read-only states anywhere rejection is not allowed.
+- Do not add approve, override, assignment, create-snapshot, or broad workflow mutation controls as part of this slice.
+- Keep the UI tied to existing page structure and stable E2E selectors.
+
+Test scope:
+
+- Add focused backend pytest coverage for rejection service behavior and endpoint behavior.
+- Cover rejection reason required.
+- Cover tenant scoping.
+- Cover immutable snapshot behavior.
+- Cover invalid-state rejection attempts.
+- Add focused frontend unit or helper tests only if the UI logic introduces meaningful branching.
+- Convert the Demo Patient 3 reviewer rejection Playwright path from expected skip to active only after the feature exists and is safe.
+
+## Non-goals
+
+- No real PHI.
+- No AI extraction or AI-generated care recommendations.
+- No broad workflow builder.
+- No generic case-management feature set.
+- No uncontrolled frontend mutation controls.
+- No override approval until the rejection path is safe.
+- No reviewer assignment unless it is strictly required for the rejection path.
+- No audit bundle export mutation changes in this slice.
+- No Railway deployment configuration changes.
+- No backend startup command changes.
+- No seed command left as a Railway startup command.
+- No broad frontend redesign.
+- No architecture redesign or broad backend refactor.
+
+## Validation Strategy
+
+### Backend
+
+- Run focused pytest coverage for the rejection service and endpoint.
+- Verify rejection reason is required.
+- Verify tenant scoping prevents cross-tenant rejection.
+- Verify immutable snapshot packet content is not changed.
+- Verify audit events are recorded only on successful rejection.
+- Verify invalid snapshot states cannot be rejected.
+
+### Frontend
+
+- Add unit or helper tests if the rejection UI has branch logic worth isolating.
+- Add or update Playwright coverage for Demo Patient 3 reviewer rejection through UI.
+- Replace the current expected skip only after the feature exists, has backend protection, and has safe frontend state gating.
+- Preserve read-only or disabled states on snapshots where rejection is not allowed.
+
+### Production
+
+- Do not run production mutation tests against shared demo data unless a safe reset or reseed strategy is documented.
+- Keep the current production baseline of `8 passed, 2 skipped, 0 failed` until the controlled rejection operation is intentionally deployed and production demo data can be safely reset.
+- Treat shared demo state as synthetic but still operationally sensitive because mutation tests can alter future demos.
+
+## Rollout and Risk Notes
+
+- Start synthetic-only.
+- Validate locally first.
+- Deploy to Railway only after focused backend, frontend, and E2E tests pass.
+- Update the demo data recreation checklist if the rejection action changes demo state or expected reset steps.
+- Preserve the V1 read-only demo posture until the controlled operation is intentionally enabled.
+- Keep Demo Patient 3 as the first end-to-end rejection scenario if it remains the seeded rejection-path patient.
+- Do not enable override approval in the same slice.
+- Do not run production mutation checks without a documented reset path.
+
+## Proposed Implementation Sequence
+
+1. Inspect existing backend rejection support and tests.
+2. Inspect the current skipped Playwright test.
+3. Document the rejection contract.
+4. Implement the smallest backend and frontend changes.
+5. Update E2E from skip to active only when safe.
+6. Update docs.
+
+## Follow-up Candidates
+
+- Plan a separate superuser override approval slice after rejection is proven safe.
+- Plan a controlled audit bundle export action after review lifecycle mutation is stable.
+- Plan outcome/evidence capture improvements as a focused evidence-quality slice.
+- Plan reviewer assignment only if reviewer ownership becomes necessary for state gating or audit accountability.
