@@ -106,6 +106,45 @@ The skipped tests are expected because ACCESS2 V1 frontend audit panels are read
 - Demo Patient 3 reviewer rejection through UI
 - Demo Patient 4 superuser override approval through UI
 
+## Production E2E Troubleshooting
+
+Use this triage path when the production E2E result is not `8 passed, 2 skipped, 0 failed`.
+
+1. Confirm the backend custom domain is healthy before interpreting UI failures:
+
+   ```powershell
+   Invoke-RestMethod "https://api.salvardata.com/api/v1/health/live"
+   Invoke-RestMethod "https://api.salvardata.com/api/v1/health/ready"
+   ```
+
+   Expected: `status=ok`, `database=ok`, and `redis=ok`. If readiness fails, treat it as a production environment issue before changing product code.
+
+2. If Playwright fails with `browserType.launch: spawn EPERM`, rerun from an environment that can launch Chromium. This is local execution friction, not an ACCESS2 product failure.
+
+3. If login fails, verify:
+
+   - `ACCESS2_E2E_BASE_URL` is `https://access2.salvardata.com`.
+   - `ACCESS2_E2E_ADMIN_EMAIL` and `ACCESS2_E2E_ADMIN_PASSWORD` use synthetic demo credentials only.
+   - The frontend `NEXT_PUBLIC_API_BASE_URL` still points to `https://api.salvardata.com/api/v1`.
+   - Backend `FRONTEND_ORIGIN` still points to `https://access2.salvardata.com`.
+
+4. If seeded patient tests skip or cannot find data, confirm the four `ACCESS2_E2E_DEMO_PATIENT_*_ID` values match the seeded synthetic IDs in this document. Do not enter real PHI or reseed production with ad hoc startup commands.
+
+5. If `/demo/release-summary` assertions fail, confirm the deployed frontend includes the Demo Release Summary Evidence Proof Checklist and shows the `8 passed`, `2 skipped`, `0 failed` baseline. A failure here usually means the custom domain is serving an older deployment.
+
+6. If Reviewer Work Queue or patient-detail assertions fail, check whether the page still presents read-only posture only. Do not add approve, reject, override, assign, export, or create-snapshot controls to satisfy production E2E.
+
+7. After each E2E run, remove generated Playwright artifacts before reviewing git state:
+
+   ```powershell
+   cd C:\dev\access2
+
+   Remove-Item -Recurse -Force frontend\playwright-report -ErrorAction SilentlyContinue
+   Remove-Item -Recurse -Force frontend\test-results -ErrorAction SilentlyContinue
+
+   git status --short
+   ```
+
 ## Latest Production Custom-Domain Validation
 
 Latest production custom-domain E2E validation confirmed the deployed frontend login works, the Demo Guide page is protected and visible after login, the Demo Release Summary includes the read-only Evidence Proof Checklist, and the deployed patient detail page shows the Evidence Chain, Manifest Verification, and Outcome Proof Gaps panels for all four seeded synthetic demo patients. Outcome Proof Gaps now renders backend-owned audit-status `readiness_reasons` for the patient proof-gap explanation.

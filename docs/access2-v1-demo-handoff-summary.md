@@ -114,6 +114,7 @@ The two skipped production tests remain expected V1 read-only constraints for De
 - Verification requires a real `audit_manifest` copied from an exported JSON audit bundle.
 - `localhost:3000` can be stale; use the documented helper and `http://localhost:3001` for controlled demos.
 - If login shows `Unable to sign in right now. Please try again.`, verify Docker, backend health, frontend API base URL, and seeded auth.
+- For production E2E failures, use the troubleshooting path in [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md) before changing product code.
 
 ## Do Not Change Before Demo
 
