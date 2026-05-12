@@ -10,6 +10,7 @@ import EscalationEvidenceCard from "../../../components/patients/EscalationEvide
 import PatientEvidenceSummary from "../../../components/patients/PatientEvidenceSummary";
 import PatientInterventionEvidenceSummary from "../../../components/patients/PatientInterventionEvidenceSummary";
 import PatientRecentActivityStrip from "../../../components/patients/PatientRecentActivityStrip";
+import ReviewerAssignmentControl from "../../../components/patients/ReviewerAssignmentControl";
 import ReviewerRejectionControl from "../../../components/patients/ReviewerRejectionControl";
 import PatientWorkflowHeader from "../../../components/patients/PatientWorkflowHeader";
 import PatientWhyNowSummary from "../../../components/patients/PatientWhyNowSummary";
@@ -1039,6 +1040,11 @@ const renderPatientBacklogPanel = ({
                       )}
                     </td>
                     <td>
+                      <ReviewerAssignmentControl
+                        latestSnapshotId={latestSnapshotId}
+                        reviewStatus={snapshot.review_status}
+                        snapshotId={snapshot.id}
+                      />
                       <ReviewerRejectionControl
                         latestSnapshotId={latestSnapshotId}
                         reviewStatus={snapshot.review_status}

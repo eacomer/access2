@@ -4,6 +4,7 @@ import {
   findLocalV2RejectionMutationPatient,
   getApiBaseUrl,
   getApiToken,
+  getCurrentUser,
   getPatientAuditStatus,
   getSnapshot,
   getSnapshotEvents,
@@ -39,7 +40,7 @@ function assertSafeLocalTargets() {
   }
 }
 
-test.describe.serial("ACCESS2 local V2 reviewer rejection mutation", () => {
+test.describe.serial("ACCESS2 local V2 reviewer assignment and rejection mutation", () => {
   test.skip(
     !localMutationEnabled,
     `${ENABLE_LOCAL_MUTATION_ENV}=true is required to run local mutation E2E.`,
@@ -49,12 +50,14 @@ test.describe.serial("ACCESS2 local V2 reviewer rejection mutation", () => {
     assertSafeLocalTargets();
   });
 
-  test("rejects the disposable local pending-review snapshot through the patient UI", async ({
+  test("assigns and rejects the disposable local pending-review snapshot through the patient UI", async ({
     page,
     request,
   }) => {
+	test.setTimeout(120_000);
     await login(page);
     const token = await getApiToken(request);
+    const currentUser = await getCurrentUser(request, token);
     const patient = await findLocalV2RejectionMutationPatient(request, token);
     if (!patient) {
       test.skip(
@@ -79,7 +82,33 @@ test.describe.serial("ACCESS2 local V2 reviewer rejection mutation", () => {
     const backlogPanel = page.getByTestId("patient-review-packet-backlog-panel");
     await expect(backlogPanel).toBeVisible();
     await expect(backlogPanel).toContainText("Pending Review");
-    await expect(backlogPanel).toContainText("Unavailable until approved.");
+    await expect(backlogPanel).toContainText("Unavailable until the snapshot is approved and export-ready.");
+
+    const assignmentControls = backlogPanel.getByTestId("reviewer-assignment-control");
+    await expect(assignmentControls).toHaveCount(1);
+    const assignmentControl = assignmentControls.first();
+    await expect(assignmentControl).toBeVisible();
+    await expect(assignmentControl).toContainText("V2 controlled reviewer assignment");
+
+    await assignmentControl.getByRole("button", { name: "Assign reviewer" }).click();
+    await expect(assignmentControl.getByRole("alert")).toContainText("Reviewer user ID required.");
+
+    await assignmentControl.getByLabel("V2 controlled reviewer assignment").fill(currentUser.id);
+    await assignmentControl.getByRole("button", { name: "Assign reviewer" }).click();
+    await expect(assignmentControl.getByRole("status")).toContainText("Reviewer assigned.");
+    await expect(assignmentControl.getByRole("alert")).toHaveCount(0);
+
+    await expect
+      .poll(async () => {
+        const assignedSnapshot = await getSnapshot(request, token, snapshotId);
+        return assignedSnapshot.assigned_reviewer_user_id;
+      })
+      .toBe(currentUser.id);
+
+    const assignedSnapshot = await getSnapshot(request, token, snapshotId);
+    expect(assignedSnapshot.review_status).toBe("pending_review");
+    expect(assignedSnapshot.packet_json).toEqual(beforeSnapshot.packet_json);
+    expect(assignedSnapshot.packet_markdown).toEqual(beforeSnapshot.packet_markdown);
 
     const rejectionControls = backlogPanel.getByTestId("reviewer-rejection-control");
     await expect(rejectionControls).toHaveCount(1);
@@ -100,10 +129,11 @@ test.describe.serial("ACCESS2 local V2 reviewer rejection mutation", () => {
       })
       .toBe("rejected");
 
+    await expect(assignmentControls).toHaveCount(0);
     await expect(rejectionControls).toHaveCount(0);
     await expect(backlogPanel).toContainText("Rejected");
     await expect(backlogPanel).toContainText("Unavailable for rejected snapshots.");
-    await expect(page.getByRole("button", { name: /reject/i })).toHaveCount(0);
+    await expect(page.getByRole("button", { name: /assign|reject/i })).toHaveCount(0);
 
     const afterAuditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
     expect(afterAuditStatus.latest_snapshot_id).toBe(snapshotId);
@@ -112,10 +142,13 @@ test.describe.serial("ACCESS2 local V2 reviewer rejection mutation", () => {
 
     const afterSnapshot = await getSnapshot(request, token, snapshotId);
     expect(afterSnapshot.review_status).toBe("rejected");
+    expect(afterSnapshot.assigned_reviewer_user_id).toBe(currentUser.id);
     expect(afterSnapshot.packet_json).toEqual(beforeSnapshot.packet_json);
     expect(afterSnapshot.packet_markdown).toEqual(beforeSnapshot.packet_markdown);
 
     const events = await getSnapshotEvents(request, token, snapshotId);
+    expect(JSON.stringify(events)).toContain("snapshot_assigned");
+    expect(JSON.stringify(events)).toContain(currentUser.id);
     expect(JSON.stringify(events)).toContain("snapshot_rejected");
     expect(JSON.stringify(events)).toContain(LOCAL_MUTATION_REASON);
 

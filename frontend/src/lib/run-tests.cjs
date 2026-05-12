@@ -7,3 +7,5 @@ require("./audit-bundle-verify-route.test.cjs");
 require("./audit-bundle-verify-page.test.cjs");
 require("./reviewer-rejection-route.test.cjs");
 require("./reviewer-rejection-control.test.cjs");
+require("./reviewer-assignment-route.test.cjs");
+require("./reviewer-assignment-control.test.cjs");

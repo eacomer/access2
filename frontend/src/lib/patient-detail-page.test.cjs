@@ -108,7 +108,7 @@ test("patient detail exposes audit bundle downloads only for approved export-rea
   assert.doesNotMatch(renderer, /override_missing_checklist/);
 });
 
-test("patient detail renders assigned reviewer metadata without assignment controls", () => {
+test("patient detail renders assigned reviewer metadata and gates assignment to the backlog", () => {
   const source = readPageSource();
   const renderer = extractPatientBacklogRenderer(source);
 
@@ -118,8 +118,9 @@ test("patient detail renders assigned reviewer metadata without assignment contr
   assert.match(renderer, /snapshot\.assigned_reviewer_user_id/);
   assert.match(source, /User ID: \$\{assignedReviewerUserId\}/);
   assert.match(source, /Unassigned/);
-  assert.doesNotMatch(source, /assigned_reviewer_user_id:\s*/);
-  assert.doesNotMatch(source, /\/assignment/);
-  assert.doesNotMatch(source, />\s*Assign\s*</i);
-  assert.doesNotMatch(source, /Assign reviewer/i);
+  assert.match(source, /ReviewerAssignmentControl/);
+  assert.match(renderer, /<ReviewerAssignmentControl/);
+  assert.match(renderer, /latestSnapshotId=\{latestSnapshotId\}/);
+  assert.match(renderer, /reviewStatus=\{snapshot\.review_status\}/);
+  assert.match(renderer, /snapshotId=\{snapshot\.id\}/);
 });

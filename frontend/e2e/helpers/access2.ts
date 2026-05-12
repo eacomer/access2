@@ -10,6 +10,11 @@ type TokenResponse = {
   access_token: string;
 };
 
+type UserResponse = {
+  id: string;
+  email: string;
+};
+
 export type WorklistItem = {
   patient_id: string;
   patient_display_name: string;
@@ -38,6 +43,7 @@ export type PatientAuditStatus = {
   has_snapshot: boolean;
   latest_snapshot_id: string | null;
   review_status: string | null;
+  assigned_reviewer_user_id?: string | null;
   review_state: {
     state: string;
     label: string;
@@ -69,6 +75,7 @@ export type Snapshot = {
   id: string;
   patient_id: string;
   review_status: string;
+  assigned_reviewer_user_id?: string | null;
   review_note: string | null;
   review_state: PatientAuditStatus["review_state"];
   packet_json: unknown;
@@ -126,7 +133,9 @@ export async function login(page: Page) {
   await page.getByLabel("Work email").fill(process.env.ACCESS2_E2E_ADMIN_EMAIL as string);
   await page.getByLabel("Password").fill(process.env.ACCESS2_E2E_ADMIN_PASSWORD as string);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.locator('header[aria-label="Primary navigation"]')).toBeVisible();
+  await expect(page.locator('header[aria-label="Primary navigation"]')).toBeVisible({
+    timeout: 30_000,
+  });
   await expect(page.getByRole("link", { name: "Patients" })).toBeVisible();
 }
 
@@ -145,6 +154,10 @@ export async function getApiToken(request: APIRequestContext): Promise<string> {
   expect(response.ok(), await response.text()).toBeTruthy();
   const payload = (await response.json()) as TokenResponse;
   return payload.access_token;
+}
+
+export async function getCurrentUser(request: APIRequestContext, token: string): Promise<UserResponse> {
+  return apiGet<UserResponse>(request, token, "/auth/me");
 }
 
 export async function apiGet<T>(request: APIRequestContext, token: string, path: string): Promise<T> {
