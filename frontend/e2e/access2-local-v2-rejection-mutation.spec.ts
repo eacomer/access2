@@ -40,7 +40,7 @@ function assertSafeLocalTargets() {
   }
 }
 
-test.describe.serial("ACCESS2 local V2 reviewer assignment and rejection mutation", () => {
+test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new snapshot mutation", () => {
   test.skip(
     !localMutationEnabled,
     `${ENABLE_LOCAL_MUTATION_ENV}=true is required to run local mutation E2E.`,
@@ -50,7 +50,7 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment and rejection mutatio
     assertSafeLocalTargets();
   });
 
-  test("assigns and rejects the disposable local pending-review snapshot through the patient UI", async ({
+  test("assigns, rejects, and creates a new disposable local pending-review snapshot through the patient UI", async ({
     page,
     request,
   }) => {
@@ -160,6 +160,45 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment and rejection mutatio
     );
     expect(rejectedBundle.status()).toBe(409);
     expect(await rejectedBundle.text()).toMatch(/rejected|approved/i);
+
+    const createControls = backlogPanel.getByTestId("review-packet-snapshot-create-control");
+    await expect(createControls).toHaveCount(1);
+    const createControl = createControls.first();
+    await expect(createControl).toContainText("Existing packet JSON and Markdown stay preserved.");
+    await createControl.getByRole("button", { name: "Create new review packet snapshot" }).click();
+    await expect(createControl.getByRole("status")).toContainText("New review packet snapshot created.");
+
+    await expect
+      .poll(async () => {
+        const auditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
+        return auditStatus.latest_snapshot_id;
+      })
+      .not.toBe(snapshotId);
+
+    const refreshedAuditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
+    expect(refreshedAuditStatus.review_status).toBe("pending_review");
+    expect(refreshedAuditStatus.latest_snapshot_id).toBeTruthy();
+    expect(refreshedAuditStatus.latest_snapshot_id).not.toBe(snapshotId);
+    expect(refreshedAuditStatus.audit_bundle.available).toBe(false);
+
+    const newSnapshotId = refreshedAuditStatus.latest_snapshot_id as string;
+    const newSnapshot = await getSnapshot(request, token, newSnapshotId);
+    expect(newSnapshot.review_status).toBe("pending_review");
+    expect(newSnapshot.packet_json).toBeTruthy();
+    expect(newSnapshot.packet_markdown).toBeTruthy();
+
+    const oldRejectedSnapshot = await getSnapshot(request, token, snapshotId);
+    expect(oldRejectedSnapshot.review_status).toBe("rejected");
+    expect(oldRejectedSnapshot.packet_json).toEqual(beforeSnapshot.packet_json);
+    expect(oldRejectedSnapshot.packet_markdown).toEqual(beforeSnapshot.packet_markdown);
+
+    await expect(createControls).toHaveCount(0);
+    await expect(backlogPanel).toContainText("Pending Review");
+    await expect(backlogPanel).toContainText("Rejected");
+    await expect(backlogPanel).toContainText("Read-only for this snapshot.");
+
+    const newEvents = await getSnapshotEvents(request, token, newSnapshotId);
+    expect(JSON.stringify(newEvents)).toContain("snapshot_created");
 
     await page.goto("/audit-readiness");
     const auditReadinessPage = page.getByTestId("audit-readiness-page");

@@ -167,6 +167,19 @@ The controlled reviewer assignment UI is implemented and locally validated as a 
 - Local mutation E2E passed with `npm run test:e2e:local-mutation`, result `1 passed in 43.1s`.
 - The passing local E2E assigned and then rejected the disposable local latest `pending_review` snapshot through the patient UI, asserted `Reviewer assigned.` before backend polling, verified `assigned_reviewer_user_id`, and kept production mutation testing skipped.
 
+The controlled new review packet snapshot UI is implemented as a patient-detail-only creation control.
+
+- This is not a refresh of an old packet. It creates a new immutable snapshot from the current live case summary, review packet, and evidence state.
+- Existing rejected, approved, and historical snapshots keep their persisted `packet_json` and `packet_markdown`.
+- The frontend uses an authenticated proxy route at `/review-packet-snapshots/patients/{patient_id}/create`.
+- The proxy calls the existing backend route: `POST /api/v1/reports/access-review-packet/{patient_id}/snapshots`.
+- Patient detail exposes `Create new review packet snapshot` only when the latest posture has `next_step.action == "create_snapshot"` and either the latest snapshot is rejected or no snapshot exists yet.
+- Approved and `pending_review` latest snapshots do not expose the control; historical snapshots remain read-only.
+- Reviewer Work Queue remains read-only and does not expose approve, reject, assign, export, override, or create-snapshot controls.
+- The UI shows deterministic success and error copy, including `New review packet snapshot created.` after a successful creation.
+- Local mutation E2E now covers assignment, rejection, and creation of a new latest `pending_review` snapshot while verifying the old rejected snapshot remains preserved and read-only.
+- Production mutation E2E remains skipped; do not run this mutation path against shared Railway production demo data.
+
 Local seed/reset command for this controlled assignment/rejection validation:
 
 ```powershell
@@ -193,6 +206,7 @@ Troubleshooting notes:
 - Set `PYTHONPATH` to `C:\dev\access2\backend` when running the seed from PowerShell.
 - Local mutation E2E requires the frontend and backend running locally.
 - If the disposable marker is already rejected, or if a prior E2E run timed out after a partial mutation, rerun the seed before E2E.
+- The local mutation E2E may create a new latest pending snapshot after rejection; rerun the seed before another E2E cycle if local state is not at the expected latest `pending_review` starting point.
 - A stale local Next.js dev cache can produce `.next` runtime errors such as `Cannot find module './570.js'`; clearing `.next` and restarting `npm run dev` resolves it.
 
 Local mutation test setup is separate from production demo data:

@@ -10,6 +10,7 @@ import EscalationEvidenceCard from "../../../components/patients/EscalationEvide
 import PatientEvidenceSummary from "../../../components/patients/PatientEvidenceSummary";
 import PatientInterventionEvidenceSummary from "../../../components/patients/PatientInterventionEvidenceSummary";
 import PatientRecentActivityStrip from "../../../components/patients/PatientRecentActivityStrip";
+import ReviewPacketSnapshotCreateControl from "../../../components/patients/ReviewPacketSnapshotCreateControl";
 import ReviewerAssignmentControl from "../../../components/patients/ReviewerAssignmentControl";
 import ReviewerRejectionControl from "../../../components/patients/ReviewerRejectionControl";
 import PatientWorkflowHeader from "../../../components/patients/PatientWorkflowHeader";
@@ -956,6 +957,12 @@ const renderPatientBacklogPanel = ({
 
   return (
     <>
+      <ReviewPacketSnapshotCreateControl
+        latestSnapshotId={latestSnapshotId}
+        nextStepAction={backlog.audit_status.next_step.action}
+        patientId={backlog.patient_id}
+        reviewStatus={backlog.audit_status.review_status}
+      />
       <div className="queue-impact-grid">
         <div className="queue-impact-stat">
           <span className="queue-impact-value">{formatBooleanLabel(backlog.audit_status.has_snapshot)}</span>
