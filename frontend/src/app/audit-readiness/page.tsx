@@ -52,7 +52,8 @@ const parseStatus = (value?: string | string[]): AuditReadinessStatus | undefine
   return STATUS_OPTIONS.some((option) => option.value === raw) ? (raw as AuditReadinessStatus) : undefined;
 };
 
-const formatValue = (value?: string | null) => value || "—";
+const formatAssignedReviewer = (assignedReviewerUserId?: string | null) =>
+  assignedReviewerUserId ? `User ID: ${assignedReviewerUserId}` : "Unassigned";
 
 const formatAuditStatusValue = (value?: string | null) =>
   value
@@ -398,7 +399,7 @@ export default async function AuditReadinessPage({ searchParams }: PageProps) {
                         <td>{formatAuditStatusValue(item.review_status)}</td>
                         <td>{formatAuditStatusValue(item.completion_status)}</td>
                         <td>{formatAuditStatusValue(item.review_state)}</td>
-                        <td>{formatValue(item.assigned_reviewer_user_id)}</td>
+                        <td>{formatAssignedReviewer(item.assigned_reviewer_user_id)}</td>
                         <td>
                           <strong>{formatAuditStatusValue(item.next_step.action)}</strong>
                           <p className="inline-helper">{item.next_step.reason}</p>

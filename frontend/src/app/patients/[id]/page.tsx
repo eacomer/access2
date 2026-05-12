@@ -199,6 +199,9 @@ const formatAuditStatusValue = (value?: string | null) =>
         .join(" ")
     : "—";
 
+const formatAssignedReviewer = (assignedReviewerUserId?: string | null) =>
+  assignedReviewerUserId ? `User ID: ${assignedReviewerUserId}` : "Unassigned";
+
 const AUDIT_BUNDLE_DOWNLOADS = [
   { format: "json", label: "Download JSON" },
   { format: "markdown", label: "Download Markdown" },
@@ -308,6 +311,10 @@ const renderAuditStatusPanel = ({
           <tr>
             <th scope="row">Review state</th>
             <td>{formatAuditStatusValue(auditStatus.review_state?.state)}</td>
+          </tr>
+          <tr>
+            <th scope="row">Assigned reviewer</th>
+            <td>{formatAssignedReviewer(auditStatus.assigned_reviewer_user_id)}</td>
           </tr>
           <tr>
             <th scope="row">Review action</th>
@@ -1001,7 +1008,7 @@ const renderPatientBacklogPanel = ({
                     <td>{formatDateTime(snapshot.created_at)}</td>
                     <td>{formatAuditStatusValue(snapshot.review_status)}</td>
                     <td>{snapshot.review_state.label}</td>
-                    <td>{snapshot.assigned_reviewer_user_id ?? "—"}</td>
+                    <td>{formatAssignedReviewer(snapshot.assigned_reviewer_user_id)}</td>
                     <td>
                       {unavailableMessage ? (
                         <span>{unavailableMessage}</span>

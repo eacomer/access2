@@ -34,11 +34,14 @@ test("audit readiness page renders key backend fields in the read-only worklist"
     "Rejected review",
     "Override approval",
     "Needs review",
+    "User ID:",
+    "Unassigned",
   ].forEach((label) => {
     assert.match(source, new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
 
   [
+    "formatAssignedReviewer",
     "item.patient_id",
     "item.latest_snapshot_id",
     "item.review_status",
@@ -75,4 +78,6 @@ test("audit readiness rows link to patient detail without exposing mutation cont
   assert.doesNotMatch(source, />\s*Assign\s*</i);
   assert.doesNotMatch(source, />\s*Override\s*</i);
   assert.doesNotMatch(source, />\s*Create Snapshot\s*</i);
+  assert.doesNotMatch(source, /\/assignment/);
+  assert.doesNotMatch(source, /assigned_reviewer_user_id:\s*/);
 });

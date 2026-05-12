@@ -106,5 +106,20 @@ test("patient detail exposes audit bundle downloads only for approved export-rea
   assert.match(renderer, /audit_bundle_exported events/);
   assert.doesNotMatch(renderer, /method:\s*"POST"/i);
   assert.doesNotMatch(renderer, /override_missing_checklist/);
-  assert.doesNotMatch(renderer, /assigned_reviewer_user_id:\s*/);
+});
+
+test("patient detail renders assigned reviewer metadata without assignment controls", () => {
+  const source = readPageSource();
+  const renderer = extractPatientBacklogRenderer(source);
+
+  assert.match(source, /const formatAssignedReviewer/);
+  assert.match(source, /Assigned reviewer/);
+  assert.match(source, /auditStatus\.assigned_reviewer_user_id/);
+  assert.match(renderer, /snapshot\.assigned_reviewer_user_id/);
+  assert.match(source, /User ID: \$\{assignedReviewerUserId\}/);
+  assert.match(source, /Unassigned/);
+  assert.doesNotMatch(source, /assigned_reviewer_user_id:\s*/);
+  assert.doesNotMatch(source, /\/assignment/);
+  assert.doesNotMatch(source, />\s*Assign\s*</i);
+  assert.doesNotMatch(source, /Assign reviewer/i);
 });
