@@ -217,7 +217,7 @@ const getAuditBundleUnavailableMessage = ({
   }
 
   if (snapshot.review_status !== "approved") {
-    return "Unavailable until approved.";
+    return "Unavailable until the snapshot is approved and export-ready.";
   }
 
   if (
@@ -1025,8 +1025,8 @@ const renderPatientBacklogPanel = ({
                             ))}
                           </div>
                           <p className="inline-helper">
-                            Uses approved audit bundle export endpoints. Successful downloads may record
-                            audit_bundle_exported events.
+                            Available only for approved snapshots through the persisted audit bundle
+                            export endpoints. Successful downloads may record audit_bundle_exported events.
                           </p>
                         </>
                       )}

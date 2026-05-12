@@ -145,6 +145,15 @@ Backend guardrails remain part of the contract:
 - Snapshot `packet_json` and `packet_markdown` remain immutable.
 - Rejected snapshots continue to block audit bundle generation and manifest verification.
 
+The next controlled V2 slice is implemented as approved-snapshot audit bundle export/download controls on patient detail.
+
+- Backend export semantics were reused; no new backend export route or workflow state transition was added.
+- The frontend uses the existing authenticated proxy route at `/audit-bundles/{snapshotId}/{format}` for JSON, Markdown, and PDF bundle downloads.
+- Patient detail exposes audit bundle download actions only for approved snapshots that can use the persisted audit bundle export endpoints.
+- Pending, rejected, and non-export-ready snapshots remain read-only with explanatory copy.
+- Audit-readiness and reviewer work queue remain read-only and do not expose approve, reject, override, assignment, create-snapshot, or export controls.
+- Successful downloads may record `audit_bundle_exported` events through the existing backend export endpoints; manifest verification behavior remains unchanged.
+
 Local mutation test setup is separate from production demo data:
 
 - `backend/scripts/seed_local_v2_rejection_mutation.py` creates or repairs one disposable local synthetic patient marked `access2-local-v2-mutation:reviewer-rejection`.

@@ -17,6 +17,22 @@ function extractOutcomeProofGapsRenderer(source) {
   return source.slice(start, end);
 }
 
+function extractAuditBundleUnavailableHelper(source) {
+  const start = source.indexOf("const getAuditBundleUnavailableMessage");
+  const end = source.indexOf("const getAuditBundleDownloadHref");
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  return source.slice(start, end);
+}
+
+function extractPatientBacklogRenderer(source) {
+  const start = source.indexOf("const renderPatientBacklogPanel");
+  const end = source.indexOf("export default async function PatientDetailPage");
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  return source.slice(start, end);
+}
+
 test("patient detail renders outcome proof gaps as a read-only audit section", () => {
   const source = readPageSource();
   const renderer = extractOutcomeProofGapsRenderer(source);
@@ -65,4 +81,30 @@ test("outcome proof gaps cover ready, missing evidence, rejected, and override p
   ].forEach((text) => {
     assert.match(renderer, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
+});
+
+test("patient detail exposes audit bundle downloads only for approved export-ready snapshots", () => {
+  const source = readPageSource();
+  const helper = extractAuditBundleUnavailableHelper(source);
+  const renderer = extractPatientBacklogRenderer(source);
+
+  assert.match(source, /const AUDIT_BUNDLE_DOWNLOADS = \[/);
+  assert.match(source, /format: "json", label: "Download JSON"/);
+  assert.match(source, /format: "markdown", label: "Download Markdown"/);
+  assert.match(source, /format: "pdf", label: "Download PDF"/);
+
+  assert.match(helper, /snapshot\.review_status === "rejected"/);
+  assert.match(helper, /Unavailable for rejected snapshots/);
+  assert.match(helper, /snapshot\.review_status !== "approved"/);
+  assert.match(helper, /Unavailable until the snapshot is approved and export-ready/);
+  assert.match(helper, /!backlog\.audit_status\.audit_bundle\.available/);
+  assert.match(helper, /Approved snapshot is not export-ready/);
+
+  assert.match(renderer, /data-testid="audit-bundle-download-actions"/);
+  assert.match(renderer, /getAuditBundleDownloadHref/);
+  assert.match(renderer, /Available only for approved snapshots through the persisted audit bundle/);
+  assert.match(renderer, /audit_bundle_exported events/);
+  assert.doesNotMatch(renderer, /method:\s*"POST"/i);
+  assert.doesNotMatch(renderer, /override_missing_checklist/);
+  assert.doesNotMatch(renderer, /assigned_reviewer_user_id:\s*/);
 });
