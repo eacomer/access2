@@ -154,6 +154,47 @@ The next controlled V2 slice is implemented as approved-snapshot audit bundle ex
 - Audit-readiness and reviewer work queue remain read-only and do not expose approve, reject, override, assignment, create-snapshot, or export controls.
 - Successful downloads may record `audit_bundle_exported` events through the existing backend export endpoints; manifest verification behavior remains unchanged.
 
+The controlled reviewer assignment UI is implemented and locally validated as a patient-detail-only mutation control.
+
+- Patient detail exposes reviewer assignment only in the review packet backlog for the latest snapshot when `review_status == "pending_review"`.
+- Approved, rejected, and historical snapshots remain read-only; assignment does not approve, reject, refresh, export, or mutate snapshot packet content.
+- Reviewer Work Queue remains read-only and does not expose assignment mutation controls.
+- The frontend assignment proxy route uses the existing backend route: `PATCH /api/v1/reports/access-review-packet/snapshots/{snapshot_id}/assignment`.
+- The assignment UI now posts `assigned_reviewer_user_id` directly. The proxy accepts both `assignedReviewerUserId` and `assigned_reviewer_user_id` for compatibility, but forwards only `assigned_reviewer_user_id` to the backend.
+- The proxy fails closed if a successful backend response does not echo the requested `assigned_reviewer_user_id`.
+- The UI shows deterministic success and error copy, including `Reviewer assigned.` after a successful assignment.
+- Existing backend behavior records `snapshot_assigned` audit events and preserves immutable `packet_json` and `packet_markdown`.
+- Local mutation E2E passed with `npm run test:e2e:local-mutation`, result `1 passed in 43.1s`.
+- The passing local E2E assigned and then rejected the disposable local latest `pending_review` snapshot through the patient UI, asserted `Reviewer assigned.` before backend polling, verified `assigned_reviewer_user_id`, and kept production mutation testing skipped.
+
+Local seed/reset command for this controlled assignment/rejection validation:
+
+```powershell
+cd C:\dev\access2\backend
+$env:ACCESS2_ENABLE_LOCAL_MUTATION_E2E="true"
+$env:PYTHONPATH="C:\dev\access2\backend"
+py -3 -m scripts.seed_local_v2_rejection_mutation
+```
+
+Local E2E command:
+
+```powershell
+cd C:\dev\access2\frontend
+$env:ACCESS2_ENABLE_LOCAL_MUTATION_E2E="true"
+$env:ACCESS2_E2E_BASE_URL="http://localhost:3000"
+$env:ACCESS2_E2E_ADMIN_EMAIL="admin@example.com"
+$env:ACCESS2_E2E_ADMIN_PASSWORD="Admin123!"
+& "C:\Program Files\nodejs\npm.cmd" run test:e2e:local-mutation
+```
+
+Troubleshooting notes:
+
+- Run the local mutation seed as a module from `backend`: `py -3 -m scripts.seed_local_v2_rejection_mutation`.
+- Set `PYTHONPATH` to `C:\dev\access2\backend` when running the seed from PowerShell.
+- Local mutation E2E requires the frontend and backend running locally.
+- If the disposable marker is already rejected, or if a prior E2E run timed out after a partial mutation, rerun the seed before E2E.
+- A stale local Next.js dev cache can produce `.next` runtime errors such as `Cannot find module './570.js'`; clearing `.next` and restarting `npm run dev` resolves it.
+
 Local mutation test setup is separate from production demo data:
 
 - `backend/scripts/seed_local_v2_rejection_mutation.py` creates or repairs one disposable local synthetic patient marked `access2-local-v2-mutation:reviewer-rejection`.
@@ -230,7 +271,7 @@ This section is inspection and planning only. It does not authorize production m
 - No backend startup command change; it remains `bash scripts/render-start.sh`.
 - No seed command left as a Railway startup command.
 - No superuser override approval UI implementation.
-- No reviewer assignment, intervention/task mutation, evidence editing, broad workflow mutation, or architecture redesign.
+- No reviewer directory, role/permission redesign, intervention/task mutation, evidence editing, broad workflow mutation, or architecture redesign.
 - No real PHI and no secrets.
 
 ### Recommended next implementation
