@@ -223,6 +223,15 @@ npm run test:e2e:local-mutation
 
 The local mutation spec is separate from the production Railway demo spec. It skips unless `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` is set and fails closed if the configured frontend or API target contains `access2.salvardata.com`, `api.salvardata.com`, `railway.app`, or `up.railway.app`.
 
+Latest local validation:
+
+- `npm run test:e2e:local-mutation` passed against localhost only with `1 passed` in about 1.4 minutes.
+- This confirmed the disposable local patient/snapshot setup works, the latest `pending_review` snapshot renders the controlled rejection UI, reviewer rejection through the patient UI succeeds, and the rejected state is reached after submit.
+- The local-only guardrails allowed safe mutation validation without touching shared production demo data.
+- A prior attempted run against `https://access2.salvardata.com` was refused as expected, confirming the production/Railway target guard.
+- Demo Patient 3 remains the production read-only rejected-posture scenario, the existing production `Demo Patient 3 reviewer rejection through UI` test remains skipped, and Railway production E2E remains read-only.
+- Non-goals remain unchanged: no production mutation E2E activation, no shared demo data mutation, no Railway/deployment config change, no override approval UI, and no audit-readiness queue mutation controls.
+
 ### 5. Approve The Snapshot
 
 Use normal approval when the packet is ready:

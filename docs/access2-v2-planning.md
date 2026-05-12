@@ -151,7 +151,8 @@ Local mutation test setup is separate from production demo data:
 - The script requires `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` and fails closed when production-like domains such as `access2.salvardata.com`, `api.salvardata.com`, `railway.app`, or `up.railway.app` appear in configured URL/domain/base/origin environment variables.
 - Rerunning the script leaves the disposable local scenario ready for another rejection test; after a prior rejection, it creates a new latest `pending_review` snapshot rather than rewriting the rejected terminal snapshot.
 - This path is not a Railway seed path, does not modify `access2-railway-demo:*` patients, and must not be used against shared production demo data.
-- No Playwright mutation test is enabled yet; the skipped Demo Patient 3 reviewer rejection path remains skipped for production.
+- A separate gated local Playwright mutation spec exists and has passed against localhost with `1 passed`; production mutation E2E was not run.
+- The skipped Demo Patient 3 reviewer rejection path remains skipped for production, and Demo Patient 3 remains the production read-only rejected-posture scenario.
 
 ## Scope for Recommended Slice
 
