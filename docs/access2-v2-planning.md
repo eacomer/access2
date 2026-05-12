@@ -163,6 +163,80 @@ Local mutation test setup is separate from production demo data:
 - A separate gated local Playwright mutation spec exists and has passed against localhost with `1 passed`; production mutation E2E was not run.
 - The skipped Demo Patient 3 reviewer rejection path remains skipped for production, and Demo Patient 3 remains the production read-only rejected-posture scenario.
 
+## V2 Mutation Validation Reset Strategy
+
+This section is inspection and planning only. It does not authorize production mutation tests, Railway data mutation, override approval implementation, broad workflow mutation, or deployment configuration changes.
+
+### Current mutation validation posture
+
+- Production Railway E2E remains read-only and uses `frontend/e2e/access2-railway-demo.spec.ts`.
+- The production E2E suite validates login, Demo Guide, Release Summary, Reviewer Work Queue, four seeded patient postures, patient proof panels, approved audit bundle downloads, and manifest verification.
+- The production E2E suite keeps two expected mutation-path skips:
+  - Demo Patient 3 reviewer rejection through UI.
+  - Demo Patient 4 superuser override approval through UI.
+- Local reviewer rejection mutation validation uses `frontend/e2e/access2-local-v2-rejection-mutation.spec.ts` and a disposable synthetic patient created by `backend/scripts/seed_local_v2_rejection_mutation.py`.
+- The local mutation seed and local mutation Playwright spec both require explicit opt-in and refuse production/Railway-like targets.
+
+### Existing seed and reset mechanisms
+
+- `backend/scripts/seed_demo_users.py` creates the synthetic demo organization users and is safe to rerun because it skips existing users.
+- `backend/scripts/seed_railway_demo_cases.py` creates or repairs four stable synthetic Railway demo patients with `external_patient_id` values starting with `access2-railway-demo:`.
+- Railway demo seeding is idempotent for the four read-only demo postures: audit-ready, missing-evidence, rejected-review, and override-approval.
+- Railway demo seeding should remain a deliberate one-time operational step and must not be left as the Railway backend startup command.
+- `backend/scripts/seed_local_v2_rejection_mutation.py` is separate from Railway demo seeding and uses the marker `access2-local-v2-mutation:reviewer-rejection`.
+- The local mutation seed restores a latest `pending_review` snapshot after a prior local rejection by creating a new latest snapshot instead of rewriting a rejected terminal snapshot.
+
+### Existing production safeguards
+
+- `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` is required before local mutation seeding or local mutation E2E can run.
+- The local mutation seed refuses configured URL, URI, origin, host, domain, or base environment variables containing `access2.salvardata.com`, `api.salvardata.com`, `railway.app`, or `up.railway.app`.
+- The local mutation Playwright spec checks both frontend and API targets and throws when either target looks production-like.
+- The local mutation marker is distinct from `access2-railway-demo:*`, and tests assert the local mutation seed does not change Railway demo patients.
+- Demo Patient 3 remains intentionally seeded as already rejected, so it is evidence for read-only rejected posture, not a repeatable production rejection target.
+
+### Candidate safe environments
+
+- Local-only disposable database: recommended current target. It already has an opt-in seed, a disposable patient marker, production-target refusal, and a gated Playwright mutation spec.
+- Temporary preview environment: acceptable future target only if it has an isolated database, isolated frontend/API URLs, disposable synthetic tenant, seeded credentials, explicit teardown/reset steps, and fail-closed host allow/deny checks.
+- Railway staging: acceptable future target only if staging is a separate Railway project or service set with a separate database and no shared demo patients from production.
+- Separately seeded disposable tenant in production: not recommended as the next step. It still risks credential, host, and cleanup mistakes unless tenant isolation, reset ownership, and production-safe allowlisting are implemented and reviewed first.
+- Shared production demo tenant: not acceptable for mutation validation. It must remain stable for demos and read-only production E2E.
+
+### Minimum requirements before non-local mutation validation
+
+- A disposable synthetic tenant or environment that is not the shared production demo tenant.
+- Stable synthetic markers for mutation-only patients, separate from all `access2-railway-demo:*` markers.
+- A seed/reset script that can restore the exact pre-test mutation state without rewriting terminal snapshots or deleting unrelated data.
+- Explicit environment opt-in, such as a mutation-specific enable flag, plus host checks that fail closed for production and shared Railway demo targets.
+- Separate credentials and environment variables for the disposable target; no secrets committed to docs, code, logs, screenshots, or pull requests.
+- E2E specs that are separate from production read-only specs and cannot run against production by default.
+- A documented teardown/reset command and a post-run verification that the disposable patient returns to a safe pending-review state for the next run.
+- Confirmation that tenant scoping, immutable snapshot content, audit events, and persisted manifest verification behavior remain unchanged.
+
+### Reset and reseed requirements
+
+- Reset must create a new latest pending snapshot when the previous disposable snapshot reached a terminal state.
+- Reset must not mutate `packet_json` or `packet_markdown` on any existing immutable snapshot.
+- Reset must not rewrite rejected, approved, or override-approved terminal review history.
+- Reset must not alter shared seeded production patients or their `access2-railway-demo:*` markers.
+- Reseed output must print copy/paste-friendly patient IDs or env vars for the mutation spec.
+- Reseed must be idempotent and must include tests proving rerun behavior, production-target refusal, and separation from Railway demo cases.
+
+### Explicit non-goals
+
+- No production mutation E2E against `https://access2.salvardata.com`.
+- No mutation of shared Railway production demo data.
+- No Railway deployment configuration change.
+- No backend startup command change; it remains `bash scripts/render-start.sh`.
+- No seed command left as a Railway startup command.
+- No superuser override approval UI implementation.
+- No reviewer assignment, intervention/task mutation, evidence editing, broad workflow mutation, or architecture redesign.
+- No real PHI and no secrets.
+
+### Recommended next implementation
+
+Keep mutation validation local-only until a disposable staging tenant or isolated preview environment exists. The next implementation slice should be a small planning-to-code bridge that generalizes the existing local fail-closed guard pattern into a reusable mutation-target guard for future non-local disposable environments, with tests proving that production and shared Railway demo targets are refused by default.
+
 ## Scope for Recommended Slice
 
 The V2 rejection slice should include only the minimum behavior needed for a controlled reviewer rejection.
