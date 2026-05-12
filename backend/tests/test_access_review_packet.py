@@ -342,6 +342,20 @@ def _update_review_packet_snapshot_assignment(
     return resp.json()
 
 
+def _update_review_packet_snapshot_assignment_raw(
+    client: TestClient,
+    headers: dict[str, str],
+    snapshot_id: str,
+    *,
+    assigned_reviewer_user_id: str | None,
+):
+    return client.patch(
+        f"/api/v1/reports/access-review-packet/snapshots/{snapshot_id}/assignment",
+        json={"assigned_reviewer_user_id": assigned_reviewer_user_id},
+        headers=headers,
+    )
+
+
 def _get_review_packet_snapshot_summary(
     client: TestClient,
     headers: dict[str, str],
@@ -3005,6 +3019,113 @@ def test_access_review_packet_snapshot_assignment_can_be_set_changed_and_cleared
     assert detail["packet_markdown"] == original_packet_markdown
 
 
+def test_access_review_packet_snapshot_assignment_rejects_terminal_states_without_mutating_packet(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="review-packet-assignment-terminal")
+    reviewer = create_user_for_org(
+        db_session,
+        organization=env["organization"],
+        email="review-packet-assignment-terminal-reviewer@example.com",
+        password="Secret123!",
+    )
+    _prepare_review_ready_patient(
+        client,
+        env["headers"],
+        env["patient_id"],
+        summary="Terminal assignment review-ready packet",
+    )
+    approved_snapshot = _create_review_packet_snapshot(client, env["headers"], env["patient_id"])
+    approved = _update_review_packet_snapshot_review(
+        client,
+        env["headers"],
+        approved_snapshot["id"],
+        review_status="approved",
+        decision_note="Approved before assignment attempt.",
+    )
+    rejected_snapshot = _create_review_packet_snapshot(client, env["headers"], env["patient_id"])
+    rejected = _update_review_packet_snapshot_review(
+        client,
+        env["headers"],
+        rejected_snapshot["id"],
+        review_status="rejected",
+        decision_note="Rejected before assignment attempt.",
+    )
+
+    approved_assignment = _update_review_packet_snapshot_assignment_raw(
+        client,
+        env["headers"],
+        approved["id"],
+        assigned_reviewer_user_id=str(reviewer.id),
+    )
+    rejected_assignment = _update_review_packet_snapshot_assignment_raw(
+        client,
+        env["headers"],
+        rejected["id"],
+        assigned_reviewer_user_id=str(reviewer.id),
+    )
+
+    for response in [approved_assignment, rejected_assignment]:
+        assert response.status_code == 409
+        assert response.json()["detail"] == "Only pending review packet snapshots can be assigned."
+
+    approved_detail = _get_review_packet_snapshot_detail(client, env["headers"], approved["id"])
+    rejected_detail = _get_review_packet_snapshot_detail(client, env["headers"], rejected["id"])
+    approved_events = _get_review_packet_snapshot_events(client, env["headers"], approved["id"])
+    rejected_events = _get_review_packet_snapshot_events(client, env["headers"], rejected["id"])
+
+    assert approved_detail["assigned_reviewer_user_id"] is None
+    assert approved_detail["packet_json"] == approved["packet_json"]
+    assert approved_detail["packet_markdown"] == approved["packet_markdown"]
+    assert rejected_detail["assigned_reviewer_user_id"] is None
+    assert rejected_detail["packet_json"] == rejected["packet_json"]
+    assert rejected_detail["packet_markdown"] == rejected["packet_markdown"]
+    assert [event["event_type"] for event in approved_events["events"]] == [
+        "snapshot_created",
+        "snapshot_approved",
+    ]
+    assert [event["event_type"] for event in rejected_events["events"]] == [
+        "snapshot_created",
+        "snapshot_rejected",
+    ]
+
+
+def test_access_review_packet_snapshot_assignment_respects_tenant_scope_and_missing_snapshot(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="review-packet-assignment-scope")
+    other = _bootstrap_patient_env(client, db_session, slug="review-packet-assignment-scope-other")
+    snapshot = _create_review_packet_snapshot(client, env["headers"], env["patient_id"])
+
+    forbidden = _update_review_packet_snapshot_assignment_raw(
+        client,
+        other["headers"],
+        snapshot["id"],
+        assigned_reviewer_user_id=str(other["user"].id),
+    )
+    missing = _update_review_packet_snapshot_assignment_raw(
+        client,
+        env["headers"],
+        "00000000-0000-0000-0000-000000000000",
+        assigned_reviewer_user_id=str(env["user"].id),
+    )
+    invalid_reviewer = _update_review_packet_snapshot_assignment_raw(
+        client,
+        env["headers"],
+        snapshot["id"],
+        assigned_reviewer_user_id=str(other["user"].id),
+    )
+
+    assert forbidden.status_code == 403
+    assert missing.status_code == 404
+    assert invalid_reviewer.status_code == 422
+    detail = _get_review_packet_snapshot_detail(client, env["headers"], snapshot["id"])
+    assert detail["assigned_reviewer_user_id"] is None
+    assert [event["event_type"] for event in detail["audit_timeline"]] == ["snapshot_created"]
+
+
 def test_access_review_packet_snapshot_events_endpoint_respects_tenant_scope(
     client: TestClient,
     db_session: Session,
@@ -4258,34 +4379,34 @@ def test_access_review_packet_snapshot_organization_list_supports_filters_and_pa
         summary="Org list approved packet",
     )
     approved_incomplete = _create_review_packet_snapshot(client, env["headers"], patient_two_id)
+    approved_incomplete = _update_review_packet_snapshot_assignment(
+        client,
+        env["headers"],
+        approved_incomplete["id"],
+        assigned_reviewer_user_id=str(reviewer_two.id),
+    )
     approved_incomplete = _update_review_packet_snapshot_review(
         client,
         env["headers"],
         approved_incomplete["id"],
         review_status="approved",
     )
-    _update_review_packet_snapshot_assignment(
-        client,
-        env["headers"],
-        approved_incomplete["id"],
-        assigned_reviewer_user_id=str(reviewer_two.id),
-    )
 
     open_escalation_id = _create_escalation(client, env["headers"], patient_three_id)
     _create_task(client, env["headers"], open_escalation_id)
     rejected_active = _create_review_packet_snapshot(client, env["headers"], patient_three_id)
+    rejected_active = _update_review_packet_snapshot_assignment(
+        client,
+        env["headers"],
+        rejected_active["id"],
+        assigned_reviewer_user_id=str(reviewer_one.id),
+    )
     rejected_active = _update_review_packet_snapshot_review(
         client,
         env["headers"],
         rejected_active["id"],
         review_status="rejected",
         review_note="Still active open work.",
-    )
-    _update_review_packet_snapshot_assignment(
-        client,
-        env["headers"],
-        rejected_active["id"],
-        assigned_reviewer_user_id=str(reviewer_one.id),
     )
 
     pending_incomplete = _create_review_packet_snapshot(client, env["headers"], patient_four_id)
@@ -4652,17 +4773,17 @@ def test_access_review_packet_snapshot_my_pending_returns_only_current_reviewers
         summary="My pending approved packet",
     )
     my_approved = _create_review_packet_snapshot(client, env["headers"], patient_two_id)
+    my_approved = _update_review_packet_snapshot_assignment(
+        client,
+        env["headers"],
+        my_approved["id"],
+        assigned_reviewer_user_id=str(env["user"].id),
+    )
     my_approved = _update_review_packet_snapshot_review(
         client,
         env["headers"],
         my_approved["id"],
         review_status="approved",
-    )
-    _update_review_packet_snapshot_assignment(
-        client,
-        env["headers"],
-        my_approved["id"],
-        assigned_reviewer_user_id=str(env["user"].id),
     )
 
     reviewer_two_pending = _create_review_packet_snapshot(client, env["headers"], patient_three_id)

@@ -45,7 +45,7 @@ class AccessReviewPacketReviewValidationError(Exception):
 
 
 class AccessReviewPacketReviewStateConflictError(Exception):
-    """Raised when a review decision would rewrite a terminal snapshot state."""
+    """Raised when a mutation would rewrite a terminal snapshot state."""
 
 
 class AccessReviewPacketAuditBundleConflictError(Exception):
@@ -1884,6 +1884,11 @@ def update_access_review_packet_snapshot_assignment(
     )
     if snapshot is None:
         return None
+
+    if snapshot.review_status != AccessReviewPacketSnapshotReviewStatus.PENDING_REVIEW:
+        raise AccessReviewPacketReviewStateConflictError(
+            "Only pending review packet snapshots can be assigned."
+        )
 
     previous_assigned_reviewer_user_id = snapshot.assigned_reviewer_user_id
     if assigned_reviewer_user_id is None:
