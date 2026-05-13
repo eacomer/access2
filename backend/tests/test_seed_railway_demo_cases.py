@@ -12,7 +12,9 @@ from app.services.access_evidence_service import (
     update_access_review_packet_snapshot_review,
     verify_access_review_packet_snapshot_audit_manifest,
 )
+from app.services.care_update_service import list_care_updates_for_patient
 from app.services.intervention_task_service import list_tasks_for_patient
+from app.services.outcome_service import list_outcomes_for_patient
 from app.services.patient_signal_service import list_patient_escalations, list_patient_signals
 from scripts.seed_railway_demo_cases import (
     DEMO_CASES,
@@ -25,6 +27,9 @@ from scripts.seed_railway_demo_cases import (
 from scripts.seed_local_v2_rejection_mutation import (
     ENABLE_ENV_VAR,
     LOCAL_REJECTION_EXTERNAL_PATIENT_ID,
+    POST_REJECTION_CORRECTION_CARE_SUMMARY,
+    POST_REJECTION_CORRECTION_OUTCOME_SOURCE,
+    POST_REJECTION_CORRECTION_OUTCOME_VALUE,
     LocalMutationSeedGuardError,
     assert_local_mutation_seed_enabled,
     seed_local_v2_rejection_mutation_case,
@@ -208,6 +213,11 @@ def test_local_v2_rejection_mutation_seed_rerun_restores_latest_pending_review(
         patient=patient,
         limit=1,
     )[0]
+    first_packet_json = first_snapshot.packet_json
+    first_packet_markdown = first_snapshot.packet_markdown
+
+    assert POST_REJECTION_CORRECTION_CARE_SUMMARY not in first_packet_markdown
+    assert "status=insufficient_data" in first_packet_markdown
 
     update_access_review_packet_snapshot_review(
         db=db_session,
@@ -236,6 +246,53 @@ def test_local_v2_rejection_mutation_seed_rerun_restores_latest_pending_review(
     assert snapshots[0].review_status == AccessReviewPacketSnapshotReviewStatus.PENDING_REVIEW
     assert snapshots[0].id != first_snapshot.id
     assert snapshots[1].review_status == AccessReviewPacketSnapshotReviewStatus.REJECTED
+    assert snapshots[1].packet_json == first_packet_json
+    assert snapshots[1].packet_markdown == first_packet_markdown
+    assert POST_REJECTION_CORRECTION_CARE_SUMMARY in snapshots[0].packet_markdown
+    assert "status=improved" in snapshots[0].packet_markdown
+    assert POST_REJECTION_CORRECTION_CARE_SUMMARY not in snapshots[1].packet_markdown
+
+    outcome_summaries = snapshots[0].packet_json["case_summary"]["outcome_summaries"]
+    systolic_summary = next(
+        item for item in outcome_summaries if item["metric_name"] == "systolic_bp"
+    )
+    assert systolic_summary["baseline"] == 132
+    assert systolic_summary["latest"] == POST_REJECTION_CORRECTION_OUTCOME_VALUE
+    assert systolic_summary["status"] == "improved"
+
+    latest_care_update = snapshots[0].packet_json["case_summary"]["latest_care_update"]
+    assert latest_care_update["summary"] == POST_REJECTION_CORRECTION_CARE_SUMMARY
+
+    outcomes = list_outcomes_for_patient(db=db_session, context=context, patient=restored_patient)
+    care_updates = list_care_updates_for_patient(
+        db=db_session,
+        context=context,
+        patient=restored_patient,
+    )
+    assert any(outcome.source == POST_REJECTION_CORRECTION_OUTCOME_SOURCE for outcome in outcomes)
+    assert any(update.summary == POST_REJECTION_CORRECTION_CARE_SUMMARY for update in care_updates)
+
+    restored_again = seed_local_v2_rejection_mutation_case(db_session)
+    snapshots_after_idempotent_rerun = list_access_review_packet_snapshots(
+        db=db_session,
+        context=context,
+        patient=restored_again,
+        limit=3,
+    )
+    outcomes_after_idempotent_rerun = list_outcomes_for_patient(
+        db=db_session,
+        context=context,
+        patient=restored_again,
+    )
+    assert snapshots_after_idempotent_rerun[0].id == snapshots[0].id
+    assert (
+        sum(
+            1
+            for outcome in outcomes_after_idempotent_rerun
+            if outcome.source == POST_REJECTION_CORRECTION_OUTCOME_SOURCE
+        )
+        == 1
+    )
 
 
 def test_local_v2_rejection_mutation_seed_does_not_change_railway_demo_cases(

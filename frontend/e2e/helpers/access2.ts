@@ -129,14 +129,42 @@ export async function login(page: Page) {
     throw new Error(`Missing required E2E credential env vars: ${missing.join(", ")}`);
   }
 
+  let loginResponseStatus: number | null = null;
+  let loginResponseBody: string | null = null;
+
+  page.on("response", async (response) => {
+    if (!response.url().includes("/auth/login")) {
+      return;
+    }
+
+    loginResponseStatus = response.status();
+    const body = await response.text().catch(() => null);
+    loginResponseBody = body ? sanitizeAuthResponseBody(body) : null;
+  });
+
   await page.goto("/login");
   await page.getByLabel("Work email").fill(process.env.ACCESS2_E2E_ADMIN_EMAIL as string);
   await page.getByLabel("Password").fill(process.env.ACCESS2_E2E_ADMIN_PASSWORD as string);
   await page.getByRole("button", { name: "Sign in" }).click();
-  await expect(page.locator('header[aria-label="Primary navigation"]')).toBeVisible({
+
+  try {
+    await page.waitForURL((url) => !url.pathname.includes("/login"), {
+      timeout: 30_000,
+    });
+  } catch {
+    throw new Error(
+      [
+        "Login did not complete.",
+        `Current URL: ${page.url()}`,
+        `Auth response status: ${loginResponseStatus ?? "not observed"}`,
+        `Auth response body: ${loginResponseBody ?? "not available"}`,
+      ].join("\n"),
+    );
+  }
+
+  await expect(page.getByRole("link", { name: "Patients" })).toBeVisible({
     timeout: 30_000,
   });
-  await expect(page.getByRole("link", { name: "Patients" })).toBeVisible();
 }
 
 export async function getApiToken(request: APIRequestContext): Promise<string> {
@@ -179,6 +207,20 @@ export async function apiPatch<T>(
     data,
   });
   return response;
+}
+
+export async function apiPost<T>(
+  request: APIRequestContext,
+  token: string,
+  path: string,
+  data: Record<string, unknown>,
+): Promise<T> {
+  const response = await request.post(`${getApiBaseUrl()}${path}`, {
+    headers: { Authorization: `Bearer ${token}` },
+    data,
+  });
+  expect(response.ok(), await response.text()).toBeTruthy();
+  return (await response.json()) as T;
 }
 
 export async function findDemoPatient(
@@ -303,4 +345,11 @@ export async function verifyAuditManifest(
 
 function trimTrailingSlash(value: string) {
   return value.endsWith("/") ? value.slice(0, -1) : value;
+}
+
+function sanitizeAuthResponseBody(body: string): string {
+  return body
+    .replace(/"access_token"\s*:\s*"[^"]+"/g, '"access_token":"[redacted]"')
+    .replace(/"token"\s*:\s*"[^"]+"/g, '"token":"[redacted]"')
+    .replace(/Bearer\s+[A-Za-z0-9._~+/-]+=*/g, "Bearer [redacted]");
 }

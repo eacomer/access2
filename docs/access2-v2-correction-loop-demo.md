@@ -5,7 +5,7 @@
 Use this script to demonstrate the local-only ACCESS2 V2 correction loop:
 
 ```text
-latest rejected snapshot -> create new immutable review packet snapshot -> new latest pending_review snapshot -> old rejected packet remains preserved/read-only
+latest rejected snapshot -> corrected synthetic outcome/evidence -> create new immutable review packet snapshot -> new latest pending_review snapshot -> old rejected packet remains preserved/read-only
 ```
 
 This demo shows how ACCESS2 handles reviewer correction without changing an old packet. A rejected packet stays historical audit evidence. Corrected evidence/current state creates a new immutable review packet snapshot.
@@ -28,6 +28,8 @@ Production E2E remains read-only. Demo Patient 3 remains the production read-onl
 - Reviewer rejection can move the latest immutable snapshot to a rejected posture with required reason/evidence.
 - The rejected snapshot keeps its persisted packet JSON and Markdown.
 - Audit bundle export remains blocked for rejected snapshots.
+- The disposable local scenario can add post-rejection synthetic correction evidence before the next snapshot is created.
+- The corrected evidence marker is a later `systolic_bp` outcome with source `access2_local_v2_post_rejection_correction`, value `124`, and care-update summary `Post-rejection corrected evidence: synthetic systolic BP outcome improved after the completed intervention.`
 - ACCESS2 creates a new immutable review packet snapshot from current evidence after the rejected posture.
 - The new latest snapshot becomes `pending_review`.
 - Assignment and rejection controls appear only for the new latest `pending_review` snapshot.
@@ -102,7 +104,7 @@ This seed creates or repairs one synthetic local disposable patient with marker:
 access2-local-v2-mutation:reviewer-rejection
 ```
 
-If the previous latest snapshot was rejected, the seed creates a new latest `pending_review` snapshot. It does not rewrite the rejected terminal snapshot.
+If the previous latest snapshot was rejected, the seed first adds synthetic post-rejection correction evidence, then creates a new latest `pending_review` snapshot from that current evidence. It does not rewrite the rejected terminal snapshot.
 
 ## Local E2E Command
 
@@ -124,7 +126,7 @@ Latest validated result:
 1 passed (2.2m)
 ```
 
-That run used a clean frontend at `http://localhost:3001` after stale port-3000/node process friction.
+That run used a clean frontend at `http://localhost:3001` after stale port-3000/node process friction. The current local mutation spec also creates the same synthetic correction evidence after reviewer rejection and before selecting `Create new review packet snapshot`, so the new packet captures an improved outcome posture while the old rejected packet remains unchanged.
 
 ## Manual Demo Walkthrough
 
@@ -199,6 +201,7 @@ Expected result:
 - Success copy appears: `New review packet snapshot created.`
 - A new latest snapshot appears with `Pending Review`.
 - The older rejected snapshot remains visible and read-only.
+- The new snapshot is generated from current evidence. In the local E2E proof, that current evidence includes the post-rejection correction marker and an improved systolic BP outcome trend.
 - This is creation from current evidence while the rejected packet stays preserved.
 
 ### 6. Verify Latest-Only Controls
@@ -227,7 +230,7 @@ Expected result:
 
 Use this talk track:
 
-ACCESS2 does not overwrite review evidence when a reviewer rejects a packet. The rejected packet remains a historical immutable audit artifact, including the packet JSON, packet Markdown, review state, reviewer assignment, rejection reason, and audit events. When evidence or outcomes are corrected, ACCESS2 creates a new immutable review packet snapshot from the current evidence. Review controls apply to the new latest pending snapshot only, while old rejected/approved packets stay available as audit history.
+ACCESS2 does not overwrite review evidence when a reviewer rejects a packet. The rejected packet remains a historical immutable audit artifact, including the packet JSON, packet Markdown, review state, reviewer assignment, rejection reason, and audit events. When evidence or outcomes are corrected, ACCESS2 creates a new immutable review packet snapshot from the current evidence. In the local synthetic scenario, the corrected current evidence is visible as a post-rejection care update and an improved `systolic_bp` outcome trend. Review controls apply to the new latest pending snapshot only, while old rejected/approved packets stay available as audit history.
 
 This supports the ACCESS proof chain because the system can show:
 

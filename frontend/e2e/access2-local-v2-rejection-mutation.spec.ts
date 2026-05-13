@@ -1,6 +1,8 @@
-import { expect, test } from "@playwright/test";
+import { expect, test, type APIRequestContext } from "@playwright/test";
 
 import {
+  apiGet,
+  apiPost,
   findLocalV2RejectionMutationPatient,
   getApiBaseUrl,
   getApiToken,
@@ -15,6 +17,10 @@ import {
 const ENABLE_LOCAL_MUTATION_ENV = "ACCESS2_ENABLE_LOCAL_MUTATION_E2E";
 const LOCAL_MUTATION_REASON =
   "Synthetic local V2 rejection mutation test reason: outcome evidence needs correction.";
+const POST_REJECTION_CORRECTION_CARE_SUMMARY =
+  "Post-rejection corrected evidence: synthetic systolic BP outcome improved after the completed intervention.";
+const POST_REJECTION_CORRECTION_OUTCOME_SOURCE = "access2_local_v2_post_rejection_correction";
+const POST_REJECTION_CORRECTION_OUTCOME_VALUE = 124;
 const PRODUCTION_HOST_MARKERS = [
   "access2.salvardata.com",
   "api.salvardata.com",
@@ -23,6 +29,16 @@ const PRODUCTION_HOST_MARKERS = [
 ];
 
 const localMutationEnabled = process.env[ENABLE_LOCAL_MUTATION_ENV]?.trim().toLowerCase() === "true";
+
+type InterventionTask = {
+  id: string;
+  escalation_id: string | null;
+  status: string;
+};
+
+type OutcomeResponse = {
+  id: string;
+};
 
 function assertSafeLocalTargets() {
   const targets = [
@@ -38,6 +54,43 @@ function assertSafeLocalTargets() {
       `Refusing to run local mutation E2E against production/Railway-like target: ${productionLikeTarget}`,
     );
   }
+}
+
+async function createPostRejectionCorrectionEvidence({
+  patientId,
+  request,
+  token,
+}: {
+  patientId: string;
+  request: APIRequestContext;
+  token: string;
+}) {
+  const tasks = await apiGet<InterventionTask[]>(request, token, `/patients/${patientId}/tasks`);
+  const completedTask = tasks.find((task) => task.status === "completed") ?? tasks[0];
+  expect(completedTask, "Local mutation patient needs an intervention task.").toBeTruthy();
+
+  const observedAt = new Date(Date.now() + 48 * 60 * 60 * 1000).toISOString();
+  const correctedOutcome = await apiPost<OutcomeResponse>(request, token, "/outcomes", {
+    patient_id: patientId,
+    intervention_task_id: completedTask.id,
+    type: "bp",
+    metric_name: "systolic_bp",
+    value_numeric: POST_REJECTION_CORRECTION_OUTCOME_VALUE,
+    unit: "mmHg",
+    observed_at: observedAt,
+    source: POST_REJECTION_CORRECTION_OUTCOME_SOURCE,
+  });
+
+  await apiPost(request, token, `/patients/${patientId}/care-updates`, {
+    patient_id: patientId,
+    summary: POST_REJECTION_CORRECTION_CARE_SUMMARY,
+    details: "Synthetic local V2 correction evidence for disposable mutation testing. No real PHI.",
+    care_update_type: "follow_up",
+    occurred_at: new Date(Date.now() + 49 * 60 * 60 * 1000).toISOString(),
+    escalation_id: completedTask.escalation_id,
+    intervention_task_id: completedTask.id,
+    outcome_id: correctedOutcome.id,
+  });
 }
 
 test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new snapshot mutation", () => {
@@ -93,11 +146,20 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
     await assignmentControl.getByRole("button", { name: "Assign reviewer" }).click();
     await expect(assignmentControl.getByRole("alert")).toContainText("Reviewer user ID required.");
 
+    const assignmentResponsePromise = page.waitForResponse((response) => {
+      const method = response.request().method();
+      return (
+        response.url().includes("/review-packet-snapshots/") &&
+        response.url().includes("/assignment") &&
+        ["POST", "PATCH", "PUT"].includes(method)
+      );
+    });
+
     await assignmentControl.getByLabel("V2 controlled reviewer assignment").fill(currentUser.id);
     await assignmentControl.getByRole("button", { name: "Assign reviewer" }).click();
-    await expect(assignmentControl.getByRole("status")).toContainText("Reviewer assigned.", {
-      timeout: 30_000,
-    });
+
+    const assignmentResponse = await assignmentResponsePromise;
+    expect(assignmentResponse.ok(), await assignmentResponse.text()).toBeTruthy();
     await expect(assignmentControl.getByRole("alert")).toHaveCount(0);
 
     await expect
@@ -131,6 +193,8 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
       }, { timeout: 30_000 })
       .toBe("rejected");
 
+    await page.reload();
+
     await expect(backlogPanel).toContainText("Rejected", { timeout: 30_000 });
     await expect(backlogPanel).toContainText("Unavailable for rejected snapshots.");
     await expect(backlogPanel.getByRole("button", { name: "Assign reviewer" })).toHaveCount(0);
@@ -162,6 +226,12 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
     expect(rejectedBundle.status()).toBe(409);
     expect(await rejectedBundle.text()).toMatch(/rejected|approved/i);
 
+    await createPostRejectionCorrectionEvidence({
+      patientId: patient.patient_id,
+      request,
+      token,
+    });
+
     const createControls = backlogPanel.getByTestId("review-packet-snapshot-create-control");
     await expect(createControls).toHaveCount(1);
     const createControl = createControls.first();
@@ -189,6 +259,8 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
     expect(newSnapshot.review_status).toBe("pending_review");
     expect(newSnapshot.packet_json).toBeTruthy();
     expect(newSnapshot.packet_markdown).toBeTruthy();
+    expect(newSnapshot.packet_markdown).toContain(POST_REJECTION_CORRECTION_CARE_SUMMARY);
+    expect(newSnapshot.packet_markdown).toContain("status=improved");
 
     const oldRejectedSnapshot = await getSnapshot(request, token, snapshotId);
     expect(oldRejectedSnapshot.review_status).toBe("rejected");

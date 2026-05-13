@@ -205,7 +205,8 @@ Guardrails:
 - Do not run this script against Railway, production, or shared seeded demo data.
 - The marker is separate from `access2-railway-demo:*`; the four Railway demo patients remain unchanged.
 - Demo Patient 3 remains the production read-only rejected-posture scenario and should not be reused for repeatable mutation E2E.
-- After a prior local rejection, rerunning the script creates a new latest `pending_review` snapshot instead of rewriting the rejected terminal snapshot.
+- After a prior local rejection, rerunning the script adds synthetic post-rejection correction evidence, then creates a new latest `pending_review` snapshot instead of rewriting the rejected terminal snapshot.
+- The correction evidence uses the source `access2_local_v2_post_rejection_correction`, a synthetic `systolic_bp` value of `124`, and a care-update summary beginning `Post-rejection corrected evidence`.
 - No production Playwright mutation test is enabled; local mutation E2E must target this disposable marker/patient only.
 - Non-goals remain: no real PHI, no production mutation E2E, no Railway seed change, no deployment config change, no override approval UI, and no audit-readiness queue mutation controls.
 
@@ -227,7 +228,7 @@ The local mutation spec is separate from the production Railway demo spec. It sk
 Latest local validation:
 
 - `npm run test:e2e:local-mutation` passed against localhost only with `1 passed (2.2m)` on `http://localhost:3001`.
-- This confirmed the disposable local patient/snapshot setup supports the V2 correction loop: latest rejected snapshot -> create new immutable review packet snapshot -> new latest `pending_review` snapshot.
+- This confirmed the disposable local patient/snapshot setup supports the V2 correction loop: latest rejected snapshot -> corrected synthetic outcome/evidence -> create new immutable review packet snapshot -> new latest `pending_review` snapshot.
 - The old rejected snapshot remained visible/read-only with persisted packet content preserved.
 - Assignment and rejection controls appeared only for the latest `pending_review` snapshot and were absent from the rejected historical snapshot.
 - Reviewer Work Queue remained read-only with no approve, reject, assign, override, export, or create-snapshot mutation controls.
