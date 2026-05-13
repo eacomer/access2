@@ -181,6 +181,44 @@ The controlled new review packet snapshot UI is implemented as a patient-detail-
 - Fresh local stabilization result: `npm run test:e2e:local-mutation` passed with `1 passed (2.2m)` against a clean local frontend on `http://localhost:3001` after clearing stale `.next` state. The run proved latest rejected snapshot -> create new snapshot -> new latest `pending_review`; old rejected snapshot stayed visible/read-only; assignment and rejection buttons were visible only again for the new latest pending snapshot.
 - Production mutation E2E remains skipped; do not run this mutation path against shared Railway production demo data.
 
+## ACCESS2 V2 Checkpoint — May 13, 2026
+
+### Current Status
+
+ACCESS2 V1 is demo-ready and production-stable in a read-only posture. The production Railway deployment at `https://access2.salvardata.com` has a documented Playwright baseline of 8 passed, 2 skipped, and 0 failed. The two skips remain intentional V1 read-only constraints for mutation workflows.
+
+V2 has started with a local-only controlled reviewer rejection workflow. Mutation E2E coverage is intentionally gated and guarded so it can run only against safe local loopback targets. Production, Railway, and custom-domain mutation testing remain blocked.
+
+### Recommended Project Direction
+
+The next project phase should focus on completing the controlled V2 review workflow before adding broader product features.
+
+Recommended sequence:
+
+1. Document and validate the V2 mutation E2E environment guard behavior.
+2. Add local-only reviewer approval mutation flow.
+3. Add the correction loop after reviewer rejection.
+4. Add repeatable local reset/reseed support for mutation testing.
+5. Define a staging-only mutation test posture.
+6. Preserve the production V1 demo as read-only until staging mutation workflows are proven.
+
+### Working Definition of Done
+
+ACCESS2 V2 Pilot Demo Candidate is done when the following story can be demonstrated end to end:
+
+```text
+A chronic care case has evidence gaps.
+The system shows what is missing.
+A review packet is generated.
+A reviewer assigns/reviews the packet.
+The reviewer rejects it with a reason.
+The operator corrects the missing evidence.
+A new immutable snapshot is generated.
+The reviewer approves the corrected packet.
+The approved packet exports to JSON, Markdown, and PDF.
+The manifest verifies the audit bundle.
+The entire chain is visible and explainable.
+
 ### V2 correction loop checkpoint
 
 The local V2 correction loop is now documented and demoable as a localhost-only proof path:
@@ -248,6 +286,8 @@ Use [access2-v2-staging-mutation-checklist.md](C:/dev/access2/docs/access2-v2-st
 Use [access2-v2-staging-env-template.md](C:/dev/access2/docs/access2-v2-staging-env-template.md) for placeholder-only staging environment variables and command shapes before any future isolated staging mutation run.
 
 Use [access2-v2-staging-seed-reset-contract.md](C:/dev/access2/docs/access2-v2-staging-seed-reset-contract.md) for the requirements a future isolated staging seed/reset process must satisfy before seed/reset code or staging mutation E2E is written.
+
+Use [access2-v2-mutation-e2e-guard-behavior.md](C:/dev/access2/docs/access2-v2-mutation-e2e-guard-behavior.md) for the current localhost mutation guard behavior, blocked production/Railway-like target rules, safe-failure expectations, and future staging allowlist posture.
 
 Local seed/reset command for this controlled assignment/rejection validation:
 

@@ -100,6 +100,48 @@ test("mutation host guard blocks hosts containing production markers", () => {
   );
 });
 
+test("mutation host guard blocks production URL values without exposing credentials or query strings", () => {
+  assert.throws(
+    () =>
+      assertSafeMutationE2ETargets([
+        {
+          label: "ACCESS2_E2E_BASE_URL",
+          url: "https://user:password@access2.salvardata.com/path?token=secret",
+        },
+      ]),
+    (error) => {
+      assert.match(error.message, /Mutation E2E is blocked/);
+      assert.match(error.message, /production-like host access2\.salvardata\.com/);
+      assert.doesNotMatch(error.message, /password|token|secret|user|path/);
+      return true;
+    },
+  );
+});
+
+test("mutation host guard blocks mixed pairs with localhost frontend and production API", () => {
+  assertBlocked(
+    [
+      { label: "ACCESS2_E2E_BASE_URL", url: "http://localhost:3001" },
+      { label: "ACCESS2_E2E_API_BASE_URL", url: "https://api.salvardata.com/api/v1" },
+    ],
+    /production-like host api\.salvardata\.com/,
+  );
+});
+
+test("mutation host guard blocks mixed pairs with production frontend and localhost API", () => {
+  assertBlocked(
+    [
+      { label: "ACCESS2_E2E_BASE_URL", url: "https://access2.salvardata.com" },
+      { label: "ACCESS2_E2E_API_BASE_URL", url: "http://localhost:8000/api/v1" },
+    ],
+    /production-like host access2\.salvardata\.com/,
+  );
+});
+
+test("mutation host guard blocks undefined URL values", () => {
+  assertBlocked([{ label: "ACCESS2_E2E_BASE_URL", url: undefined }], /missing URL/);
+});
+
 test("mutation host guard blocks missing URL values", () => {
   assertBlocked([{ label: "ACCESS2_E2E_BASE_URL", url: "" }], /missing URL/);
 });
