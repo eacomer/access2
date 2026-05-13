@@ -178,6 +178,7 @@ The controlled new review packet snapshot UI is implemented as a patient-detail-
 - Reviewer Work Queue remains read-only and does not expose approve, reject, assign, export, override, or create-snapshot controls.
 - The UI shows deterministic success and error copy, including `New review packet snapshot created.` after a successful creation.
 - Local mutation E2E now covers assignment, rejection, and creation of a new latest `pending_review` snapshot while verifying the old rejected snapshot remains preserved and read-only.
+- Fresh local stabilization result: `npm run test:e2e:local-mutation` passed with `1 passed (2.2m)` against a clean local frontend on `http://localhost:3001` after clearing stale `.next` state. The run proved latest rejected snapshot -> create new snapshot -> new latest `pending_review`; old rejected snapshot stayed visible/read-only; assignment and rejection buttons were visible only again for the new latest pending snapshot.
 - Production mutation E2E remains skipped; do not run this mutation path against shared Railway production demo data.
 
 Local seed/reset command for this controlled assignment/rejection validation:
@@ -208,6 +209,8 @@ Troubleshooting notes:
 - If the disposable marker is already rejected, or if a prior E2E run timed out after a partial mutation, rerun the seed before E2E.
 - The local mutation E2E may create a new latest pending snapshot after rejection; rerun the seed before another E2E cycle if local state is not at the expected latest `pending_review` starting point.
 - A stale local Next.js dev cache can produce `.next` runtime errors such as `Cannot find module './570.js'`; clearing `.next` and restarting `npm run dev` resolves it.
+- If an unkillable stale local frontend process keeps serving a bad cache on port 3000, start a clean local frontend on another localhost port and set `ACCESS2_E2E_BASE_URL` to that port. The local mutation spec still refuses production/Railway-like hosts.
+- Cold local Next.js route compilation can make mutation UI updates slower than the default Playwright assertion window; the local E2E waits for backend state and visible backlog/button posture rather than relying on immediate DOM replacement.
 
 Local mutation test setup is separate from production demo data:
 

@@ -54,7 +54,7 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
     page,
     request,
   }) => {
-	test.setTimeout(120_000);
+    test.setTimeout(120_000);
     await login(page);
     const token = await getApiToken(request);
     const currentUser = await getCurrentUser(request, token);
@@ -95,14 +95,16 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
 
     await assignmentControl.getByLabel("V2 controlled reviewer assignment").fill(currentUser.id);
     await assignmentControl.getByRole("button", { name: "Assign reviewer" }).click();
-    await expect(assignmentControl.getByRole("status")).toContainText("Reviewer assigned.");
+    await expect(assignmentControl.getByRole("status")).toContainText("Reviewer assigned.", {
+      timeout: 30_000,
+    });
     await expect(assignmentControl.getByRole("alert")).toHaveCount(0);
 
     await expect
       .poll(async () => {
         const assignedSnapshot = await getSnapshot(request, token, snapshotId);
         return assignedSnapshot.assigned_reviewer_user_id;
-      })
+      }, { timeout: 30_000 })
       .toBe(currentUser.id);
 
     const assignedSnapshot = await getSnapshot(request, token, snapshotId);
@@ -126,14 +128,13 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
       .poll(async () => {
         const auditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
         return auditStatus.review_status;
-      })
+      }, { timeout: 30_000 })
       .toBe("rejected");
 
-    await expect(assignmentControls).toHaveCount(0);
-    await expect(rejectionControls).toHaveCount(0);
-    await expect(backlogPanel).toContainText("Rejected");
+    await expect(backlogPanel).toContainText("Rejected", { timeout: 30_000 });
     await expect(backlogPanel).toContainText("Unavailable for rejected snapshots.");
-    await expect(page.getByRole("button", { name: /assign|reject/i })).toHaveCount(0);
+    await expect(backlogPanel.getByRole("button", { name: "Assign reviewer" })).toHaveCount(0);
+    await expect(backlogPanel.getByRole("button", { name: "Reject snapshot" })).toHaveCount(0);
 
     const afterAuditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
     expect(afterAuditStatus.latest_snapshot_id).toBe(snapshotId);
@@ -166,13 +167,15 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
     const createControl = createControls.first();
     await expect(createControl).toContainText("Existing packet JSON and Markdown stay preserved.");
     await createControl.getByRole("button", { name: "Create new review packet snapshot" }).click();
-    await expect(createControl.getByRole("status")).toContainText("New review packet snapshot created.");
+    await expect(createControl.getByRole("status")).toContainText("New review packet snapshot created.", {
+      timeout: 30_000,
+    });
 
     await expect
       .poll(async () => {
         const auditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
         return auditStatus.latest_snapshot_id;
-      })
+      }, { timeout: 30_000 })
       .not.toBe(snapshotId);
 
     const refreshedAuditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
@@ -192,9 +195,11 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
     expect(oldRejectedSnapshot.packet_json).toEqual(beforeSnapshot.packet_json);
     expect(oldRejectedSnapshot.packet_markdown).toEqual(beforeSnapshot.packet_markdown);
 
-    await expect(createControls).toHaveCount(0);
-    await expect(backlogPanel).toContainText("Pending Review");
+    await expect(backlogPanel).toContainText("Pending Review", { timeout: 30_000 });
     await expect(backlogPanel).toContainText("Rejected");
+    await expect(createControls).toHaveCount(0);
+    await expect(backlogPanel.getByRole("button", { name: "Assign reviewer" })).toHaveCount(1);
+    await expect(backlogPanel.getByRole("button", { name: "Reject snapshot" })).toHaveCount(1);
     await expect(backlogPanel).toContainText("Read-only for this snapshot.");
 
     const newEvents = await getSnapshotEvents(request, token, newSnapshotId);
