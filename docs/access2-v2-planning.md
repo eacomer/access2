@@ -220,6 +220,8 @@ Intentionally out of scope:
 
 Use [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md) for the manual demo script and local-only validation commands.
 
+Use [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) for the current V2 checkpoint, production-ready versus local-only posture, highest risks, and recommended next implementation candidate.
+
 Local seed/reset command for this controlled assignment/rejection validation:
 
 ```powershell
