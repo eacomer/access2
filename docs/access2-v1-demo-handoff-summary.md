@@ -19,6 +19,7 @@ Use these documents by job:
 - Validate production readiness: [access2-v1-demo-release-checklist.md](C:/dev/access2/docs/access2-v1-demo-release-checklist.md), [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md), and [access2-railway-demo-validation.md](C:/dev/access2/docs/access2-railway-demo-validation.md)
 - Troubleshoot production E2E: [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md)
 - Recreate synthetic demo data: [access2-demo-data-recreation-checklist.md](C:/dev/access2/docs/access2-demo-data-recreation-checklist.md)
+- Demonstrate the local-only V2 correction loop after the V1 demo: [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md). This is localhost-only and must not be run against shared production demo data.
 - Understand API/evidence contracts: [access-review-packet-api.md](C:/dev/access2/docs/access-review-packet-api.md)
 - Preserve V1 scope guardrails: [access2-v1-scope-control.md](C:/dev/access2/docs/access2-v1-scope-control.md)
 - Keep the release frozen: [access2-v1-release-freeze-checklist.md](C:/dev/access2/docs/access2-v1-release-freeze-checklist.md)

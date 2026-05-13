@@ -192,7 +192,8 @@ Use this local-only seed/reset path only against a disposable local database whe
 ```powershell
 cd C:\dev\access2\backend
 $env:ACCESS2_ENABLE_LOCAL_MUTATION_E2E="true"
-py -3 scripts\seed_local_v2_rejection_mutation.py
+$env:PYTHONPATH="C:\dev\access2\backend"
+py -3 -m scripts.seed_local_v2_rejection_mutation
 ```
 
 The script at `backend/scripts/seed_local_v2_rejection_mutation.py` creates or repairs one disposable synthetic patient with marker `access2-local-v2-mutation:reviewer-rejection`. Its latest review packet snapshot is `pending_review` with persisted `packet_json` and `packet_markdown`, so it is suitable for local reviewer rejection UI testing.
@@ -225,12 +226,16 @@ The local mutation spec is separate from the production Railway demo spec. It sk
 
 Latest local validation:
 
-- `npm run test:e2e:local-mutation` passed against localhost only with `1 passed` in about 1.4 minutes.
-- This confirmed the disposable local patient/snapshot setup works, the latest `pending_review` snapshot renders the controlled rejection UI, reviewer rejection through the patient UI succeeds, and the rejected state is reached after submit.
+- `npm run test:e2e:local-mutation` passed against localhost only with `1 passed (2.2m)` on `http://localhost:3001`.
+- This confirmed the disposable local patient/snapshot setup supports the V2 correction loop: latest rejected snapshot -> create new immutable review packet snapshot -> new latest `pending_review` snapshot.
+- The old rejected snapshot remained visible/read-only with persisted packet content preserved.
+- Assignment and rejection controls appeared only for the latest `pending_review` snapshot and were absent from the rejected historical snapshot.
+- Reviewer Work Queue remained read-only with no approve, reject, assign, override, export, or create-snapshot mutation controls.
 - The local-only guardrails allowed safe mutation validation without touching shared production demo data.
 - A prior attempted run against `https://access2.salvardata.com` was refused as expected, confirming the production/Railway target guard.
 - Demo Patient 3 remains the production read-only rejected-posture scenario, the existing production `Demo Patient 3 reviewer rejection through UI` test remains skipped, and Railway production E2E remains read-only.
 - Non-goals remain unchanged: no production mutation E2E activation, no shared demo data mutation, no Railway/deployment config change, no override approval UI, and no audit-readiness queue mutation controls.
+- See [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md) for the manual V2 local-only demo script.
 
 ### 5. Approve The Snapshot
 

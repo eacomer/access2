@@ -157,7 +157,7 @@ The next controlled V2 slice is implemented as approved-snapshot audit bundle ex
 The controlled reviewer assignment UI is implemented and locally validated as a patient-detail-only mutation control.
 
 - Patient detail exposes reviewer assignment only in the review packet backlog for the latest snapshot when `review_status == "pending_review"`.
-- Approved, rejected, and historical snapshots remain read-only; assignment does not approve, reject, refresh, export, or mutate snapshot packet content.
+- Approved, rejected, and historical snapshots remain read-only; assignment does not approve, reject, export, or mutate snapshot packet content.
 - Reviewer Work Queue remains read-only and does not expose assignment mutation controls.
 - The frontend assignment proxy route uses the existing backend route: `PATCH /api/v1/reports/access-review-packet/snapshots/{snapshot_id}/assignment`.
 - The assignment UI now posts `assigned_reviewer_user_id` directly. The proxy accepts both `assignedReviewerUserId` and `assigned_reviewer_user_id` for compatibility, but forwards only `assigned_reviewer_user_id` to the backend.
@@ -169,7 +169,7 @@ The controlled reviewer assignment UI is implemented and locally validated as a 
 
 The controlled new review packet snapshot UI is implemented as a patient-detail-only creation control.
 
-- This is not a refresh of an old packet. It creates a new immutable snapshot from the current live case summary, review packet, and evidence state.
+- This creates a new immutable snapshot from the current live case summary, review packet, and evidence state.
 - Existing rejected, approved, and historical snapshots keep their persisted `packet_json` and `packet_markdown`.
 - The frontend uses an authenticated proxy route at `/review-packet-snapshots/patients/{patient_id}/create`.
 - The proxy calls the existing backend route: `POST /api/v1/reports/access-review-packet/{patient_id}/snapshots`.
@@ -180,6 +180,41 @@ The controlled new review packet snapshot UI is implemented as a patient-detail-
 - Local mutation E2E now covers assignment, rejection, and creation of a new latest `pending_review` snapshot while verifying the old rejected snapshot remains preserved and read-only.
 - Fresh local stabilization result: `npm run test:e2e:local-mutation` passed with `1 passed (2.2m)` against a clean local frontend on `http://localhost:3001` after clearing stale `.next` state. The run proved latest rejected snapshot -> create new snapshot -> new latest `pending_review`; old rejected snapshot stayed visible/read-only; assignment and rejection buttons were visible only again for the new latest pending snapshot.
 - Production mutation E2E remains skipped; do not run this mutation path against shared Railway production demo data.
+
+### V2 correction loop checkpoint
+
+The local V2 correction loop is now documented and demoable as a localhost-only proof path:
+
+```text
+latest rejected snapshot -> create new immutable review packet snapshot -> new latest pending_review snapshot -> old rejected packet preserved/read-only
+```
+
+What this proves:
+
+- ACCESS2 can handle reviewer correction without changing or rebuilding old packet content.
+- A rejected packet remains historical audit evidence with its persisted `packet_json`, `packet_markdown`, decision metadata, and audit events intact.
+- Corrected evidence/current state is represented by creating a new immutable review packet snapshot while preserving the old one.
+- Assignment and rejection controls return only for the new latest `pending_review` snapshot.
+- Historical rejected and approved snapshots remain visible/read-only in the patient review-packet backlog.
+- Reviewer Work Queue and production E2E remain read-only; local mutation coverage is gated and fail-closed for production/Railway-like hosts.
+
+Local-only posture:
+
+- The correction-loop proof uses the disposable local marker `access2-local-v2-mutation:reviewer-rejection`.
+- The seed and Playwright spec both require `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true`.
+- The local mutation spec refuses configured targets containing `access2.salvardata.com`, `api.salvardata.com`, `railway.app`, or `up.railway.app`.
+- Latest validation used `http://localhost:3001` because port 3000 was held by stale local node processes.
+
+Intentionally out of scope:
+
+- No production mutation testing.
+- No shared Railway demo data mutation.
+- No superuser override approval UI.
+- No broad intervention/task/evidence editing workflow.
+- No Railway configuration or backend startup command change.
+- No audit-readiness queue mutation controls.
+
+Use [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md) for the manual demo script and local-only validation commands.
 
 Local seed/reset command for this controlled assignment/rejection validation:
 
