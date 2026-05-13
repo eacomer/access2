@@ -18,21 +18,25 @@ ACCESS2 V1 remains the production-safe demo posture:
 ACCESS2 V2 is proven locally as a controlled correction loop:
 
 ```text
-latest rejected snapshot -> corrected synthetic outcome/evidence -> create new immutable review packet snapshot -> new latest pending_review snapshot -> old rejected packet preserved/read-only
+original pending snapshot -> assign reviewer -> reject with reason -> corrected synthetic outcome/evidence -> create new immutable review packet snapshot -> approve corrected pending snapshot -> old rejected packet preserved/read-only -> approved packet terminal/read-only
 ```
 
-The local proof strengthens the core ACCESS2 product requirement: interventions must connect to measurable outcomes and defensible evidence. A rejected packet is not refreshed or edited. Corrected current evidence is captured by creating a new immutable review packet snapshot while historical rejected/approved packets remain available as audit evidence.
+The local proof strengthens the core ACCESS2 product requirement: interventions must connect to measurable outcomes and defensible evidence. A rejected packet is not refreshed or edited. Corrected current evidence is captured by creating a new immutable review packet snapshot, and that corrected packet can be approved locally while historical rejected/approved packets remain available as read-only audit evidence.
 
 ## What V2 Proves Today
 
 - A reviewer can reject the latest `pending_review` packet with a required reason in a controlled local flow.
 - A reviewer can be assigned to the latest `pending_review` packet in a controlled local flow.
 - A new immutable review packet snapshot can be created from current evidence after rejection.
+- The corrected latest `pending_review` packet can be approved locally when the persisted review checklist has no missing evidence.
+- The approved snapshot becomes terminal/read-only and audit-bundle-ready.
 - Old `packet_json` and `packet_markdown` remain preserved for rejected, approved, and historical packets.
 - Local seed/reset can create a visible synthetic correction story using a later `systolic_bp` outcome and post-rejection care update.
-- Local mutation E2E validates the chain from assignment to rejection to corrected evidence to new pending snapshot.
+- Local mutation E2E validates the chain from assignment to rejection to corrected evidence to new pending snapshot to approved terminal snapshot.
 - Reviewer Work Queue remains read-only; mutation controls stay patient-detail-only.
 - Local mutation E2E is gated by `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` and refuses production/Railway-like hosts.
+- No superuser override approval was added.
+- No production mutation testing was run.
 
 ## Production-Ready Versus Local-Only
 
@@ -58,9 +62,21 @@ These V2 mutation paths must remain local-only until a disposable staging or pre
 - Controlled reviewer rejection: patient-detail-only, latest `pending_review` only, required decision note, terminal states protected, immutable packet content preserved.
 - Controlled reviewer assignment: patient-detail-only, latest `pending_review` only, backend rejects terminal snapshots, audit event recorded, immutable packet content preserved.
 - Controlled new snapshot creation: patient-detail-only, creates a new immutable packet from current evidence, does not refresh or mutate old packets.
-- V2 correction-loop E2E: local-only flow validates assignment, rejection, corrected evidence, new pending snapshot, preserved old rejected packet, and read-only queue posture.
+- Controlled corrected-packet approval: patient-detail-only, latest `pending_review` only, requires persisted review checklist completeness, records approval through the existing review path, and leaves approved snapshots terminal/read-only.
+- V2 correction-loop E2E: local-only flow validates assignment, rejection, corrected evidence, new pending snapshot, corrected approval, preserved old rejected packet, approved terminal/read-only posture, and read-only queue posture.
 - Local seed proof story: disposable synthetic marker creates or repairs a local scenario with post-rejection correction evidence.
 - Demo/runbook docs: local-only correction-loop script, troubleshooting, and production don’ts are documented.
+
+## Latest Known Validation
+
+```text
+backend targeted approval tests: 3 passed
+frontend npm test: 55 passed
+lint: passed
+typecheck: passed
+local mutation E2E: 1 passed in about 2.6 minutes, localhost only
+git diff --check: passed
+```
 
 ## What Remains Before Production-Grade V2
 
@@ -68,7 +84,6 @@ These V2 mutation paths must remain local-only until a disposable staging or pre
 - Isolated staging or preview environment: separate frontend/API/database/tenant from shared production demo data.
 - Reset/reseed strategy outside localhost: deterministic disposable targets, pre-test state restoration, post-test verification, and teardown guidance.
 - Stronger audit-role permissions if needed: keep this narrow and avoid a broad role-management redesign.
-- Controlled approval of a corrected pending packet, local-only first.
 - A production-safe promotion plan that keeps V1 production read-only until mutation governance and disposable validation are proven.
 - Documentation alignment so local V2 guidance does not drift from production V1 read-only guardrails.
 
@@ -76,7 +91,7 @@ These V2 mutation paths must remain local-only until a disposable staging or pre
 
 - Accidentally mutating shared production demo data.
 - Confusing creation of a new immutable snapshot with refreshing or editing an old packet.
-- Adding approval or override behavior before rejection/correction governance is production-safe.
+- Adding override behavior before rejection/correction/approval governance is production-safe.
 - Running mutation E2E against an insufficiently isolated staging or Railway target.
 - Drifting docs between local V2 mutation behavior and read-only production V1 demo behavior.
 - Expanding into broad workflow mutation or generic case management before the audit proof chain is stable.
@@ -96,25 +111,23 @@ Do not implement these as part of the checkpoint or next narrow roadmap slice:
 
 ## Recommended Next Implementation Candidate
 
-The next smallest implementation candidate is controlled approval of the newly corrected pending packet, local-only first.
+The next smallest implementation candidate is mutation-governance and disposable-environment planning before any non-local mutation execution.
 
 Recommended boundaries:
 
-- Use the disposable local mutation scenario only.
-- Expose approval only on patient detail.
-- Allow approval only for the latest `pending_review` snapshot.
-- Preserve rejected/approved/historical packet immutability.
+- Keep the current corrected approval proof localhost-only.
+- Define minimum requirements for a disposable staging or preview target before any non-local mutation E2E.
+- Preserve rejected/approved/historical packet immutability and read-only production demo posture.
 - Keep Reviewer Work Queue read-only.
 - Keep production E2E read-only and production mutation tests skipped.
-- Require local seed/reset and gated local E2E validation.
-- Record audit events only on successful approval.
-- Keep backend validation in services and routes thin.
+- Keep local seed/reset and gated local E2E validation separate from production demo data.
+- Keep backend validation in services and routes thin for any future workflow mutation.
 
-This should wait until the checkpoint is accepted because approval can move a case toward audit-bundle readiness. It is higher risk than rejection or assignment and should not be combined with override approval.
+This should wait until the checkpoint is accepted because moving mutation proof beyond localhost requires stronger data isolation and reset ownership than the current shared production demo posture provides.
 
 ## Why Override Approval Should Still Wait
 
-Override approval can approve a packet despite readiness gaps. That is useful for exception handling, but it is also the riskiest review mutation because it can create an audit-ready or exportable posture from incomplete evidence. ACCESS2 should first prove normal approval of a corrected pending packet in a disposable local environment, then decide whether override approval needs separate governance, permissions, audit wording, and validation.
+Override approval can approve a packet despite readiness gaps. That is useful for exception handling, but it is also the riskiest review mutation because it can create an audit-ready or exportable posture from incomplete evidence. ACCESS2 has now proven normal approval of a corrected pending packet in a disposable local environment; override approval should still wait for separate governance, permissions, audit wording, and validation.
 
 ## Reference Documents
 

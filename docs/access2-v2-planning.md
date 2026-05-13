@@ -4,7 +4,7 @@ This document is a planning artifact only. It does not authorize implementation 
 
 ACCESS2 V2 should extend the V1 evidence chain carefully:
 
-signal -> escalation -> intervention -> outcome -> evidence -> case summary -> immutable review packet snapshot -> approval/rejection -> audit bundle -> manifest verification
+signal -> escalation -> intervention -> outcome -> evidence -> case summary -> immutable review packet snapshot -> assignment -> approval/rejection -> audit bundle -> manifest verification
 
 The core product question remains whether ACCESS2 can prove that chronic care interventions led to measurable outcomes and that the evidence was reviewed through a defensible audit lifecycle.
 
@@ -186,19 +186,25 @@ The controlled new review packet snapshot UI is implemented as a patient-detail-
 The local V2 correction loop is now documented and demoable as a localhost-only proof path:
 
 ```text
-latest rejected snapshot -> corrected synthetic outcome/evidence -> create new immutable review packet snapshot -> new latest pending_review snapshot -> old rejected packet preserved/read-only
+original pending snapshot -> assign reviewer -> reject with reason -> corrected synthetic outcome/evidence -> create new immutable review packet snapshot -> approve corrected pending snapshot -> old rejected packet preserved/read-only -> approved packet terminal/read-only
 ```
 
 What this proves:
 
+- The original pending packet can be assigned.
+- The original pending packet can be rejected with a reason.
 - ACCESS2 can handle reviewer correction without changing or rebuilding old packet content.
 - A rejected packet remains historical audit evidence with its persisted `packet_json`, `packet_markdown`, decision metadata, and audit events intact.
 - Corrected evidence/current state is represented by creating a new immutable review packet snapshot while preserving the old one.
 - The local proof story now includes explicit synthetic post-rejection correction evidence: a later `systolic_bp` outcome with source `access2_local_v2_post_rejection_correction`, value `124`, and a care-update summary beginning `Post-rejection corrected evidence`.
 - The next packet generated after that correction shows the outcome trend as `status=improved`; the older rejected packet keeps its original packet JSON and Markdown.
+- The corrected latest `pending_review` snapshot can be approved through the patient-detail-only control when the persisted review checklist has no missing evidence.
+- The approved snapshot becomes terminal/read-only and audit-bundle-ready.
 - Assignment and rejection controls return only for the new latest `pending_review` snapshot.
 - Historical rejected and approved snapshots remain visible/read-only in the patient review-packet backlog.
 - Reviewer Work Queue and production E2E remain read-only; local mutation coverage is gated and fail-closed for production/Railway-like hosts.
+- No superuser override approval was added.
+- No production mutation testing was run.
 
 Local-only posture:
 
@@ -206,8 +212,20 @@ Local-only posture:
 - The seed and Playwright spec both require `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true`.
 - If the disposable local patient already has a rejected latest snapshot, rerunning the seed adds the post-rejection correction evidence before creating the next `pending_review` snapshot.
 - The local mutation E2E also inserts the same correction evidence through existing local authenticated evidence APIs after rejection and before selecting `Create new review packet snapshot`.
+- The local mutation E2E then approves the corrected latest pending snapshot and verifies the approved terminal/read-only posture.
 - The local mutation spec refuses configured targets containing `access2.salvardata.com`, `api.salvardata.com`, `railway.app`, or `up.railway.app`.
 - Latest validation used `http://localhost:3001` because port 3000 was held by stale local node processes.
+
+Latest known validation:
+
+```text
+backend targeted approval tests: 3 passed
+frontend npm test: 55 passed
+lint: passed
+typecheck: passed
+local mutation E2E: 1 passed in about 2.6 minutes, localhost only
+git diff --check: passed
+```
 
 Intentionally out of scope:
 

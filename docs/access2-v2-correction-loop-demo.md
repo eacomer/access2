@@ -9,6 +9,7 @@ latest rejected snapshot -> corrected synthetic outcome/evidence -> create new i
 ```
 
 This demo shows how ACCESS2 handles reviewer correction without changing an old packet. A rejected packet stays historical audit evidence. Corrected evidence/current state creates a new immutable review packet snapshot.
+The latest localhost-only proof now continues through approval of the corrected pending packet and confirms that the approved snapshot becomes terminal/read-only.
 
 ## Local-Only Warning
 
@@ -33,7 +34,12 @@ Production E2E remains read-only. Demo Patient 3 remains the production read-onl
 - ACCESS2 creates a new immutable review packet snapshot from current evidence after the rejected posture.
 - The new latest snapshot becomes `pending_review`.
 - Assignment and rejection controls appear only for the new latest `pending_review` snapshot.
+- The corrected latest `pending_review` snapshot can be approved when the persisted review checklist has no missing evidence.
+- The approved snapshot becomes terminal/read-only and audit-bundle-ready.
 - Historical rejected/approved snapshots remain visible and read-only.
+- Reviewer Work Queue remains read-only.
+- No override approval was added.
+- No production mutation testing was run.
 - The ACCESS proof chain is preserved: signal -> escalation -> intervention -> outcome -> evidence -> case summary -> immutable review packet snapshot -> assignment/rejection -> new immutable snapshot from corrected evidence.
 
 ## Prerequisites
@@ -123,10 +129,21 @@ $env:ACCESS2_LOCAL_V2_REJECTION_PATIENT_ID="<value printed by seed script>"
 Latest validated result:
 
 ```text
-1 passed (2.2m)
+1 passed (about 2.6m)
 ```
 
-That run used a clean frontend at `http://localhost:3001` after stale port-3000/node process friction. The current local mutation spec also creates the same synthetic correction evidence after reviewer rejection and before selecting `Create new review packet snapshot`, so the new packet captures an improved outcome posture while the old rejected packet remains unchanged.
+That run used localhost only. The current local mutation spec also creates the same synthetic correction evidence after reviewer rejection and before selecting `Create new review packet snapshot`, so the new packet captures an improved outcome posture while the old rejected packet remains unchanged. It then approves the corrected latest pending snapshot, verifies `snapshot_approved`, confirms audit bundle availability, and verifies rejected and approved historical snapshots remain read-only.
+
+Latest known validation bundle for the completed local V2 corrected approval checkpoint:
+
+```text
+backend targeted approval tests: 3 passed
+frontend npm test: 55 passed
+lint: passed
+typecheck: passed
+local mutation E2E: 1 passed in about 2.6 minutes, localhost only
+git diff --check: passed
+```
 
 ## Manual Demo Walkthrough
 
@@ -210,10 +227,27 @@ After the new snapshot is latest `Pending Review`:
 
 - `Assign reviewer` appears for the new latest snapshot.
 - `Reject snapshot` appears for the new latest snapshot.
+- `Approve snapshot` appears for the new latest snapshot only when the persisted review checklist has no missing evidence.
 - The old rejected snapshot still shows `Read-only for this snapshot.`
 - No create-snapshot button remains while the latest snapshot is `pending_review`.
 
-### 7. Check Reviewer Work Queue Posture
+### 7. Approve The Corrected Latest Pending Snapshot
+
+In the `Packet drill-in` backlog:
+
+1. Confirm `Approve snapshot` appears only on the corrected latest `Pending Review` snapshot.
+2. Select `Approve snapshot`.
+
+Expected result:
+
+- Success copy appears: `Review packet snapshot approved.`
+- Latest review posture becomes `Approved`.
+- Audit bundle availability becomes true for the approved snapshot.
+- Assignment, rejection, approval, and create-snapshot controls disappear.
+- The old rejected snapshot remains visible and read-only.
+- The approved snapshot row shows `Read-only for this snapshot.`
+
+### 8. Check Reviewer Work Queue Posture
 
 Open:
 
@@ -240,6 +274,7 @@ This supports the ACCESS proof chain because the system can show:
 - what evidence supported review
 - which packet was rejected and why
 - which new packet was created from corrected/current evidence
+- which corrected packet was approved after measurable outcome improvement
 - that historical packets were preserved unchanged
 
 ## What Not To Do In Production
@@ -251,6 +286,7 @@ This supports the ACCESS proof chain because the system can show:
 - Do not change Railway config.
 - Do not change the backend startup command; it remains `bash scripts/render-start.sh`.
 - Do not add superuser override approval or broad workflow mutation controls as part of this demo.
+- Do not treat local corrected approval as authorization for production mutation E2E.
 
 ## Troubleshooting
 
