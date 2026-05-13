@@ -246,6 +246,8 @@ Use [access2-v2-staging-mutation-checklist.md](C:/dev/access2/docs/access2-v2-st
 
 Use [access2-v2-staging-env-template.md](C:/dev/access2/docs/access2-v2-staging-env-template.md) for placeholder-only staging environment variables and command shapes before any future isolated staging mutation run.
 
+Use [access2-v2-staging-seed-reset-contract.md](C:/dev/access2/docs/access2-v2-staging-seed-reset-contract.md) for the requirements a future isolated staging seed/reset process must satisfy before seed/reset code or staging mutation E2E is written.
+
 Local seed/reset command for this controlled assignment/rejection validation:
 
 ```powershell
