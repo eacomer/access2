@@ -242,6 +242,8 @@ Use [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkp
 
 Use [access2-v2-staging-mutation-readiness.md](C:/dev/access2/docs/access2-v2-staging-mutation-readiness.md) for the required staging or preview environment, seed/reset, credential, host-guard, and audit-evidence checklist before any mutation testing outside localhost.
 
+Use [access2-v2-staging-mutation-checklist.md](C:/dev/access2/docs/access2-v2-staging-mutation-checklist.md) as the final checkbox-based operator gate before staging mutation seed/reset or mutation E2E execution.
+
 Local seed/reset command for this controlled assignment/rejection validation:
 
 ```powershell
