@@ -13,3 +13,4 @@ require("./review-packet-snapshot-create-route.test.cjs");
 require("./review-packet-snapshot-create-control.test.cjs");
 require("./review-packet-snapshot-approval-route.test.cjs");
 require("./review-packet-snapshot-approval-control.test.cjs");
+require("./mutation-host-guard.test.cjs");

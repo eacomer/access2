@@ -214,6 +214,7 @@ Local-only posture:
 - The local mutation E2E also inserts the same correction evidence through existing local authenticated evidence APIs after rejection and before selecting `Create new review packet snapshot`.
 - The local mutation E2E then approves the corrected latest pending snapshot and verifies the approved terminal/read-only posture.
 - The local mutation spec refuses configured targets containing `access2.salvardata.com`, `api.salvardata.com`, `railway.app`, or `up.railway.app`.
+- Mutation E2E host refusal is centralized in `frontend/e2e/helpers/mutation-host-guard.ts`; the local mutation spec uses that shared helper while keeping `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` as the required gate.
 - Latest validation used `http://localhost:3001` because port 3000 was held by stale local node processes.
 
 Latest known validation:
@@ -316,6 +317,7 @@ This section is inspection and planning only. It does not authorize production m
 - `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` is required before local mutation seeding or local mutation E2E can run.
 - The local mutation seed refuses configured URL, URI, origin, host, domain, or base environment variables containing `access2.salvardata.com`, `api.salvardata.com`, `railway.app`, or `up.railway.app`.
 - The local mutation Playwright spec checks both frontend and API targets and throws when either target looks production-like.
+- The shared mutation host guard allows loopback targets by default, blocks missing, malformed, production-like, and unallowlisted non-local targets, and supports explicit future staging host allowlists without enabling staging mutation E2E.
 - The local mutation marker is distinct from `access2-railway-demo:*`, and tests assert the local mutation seed does not change Railway demo patients.
 - Demo Patient 3 remains intentionally seeded as already rejected, so it is evidence for read-only rejected posture, not a repeatable production rejection target.
 

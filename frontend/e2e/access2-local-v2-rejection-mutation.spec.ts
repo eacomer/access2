@@ -13,6 +13,7 @@ import {
   LOCAL_V2_REJECTION_MUTATION_MARKER,
   login,
 } from "./helpers/access2";
+import { assertSafeMutationE2ETargets } from "./helpers/mutation-host-guard";
 
 const ENABLE_LOCAL_MUTATION_ENV = "ACCESS2_ENABLE_LOCAL_MUTATION_E2E";
 const LOCAL_MUTATION_REASON =
@@ -21,12 +22,6 @@ const POST_REJECTION_CORRECTION_CARE_SUMMARY =
   "Post-rejection corrected evidence: synthetic systolic BP outcome improved after the completed intervention.";
 const POST_REJECTION_CORRECTION_OUTCOME_SOURCE = "access2_local_v2_post_rejection_correction";
 const POST_REJECTION_CORRECTION_OUTCOME_VALUE = 124;
-const PRODUCTION_HOST_MARKERS = [
-  "access2.salvardata.com",
-  "api.salvardata.com",
-  "railway.app",
-  "up.railway.app",
-];
 
 const localMutationEnabled = process.env[ENABLE_LOCAL_MUTATION_ENV]?.trim().toLowerCase() === "true";
 
@@ -41,19 +36,10 @@ type OutcomeResponse = {
 };
 
 function assertSafeLocalTargets() {
-  const targets = [
-    process.env.ACCESS2_E2E_BASE_URL || "http://localhost:3000",
-    process.env.ACCESS2_E2E_API_BASE_URL || getApiBaseUrl(),
-  ];
-
-  const productionLikeTarget = targets.find((target) =>
-    PRODUCTION_HOST_MARKERS.some((marker) => target.toLowerCase().includes(marker)),
-  );
-  if (productionLikeTarget) {
-    throw new Error(
-      `Refusing to run local mutation E2E against production/Railway-like target: ${productionLikeTarget}`,
-    );
-  }
+  assertSafeMutationE2ETargets([
+    { label: "ACCESS2_E2E_BASE_URL", url: process.env.ACCESS2_E2E_BASE_URL },
+    { label: "ACCESS2_E2E_API_BASE_URL", url: process.env.ACCESS2_E2E_API_BASE_URL || getApiBaseUrl() },
+  ]);
 }
 
 async function createPostRejectionCorrectionEvidence({
