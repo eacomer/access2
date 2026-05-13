@@ -244,6 +244,8 @@ Use [access2-v2-staging-mutation-readiness.md](C:/dev/access2/docs/access2-v2-st
 
 Use [access2-v2-staging-mutation-checklist.md](C:/dev/access2/docs/access2-v2-staging-mutation-checklist.md) as the final checkbox-based operator gate before staging mutation seed/reset or mutation E2E execution.
 
+Use [access2-v2-staging-env-template.md](C:/dev/access2/docs/access2-v2-staging-env-template.md) for placeholder-only staging environment variables and command shapes before any future isolated staging mutation run.
+
 Local seed/reset command for this controlled assignment/rejection validation:
 
 ```powershell
