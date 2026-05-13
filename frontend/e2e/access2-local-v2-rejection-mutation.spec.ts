@@ -1,4 +1,4 @@
-import { expect, test, type APIRequestContext } from "@playwright/test";
+import { expect, test, type APIRequestContext, type Page } from "@playwright/test";
 
 import {
   apiGet,
@@ -93,7 +93,24 @@ async function createPostRejectionCorrectionEvidence({
   });
 }
 
-test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new snapshot mutation", () => {
+async function openPatientBacklog(page: Page, patientId: string) {
+  for (let attempt = 1; attempt <= 3; attempt += 1) {
+    await page.goto(`/patients/${patientId}`);
+    const backlogPanel = page.getByTestId("patient-review-packet-backlog-panel");
+    try {
+      await expect(backlogPanel).toBeVisible({ timeout: 30_000 });
+      return backlogPanel;
+    } catch (error) {
+      if (attempt === 3) {
+        throw error;
+      }
+      await page.waitForTimeout(1_000);
+    }
+  }
+  throw new Error("Patient review packet backlog did not load.");
+}
+
+test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, new snapshot, and approval mutation", () => {
   test.skip(
     !localMutationEnabled,
     `${ENABLE_LOCAL_MUTATION_ENV}=true is required to run local mutation E2E.`,
@@ -103,11 +120,11 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
     assertSafeLocalTargets();
   });
 
-  test("assigns, rejects, and creates a new disposable local pending-review snapshot through the patient UI", async ({
+  test("assigns, rejects, creates, and approves a corrected disposable local snapshot through the patient UI", async ({
     page,
     request,
   }) => {
-    test.setTimeout(120_000);
+    test.setTimeout(180_000);
     await login(page);
     const token = await getApiToken(request);
     const currentUser = await getCurrentUser(request, token);
@@ -131,9 +148,7 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
     expect(beforeSnapshot.packet_json).toBeTruthy();
     expect(beforeSnapshot.packet_markdown).toBeTruthy();
 
-    await page.goto(`/patients/${patient.patient_id}`);
-    const backlogPanel = page.getByTestId("patient-review-packet-backlog-panel");
-    await expect(backlogPanel).toBeVisible();
+    let backlogPanel = await openPatientBacklog(page, patient.patient_id);
     await expect(backlogPanel).toContainText("Pending Review");
     await expect(backlogPanel).toContainText("Unavailable until the snapshot is approved and export-ready.");
 
@@ -193,7 +208,7 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
       }, { timeout: 30_000 })
       .toBe("rejected");
 
-    await page.reload();
+    backlogPanel = await openPatientBacklog(page, patient.patient_id);
 
     await expect(backlogPanel).toContainText("Rejected", { timeout: 30_000 });
     await expect(backlogPanel).toContainText("Unavailable for rejected snapshots.");
@@ -267,15 +282,56 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, and new s
     expect(oldRejectedSnapshot.packet_json).toEqual(beforeSnapshot.packet_json);
     expect(oldRejectedSnapshot.packet_markdown).toEqual(beforeSnapshot.packet_markdown);
 
+    backlogPanel = await openPatientBacklog(page, patient.patient_id);
     await expect(backlogPanel).toContainText("Pending Review", { timeout: 30_000 });
     await expect(backlogPanel).toContainText("Rejected");
-    await expect(createControls).toHaveCount(0);
+    await expect(backlogPanel.getByTestId("review-packet-snapshot-create-control")).toHaveCount(0);
     await expect(backlogPanel.getByRole("button", { name: "Assign reviewer" })).toHaveCount(1);
     await expect(backlogPanel.getByRole("button", { name: "Reject snapshot" })).toHaveCount(1);
+    await expect(backlogPanel.getByRole("button", { name: "Approve snapshot" })).toHaveCount(1);
     await expect(backlogPanel).toContainText("Read-only for this snapshot.");
 
     const newEvents = await getSnapshotEvents(request, token, newSnapshotId);
     expect(JSON.stringify(newEvents)).toContain("snapshot_created");
+
+    const approvalControl = backlogPanel.getByTestId("review-packet-snapshot-approval-control").first();
+    await expect(approvalControl).toContainText(
+      "Approves the latest pending packet only when the persisted review checklist has no missing evidence.",
+    );
+    await approvalControl.getByRole("button", { name: "Approve snapshot" }).click();
+    await expect(approvalControl.getByRole("status")).toContainText("Review packet snapshot approved.", {
+      timeout: 30_000,
+    });
+
+    await expect
+      .poll(async () => {
+        const auditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
+        return auditStatus.review_status;
+      }, { timeout: 30_000 })
+      .toBe("approved");
+
+    const approvedAuditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
+    expect(approvedAuditStatus.latest_snapshot_id).toBe(newSnapshotId);
+    expect(approvedAuditStatus.audit_bundle.available).toBe(true);
+
+    const approvedSnapshot = await getSnapshot(request, token, newSnapshotId);
+    expect(approvedSnapshot.review_status).toBe("approved");
+    expect(approvedSnapshot.packet_json).toEqual(newSnapshot.packet_json);
+    expect(approvedSnapshot.packet_markdown).toEqual(newSnapshot.packet_markdown);
+
+    const approvedEvents = await getSnapshotEvents(request, token, newSnapshotId);
+    expect(JSON.stringify(approvedEvents)).toContain("snapshot_approved");
+
+    backlogPanel = await openPatientBacklog(page, patient.patient_id);
+    await expect(backlogPanel).toContainText("Approved", { timeout: 30_000 });
+    await expect(backlogPanel).toContainText("Rejected");
+    await expect(backlogPanel.getByRole("button", { name: "Assign reviewer" })).toHaveCount(0);
+    await expect(backlogPanel.getByRole("button", { name: "Reject snapshot" })).toHaveCount(0);
+    await expect(backlogPanel.getByRole("button", { name: "Approve snapshot" })).toHaveCount(0);
+    await expect(backlogPanel.getByRole("button", { name: "Create new review packet snapshot" })).toHaveCount(0);
+    await expect
+      .poll(async () => backlogPanel.getByText("Read-only for this snapshot.").count(), { timeout: 30_000 })
+      .toBeGreaterThanOrEqual(2);
 
     await page.goto("/audit-readiness");
     const auditReadinessPage = page.getByTestId("audit-readiness-page");

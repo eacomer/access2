@@ -11,3 +11,5 @@ require("./reviewer-assignment-route.test.cjs");
 require("./reviewer-assignment-control.test.cjs");
 require("./review-packet-snapshot-create-route.test.cjs");
 require("./review-packet-snapshot-create-control.test.cjs");
+require("./review-packet-snapshot-approval-route.test.cjs");
+require("./review-packet-snapshot-approval-control.test.cjs");
