@@ -307,6 +307,8 @@ Use [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkp
 
 Recommendation: choose Option A first if the goal is production-grade V2 promotion; choose Option D if staging infrastructure is not immediately available. Do not choose Option B or Option C until isolated staging environment details are known, and do not implement superuser override approval yet.
 
+Use [access2-v2-isolated-staging-environment-plan.md](C:/dev/access2/docs/access2-v2-isolated-staging-environment-plan.md) for the isolated staging environment setup plan before any staging seed/reset implementation or staging mutation E2E work.
+
 Local seed/reset command for this controlled assignment/rejection validation:
 
 ```powershell

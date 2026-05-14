@@ -201,6 +201,7 @@ Override approval can approve a packet despite readiness gaps. That is useful fo
 
 - [access2-v2-planning.md](C:/dev/access2/docs/access2-v2-planning.md)
 - [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md)
+- [access2-v2-isolated-staging-environment-plan.md](C:/dev/access2/docs/access2-v2-isolated-staging-environment-plan.md) - required staging boundary plan before seed/reset implementation or staging mutation E2E.
 - [access2-v2-staging-seed-reset-contract.md](C:/dev/access2/docs/access2-v2-staging-seed-reset-contract.md) - includes the dry-run guard operator command: `py -3 backend\scripts\check_staging_v2_seed_reset_contract.py`
 - [access2-v2-staging-env-template.md](C:/dev/access2/docs/access2-v2-staging-env-template.md) - placeholder environment values for the staging dry-run guard.
 - [access2-demo-data-recreation-checklist.md](C:/dev/access2/docs/access2-demo-data-recreation-checklist.md)
