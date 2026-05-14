@@ -892,28 +892,57 @@ const renderManifestVerificationPanel = ({
   ];
 
   return (
-    <div className="audit-readiness-table-wrap">
-      <table className="audit-readiness-table">
-        <thead>
-          <tr>
-            <th>Check</th>
-            <th>Status</th>
-            <th>Verification basis</th>
-          </tr>
-        </thead>
-        <tbody>
-          {rows.map((row) => (
-            <tr key={row.label}>
-              <th scope="row">{row.label}</th>
-              <td>
-                <span className={`badge badge--${row.tone}`}>{row.status}</span>
-              </td>
-              <td>{row.explanation}</td>
+    <>
+      <div
+        className="timeline-arrival-context"
+        data-testid="patient-audit-bundle-manifest-copy"
+      >
+        <p className="worklist-context-label">Audit bundle and manifest proof</p>
+        <div className="timeline-arrival-context-body">
+          <ul>
+            <li>
+              The snapshot captures the evidence, the bundle exports it, and the manifest
+              verifies what was exported.
+            </li>
+            <li>
+              JSON, Markdown, and PDF audit bundles are read-only artifacts from persisted
+              snapshot evidence and readiness reasons; downloads do not change the review packet.
+            </li>
+            <li>
+              Manifest verification confirms supplied bundle contents against persisted snapshot
+              data. It supports trust in the evidence chain and is not a review decision control.
+            </li>
+            <li>
+              Proof chain: signal -&gt; escalation -&gt; intervention -&gt; outcome -&gt; evidence
+              -&gt; case summary -&gt; immutable review packet snapshot -&gt; review decision -&gt;
+              audit bundle -&gt; manifest verification.
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div className="audit-readiness-table-wrap">
+        <table className="audit-readiness-table">
+          <thead>
+            <tr>
+              <th>Check</th>
+              <th>Status</th>
+              <th>Verification basis</th>
             </tr>
-          ))}
-        </tbody>
-      </table>
-    </div>
+          </thead>
+          <tbody>
+            {rows.map((row) => (
+              <tr key={row.label}>
+                <th scope="row">{row.label}</th>
+                <td>
+                  <span className={`badge badge--${row.tone}`}>{row.status}</span>
+                </td>
+                <td>{row.explanation}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
   );
 };
 
@@ -1067,7 +1096,9 @@ const renderPatientBacklogPanel = ({
                           </div>
                           <p className="inline-helper">
                             Available only for approved snapshots through the persisted audit bundle
-                            export endpoints. Successful downloads may record audit_bundle_exported events.
+                            export endpoints. Downloads package immutable snapshot evidence without
+                            changing the review packet; successful downloads may record
+                            audit_bundle_exported events.
                           </p>
                         </>
                       )}

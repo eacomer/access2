@@ -33,6 +33,22 @@ function extractPatientBacklogRenderer(source) {
   return source.slice(start, end);
 }
 
+function extractManifestVerificationRenderer(source) {
+  const start = source.indexOf("const renderManifestVerificationPanel");
+  const end = source.indexOf("const renderPatientBacklogPanel");
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  return source.slice(start, end);
+}
+
+function extractAuditBundleManifestCopy(source) {
+  const start = source.indexOf('data-testid="patient-audit-bundle-manifest-copy"');
+  const end = source.indexOf('<div className="audit-readiness-table-wrap">', start);
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  return source.slice(start, end);
+}
+
 function extractCorrectionLoopStatusMessaging(source) {
   const start = source.indexOf('data-testid="patient-correction-loop-status"');
   const end = source.indexOf('<div className="queue-impact-grid">', start);
@@ -111,9 +127,40 @@ test("patient detail exposes audit bundle downloads only for approved export-rea
   assert.match(renderer, /data-testid="audit-bundle-download-actions"/);
   assert.match(renderer, /getAuditBundleDownloadHref/);
   assert.match(renderer, /Available only for approved snapshots through the persisted audit bundle/);
+  assert.match(renderer, /Downloads package immutable snapshot evidence without/);
+  assert.match(renderer, /changing the review packet/);
   assert.match(renderer, /audit_bundle_exported events/);
   assert.doesNotMatch(renderer, /method:\s*"POST"/i);
   assert.doesNotMatch(renderer, /override_missing_checklist/);
+});
+
+test("patient detail explains audit bundle and manifest verification proof as read-only", () => {
+  const source = readPageSource();
+  const renderer = extractManifestVerificationRenderer(source);
+  const proofCopy = extractAuditBundleManifestCopy(source);
+
+  [
+    "Audit bundle and manifest proof",
+    "The snapshot captures the evidence",
+    "the bundle exports it",
+    "the manifest",
+    "verifies what was exported",
+    "JSON, Markdown, and PDF audit bundles are read-only artifacts",
+    "persisted",
+    "snapshot evidence and readiness reasons",
+    "downloads do not change the review packet",
+    "Manifest verification confirms supplied bundle contents",
+    "against persisted snapshot",
+    "not a review decision control",
+    "audit bundle -&gt; manifest verification",
+  ].forEach((text) => {
+    assert.match(renderer, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  });
+
+  assert.doesNotMatch(proofCopy, /<button/i);
+  assert.doesNotMatch(proofCopy, /<a\s/i);
+  assert.doesNotMatch(proofCopy, /href=/i);
+  assert.doesNotMatch(proofCopy, /method:\s*"POST"/i);
 });
 
 test("patient detail renders assigned reviewer metadata and gates assignment to the backlog", () => {
