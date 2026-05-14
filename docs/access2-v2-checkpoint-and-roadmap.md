@@ -35,6 +35,9 @@ The local proof strengthens the core ACCESS2 product requirement: interventions 
 - Local mutation E2E validates the chain from assignment to rejection to corrected evidence to new pending snapshot to approved terminal snapshot.
 - Reviewer Work Queue remains read-only; mutation controls stay patient-detail-only.
 - Local mutation E2E is gated by `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` and refuses production/Railway-like hosts.
+- The shared mutation E2E host guard exists and blocks production/custom-domain and Railway-like targets by default.
+- The staging seed/reset dry-run guard exists for non-secret future staging input validation only.
+- Production remains read-only and synthetic/demo-only.
 - No superuser override approval was added.
 - No production mutation testing was run.
 
@@ -110,9 +113,73 @@ Do not implement these as part of the checkpoint or next narrow roadmap slice:
 - Backend startup command changes.
 - Real PHI, secrets, EHR/FHIR integration, billing, predictive analytics, or broad admin workflows.
 
+## V2 Staging Decision Point
+
+This decision point is documentation only. It does not authorize staging setup, staging seed/reset implementation, staging mutation E2E, production mutation testing, Railway configuration changes, backend startup changes, or superuser override approval.
+
+Current status:
+
+- The localhost correction-loop proof is complete.
+- Corrected-packet approval is locally proven.
+- Old immutable rejected and approved packets remain preserved.
+- The mutation E2E host guard exists and fails closed for production/Railway-like hosts.
+- The staging seed/reset dry-run guard exists and validates non-secret staging input shape only.
+- Production remains read-only.
+
+Decision options:
+
+- Option A: Isolated staging environment setup.
+  Best if the next goal is production-grade V2 promotion or validation outside localhost. Requires separate staging database, staging frontend/backend URLs, staging-only credentials, synthetic-only data, and no production demo mutation. This must happen before any staging mutation E2E execution and must not reuse the production database, production demo data, or production Railway configuration.
+- Option B: Staging seed/reset implementation.
+  Best only after Option A details are known. It must follow [access2-v2-staging-seed-reset-contract.md](C:/dev/access2/docs/access2-v2-staging-seed-reset-contract.md), be idempotent or safely resettable, preserve terminal historical `packet_json` and `packet_markdown` unless a whole disposable staging scenario is explicitly dropped/reset, be preceded by the dry-run guard, and never run against production.
+- Option C: Staging mutation E2E skeleton.
+  Best only after the staging environment and seed/reset contract are satisfied. It should initially skip or fail closed unless an explicit staging gate and exact host allowlist are present. It must remain separate from production read-only E2E and must not target `access2.salvardata.com`, `api.salvardata.com`, `railway.app`, or `up.railway.app`.
+- Option D: Hold staging and return to product workflow features.
+  Best if staging infrastructure is not ready. Candidate work should stay non-mutating or tightly scoped to the ACCESS proof chain, such as UX clarity, audit-bundle display/read-only enhancements, docs/demo polish, or other product workflow improvements that do not add broad mutation controls prematurely.
+
+Recommended decision:
+
+- Choose Option A first if the goal is production-grade V2 promotion.
+- Choose Option D if there is no immediate isolated staging infrastructure available.
+- Do not choose Option B or Option C until Option A environment details are known.
+- Do not implement superuser override approval yet.
+
+Go/no-go criteria before Option A:
+
+- Confirm the desired staging host strategy: Railway preview, separate Railway services, or another host.
+- Confirm a separate staging database.
+- Confirm staging frontend and backend domain names.
+- Confirm staging-only credential handling.
+- Confirm synthetic-only seed/reset approach.
+- Confirm no production configuration or production data mutation.
+
+Open questions:
+
+- What exact staging URL strategy should ACCESS2 use?
+- Will staging live on Railway preview, separate Railway services, or another provider?
+- What database identity check can the dry-run guard use?
+- Should staging use a new gate variable separate from `ACCESS2_ENABLE_LOCAL_MUTATION_E2E`?
+- Should disposable staging scenarios be cleaned or versioned?
+- Who is the intended V2 reviewer/operator role in staging?
+
+Non-goals for this decision point:
+
+- No production mutation E2E.
+- No production demo data mutation.
+- No superuser override approval.
+- No broad workflow mutation controls.
+- No staging seed/reset implementation.
+- No staging mutation E2E skeleton.
+- No Railway config changes.
+
+Suggested next prompt:
+
+- If staging infrastructure is available: `Document isolated staging environment setup plan`.
+- If staging infrastructure is not available: `Select next non-staging ACCESS2 V2 product workflow slice`.
+
 ## Recommended Next Implementation Candidate
 
-The next smallest implementation candidate is mutation-governance and disposable-environment planning before any non-local mutation execution.
+The next smallest implementation candidate depends on the decision above. If staging infrastructure is available, start with Option A: isolated staging environment setup planning. If staging infrastructure is not available, hold staging and choose Option D: a non-staging ACCESS2 V2 product workflow slice.
 
 Recommended boundaries:
 

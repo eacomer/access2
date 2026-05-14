@@ -298,6 +298,15 @@ This command is expected to fail safely until the required dry-run/staging guard
 
 Use [access2-v2-mutation-e2e-guard-behavior.md](C:/dev/access2/docs/access2-v2-mutation-e2e-guard-behavior.md) for the current localhost mutation guard behavior, blocked production/Railway-like target rules, safe-failure expectations, and future staging allowlist posture.
 
+Use [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) for the current staging implementation decision point. The decision tree is:
+
+- Option A: isolated staging environment setup.
+- Option B: staging seed/reset implementation.
+- Option C: staging mutation E2E skeleton.
+- Option D: hold staging and return to product workflow features.
+
+Recommendation: choose Option A first if the goal is production-grade V2 promotion; choose Option D if staging infrastructure is not immediately available. Do not choose Option B or Option C until isolated staging environment details are known, and do not implement superuser override approval yet.
+
 Local seed/reset command for this controlled assignment/rejection validation:
 
 ```powershell
