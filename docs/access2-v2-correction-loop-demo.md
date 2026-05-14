@@ -1,21 +1,28 @@
-# ACCESS2 V2 Correction Loop Demo
+# ACCESS2 V2 Correction Loop Demo Script
 
-## Purpose
+## Demo Purpose
 
-Use this script to demonstrate the local-only ACCESS2 V2 correction loop:
+Use this operator script to demonstrate the completed local-only ACCESS2 V2 correction loop:
 
 ```text
-latest rejected snapshot -> corrected synthetic outcome/evidence -> create new immutable review packet snapshot -> new latest pending_review snapshot -> old rejected packet remains preserved/read-only
+assignment -> rejection with reason -> immutable rejected packet -> corrected evidence -> new immutable pending snapshot -> approval -> terminal read-only history
 ```
 
-This demo shows how ACCESS2 handles reviewer correction without changing an old packet. A rejected packet stays historical audit evidence. Corrected evidence/current state creates a new immutable review packet snapshot.
-The latest localhost-only proof now continues through approval of the corrected pending packet and confirms that the approved snapshot becomes terminal/read-only.
+The demo shows how ACCESS2 proves correction, review, and immutable audit history without overwriting prior evidence. A rejected packet remains a historical audit artifact. Corrected current evidence is captured by creating a new immutable review packet snapshot, and approval applies only to the corrected latest packet.
+
+This is localhost-only V2 mutation behavior. Production remains V1 read-only and synthetic/demo-only.
+
+## Audience And Duration
+
+- Audience: operator, product, demo, or implementation-review walkthrough.
+- Target duration: 5-10 minutes.
+- Goal: explain the correction-loop proof chain clearly, not run broad validation.
 
 ## Local-Only Warning
 
 Run this only against a disposable local ACCESS2 environment.
 
-Do not run this script, seed, or mutation E2E against:
+Do not run this script, seed/reset, or mutation E2E against:
 
 - `https://access2.salvardata.com`
 - `https://api.salvardata.com/api/v1`
@@ -24,27 +31,9 @@ Do not run this script, seed, or mutation E2E against:
 
 Production E2E remains read-only. Demo Patient 3 remains the production read-only rejected-posture scenario, not a repeatable mutation target.
 
-## What The Demo Proves
-
-- Reviewer rejection can move the latest immutable snapshot to a rejected posture with required reason/evidence.
-- The rejected snapshot keeps its persisted packet JSON and Markdown.
-- Audit bundle export remains blocked for rejected snapshots.
-- The disposable local scenario can add post-rejection synthetic correction evidence before the next snapshot is created.
-- The corrected evidence marker is a later `systolic_bp` outcome with source `access2_local_v2_post_rejection_correction`, value `124`, and care-update summary `Post-rejection corrected evidence: synthetic systolic BP outcome improved after the completed intervention.`
-- ACCESS2 creates a new immutable review packet snapshot from current evidence after the rejected posture.
-- The new latest snapshot becomes `pending_review`.
-- Assignment and rejection controls appear only for the new latest `pending_review` snapshot.
-- The corrected latest `pending_review` snapshot can be approved when the persisted review checklist has no missing evidence.
-- The approved snapshot becomes terminal/read-only and audit-bundle-ready.
-- Historical rejected/approved snapshots remain visible and read-only.
-- Reviewer Work Queue remains read-only.
-- No override approval was added.
-- No production mutation testing was run.
-- The ACCESS proof chain is preserved: signal -> escalation -> intervention -> outcome -> evidence -> case summary -> immutable review packet snapshot -> assignment/rejection -> new immutable snapshot from corrected evidence.
-
 ## Prerequisites
 
-- Repo root: `C:\dev\access2`
+- Repo root is `C:\dev\access2`.
 - Backend is running locally and healthy at `http://localhost:8000/api/v1`.
 - Frontend is running locally, preferably a clean current-workspace instance on `http://localhost:3001`.
 - `frontend/.env.local` points at the local backend API:
@@ -53,12 +42,15 @@ Production E2E remains read-only. Demo Patient 3 remains the production read-onl
 NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
 ```
 
+- Safe localhost-only mutation env vars are set only in the shells used for seed/reset or E2E.
 - Local demo credentials exist:
 
 ```text
 admin@example.com / Admin123!
 ```
 
+- No production mutation testing.
+- No real PHI.
 - Generated artifacts remain uncommitted:
 
 ```text
@@ -98,19 +90,33 @@ $env:PYTHONPATH="C:\dev\access2\backend"
 py -3 -m scripts.seed_local_v2_rejection_mutation
 ```
 
+This invokes:
+
+```text
+backend/scripts/seed_local_v2_rejection_mutation.py
+```
+
 Expected output includes:
 
 ```text
 ACCESS2_LOCAL_V2_REJECTION_PATIENT_ID=<patient-id>
 ```
 
-This seed creates or repairs one synthetic local disposable patient with marker:
+The seed creates or repairs one synthetic local disposable patient with marker:
 
 ```text
 access2-local-v2-mutation:reviewer-rejection
 ```
 
-If the previous latest snapshot was rejected, the seed first adds synthetic post-rejection correction evidence, then creates a new latest `pending_review` snapshot from that current evidence. It does not rewrite the rejected terminal snapshot.
+The script requires:
+
+```text
+ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true
+```
+
+If the previous latest snapshot was rejected, the seed adds synthetic post-rejection correction evidence, then creates a new latest `pending_review` snapshot from that current evidence. It does not rewrite the rejected terminal snapshot.
+
+This is not a Railway seed command, not a production seed command, and not a backend startup command.
 
 ## Local E2E Command
 
@@ -126,41 +132,36 @@ $env:ACCESS2_LOCAL_V2_REJECTION_PATIENT_ID="<value printed by seed script>"
 & "C:\Program Files\nodejs\npm.cmd" run test:e2e:local-mutation
 ```
 
-Latest validated result:
+Latest known local result:
 
 ```text
-1 passed (about 2.6m)
+1 passed in about 2.6 minutes, localhost only
 ```
 
-That run used localhost only. The current local mutation spec also creates the same synthetic correction evidence after reviewer rejection and before selecting `Create new review packet snapshot`, so the new packet captures an improved outcome posture while the old rejected packet remains unchanged. It then approves the corrected latest pending snapshot, verifies `snapshot_approved`, confirms audit bundle availability, and verifies rejected and approved historical snapshots remain read-only.
+The local E2E proves the scripted path, including assignment, rejection, correction evidence, new snapshot creation, corrected approval, terminal read-only posture, and read-only Reviewer Work Queue posture. Manual demo observations still matter because the demo is meant to explain why the proof chain is defensible.
 
-Latest known validation bundle for the completed local V2 corrected approval checkpoint:
+## Manual Walkthrough Script
 
-```text
-backend targeted approval tests: 3 passed
-frontend npm test: 55 passed
-lint: passed
-typecheck: passed
-local mutation E2E: 1 passed in about 2.6 minutes, localhost only
-git diff --check: passed
-```
+### 1. Sign In Locally
 
-## Manual Demo Walkthrough
-
-### 1. Sign In
-
-Open the local frontend and sign in:
+Open:
 
 ```text
 http://localhost:3001/login
 ```
 
-Expected result:
+Say:
+
+```text
+We are signed into a local disposable ACCESS2 V2 environment. This is not production, and no real PHI is used.
+```
+
+Expected observation:
 
 - Authenticated navigation appears.
 - `Patients`, `Reviewer Queue`, and `Verify Bundle` are visible.
 
-### 2. Open The Disposable Patient
+### 2. Open The Seeded Synthetic Patient
 
 Open the patient printed by the seed:
 
@@ -168,42 +169,88 @@ Open the patient printed by the seed:
 http://localhost:3001/patients/<ACCESS2_LOCAL_V2_REJECTION_PATIENT_ID>
 ```
 
-Expected result:
+Say:
+
+```text
+This patient is the disposable synthetic V2 correction-loop case. The local marker is access2-local-v2-mutation:reviewer-rejection.
+```
+
+Expected observation:
 
 - Patient detail renders.
 - `Review packet backlog` / `Packet drill-in` is visible.
-- Latest snapshot starts as `Pending Review` after seed/reset.
+- The latest snapshot starts as `Pending Review` after seed/reset.
 
-### 3. Reject The Latest Pending Snapshot
+### 3. Identify The Latest Actionable Packet
 
-In the `Packet drill-in` backlog:
+In the `Packet drill-in` backlog, locate the latest `Pending Review` snapshot.
 
-1. Confirm `Assign reviewer` appears only on the latest `Pending Review` snapshot.
-2. Assign the current reviewer user ID when demonstrating assignment.
-3. Confirm success copy: `Reviewer assigned.`
-4. Confirm `Reject snapshot` appears only on the latest `Pending Review` snapshot.
-5. Enter a non-empty rejection reason.
-6. Select `Reject snapshot`.
+Say:
 
-Expected result:
+```text
+Only the latest pending-review packet is actionable. Older packets and terminal packets are audit history and stay read-only.
+```
+
+Expected observation:
+
+- Assignment and rejection controls are scoped to the latest `Pending Review` snapshot.
+- Historical rows do not expose mutation controls.
+
+### 4. Assign The Pending Packet
+
+Use the assignment control on the latest pending packet.
+
+Say:
+
+```text
+Assignment records reviewer accountability for this packet without changing the packet JSON or Markdown.
+```
+
+Expected observation:
+
+- Success copy appears: `Reviewer assigned.`
+- The snapshot remains `Pending Review`.
+- Persisted packet content remains unchanged.
+
+### 5. Reject The Original Packet With A Reason
+
+Use `Reject snapshot` on the same latest pending packet. First point out that a non-empty reason is required, then enter a demo-safe reason such as:
+
+```text
+Synthetic local V2 rejection mutation test reason: outcome evidence needs correction.
+```
+
+Say:
+
+```text
+The reviewer is rejecting this packet because the outcome evidence needs correction. ACCESS2 records who rejected it, when it happened, and the reason.
+```
+
+Expected observation:
 
 - Latest review posture becomes `Rejected`.
-- Assignment/rejection controls disappear from the rejected latest snapshot.
+- Assignment and rejection controls disappear from the rejected snapshot.
 - Audit bundle export says `Unavailable for rejected snapshots.`
-- The snapshot row shows `Read-only for this snapshot.`
+- The rejected row shows `Read-only for this snapshot.`
 
-### 4. Verify The Rejected Packet Is Preserved
+### 6. Explain The Immutable Rejected Packet
 
-Stay in `Packet drill-in`.
+Stay in the backlog and point to the rejected row.
 
-Expected observations:
+Say:
+
+```text
+The rejected packet is not repaired in place. Its packet_json and packet_markdown stay preserved as historical audit evidence.
+```
+
+Expected observation:
 
 - The rejected snapshot remains visible in the backlog.
 - The rejected row remains read-only.
 - Existing packet JSON and Markdown are not changed or rebuilt.
-- The rejected snapshot blocks audit bundle export and manifest verification.
+- Rejected posture blocks audit bundle generation and manifest verification.
 
-### 5. Create A New Immutable Review Packet Snapshot
+### 7. Create A New Snapshot From Corrected Evidence
 
 When the latest posture is rejected, the patient detail page should expose:
 
@@ -213,32 +260,31 @@ Create new review packet snapshot
 
 Select it.
 
-Expected result:
+Say:
+
+```text
+Corrected current evidence is represented by creating a new immutable snapshot. ACCESS2 does not overwrite the rejected packet.
+```
+
+Expected observation:
 
 - Success copy appears: `New review packet snapshot created.`
 - A new latest snapshot appears with `Pending Review`.
 - The older rejected snapshot remains visible and read-only.
-- The new snapshot is generated from current evidence. In the local E2E proof, that current evidence includes the post-rejection correction marker and an improved systolic BP outcome trend.
-- This is creation from current evidence while the rejected packet stays preserved.
+- The new snapshot is generated from current evidence.
+- In the local proof, current evidence includes the post-rejection correction marker, a `systolic_bp` outcome value of `124`, source `access2_local_v2_post_rejection_correction`, and an improved outcome trend.
 
-### 6. Verify Latest-Only Controls
+### 8. Approve The Corrected Latest Pending Packet
 
-After the new snapshot is latest `Pending Review`:
+Use `Approve snapshot` on the corrected latest `Pending Review` snapshot.
 
-- `Assign reviewer` appears for the new latest snapshot.
-- `Reject snapshot` appears for the new latest snapshot.
-- `Approve snapshot` appears for the new latest snapshot only when the persisted review checklist has no missing evidence.
-- The old rejected snapshot still shows `Read-only for this snapshot.`
-- No create-snapshot button remains while the latest snapshot is `pending_review`.
+Say:
 
-### 7. Approve The Corrected Latest Pending Snapshot
+```text
+Approval applies only to the corrected latest packet, and only when the persisted review checklist has no missing evidence.
+```
 
-In the `Packet drill-in` backlog:
-
-1. Confirm `Approve snapshot` appears only on the corrected latest `Pending Review` snapshot.
-2. Select `Approve snapshot`.
-
-Expected result:
+Expected observation:
 
 - Success copy appears: `Review packet snapshot approved.`
 - Latest review posture becomes `Approved`.
@@ -247,7 +293,23 @@ Expected result:
 - The old rejected snapshot remains visible and read-only.
 - The approved snapshot row shows `Read-only for this snapshot.`
 
-### 8. Check Reviewer Work Queue Posture
+### 9. Confirm Historical Snapshot Posture
+
+Point to both terminal rows.
+
+Say:
+
+```text
+The rejected packet and the approved corrected packet are both terminal records. They remain available as audit history, and neither exposes mutation controls.
+```
+
+Expected observation:
+
+- Historical rejected snapshots expose no mutation controls.
+- Historical approved snapshots expose no mutation controls.
+- At least two rows can show `Read-only for this snapshot.`
+
+### 10. Confirm Reviewer Work Queue Remains Read-Only
 
 Open:
 
@@ -255,16 +317,39 @@ Open:
 http://localhost:3001/audit-readiness
 ```
 
-Expected result:
+Say:
+
+```text
+The Reviewer Work Queue remains read-only. V2 mutation controls are patient-detail-only in this local proof.
+```
+
+Expected observation:
 
 - Reviewer Work Queue remains read-only.
 - No approve, reject, assign, override, export, or create-snapshot mutation controls are present.
 
-## Expected Audit/Evidence Story
+## Expected UI Observations
 
-Use this talk track:
+- Assignment control appears only for the latest `pending_review` snapshot.
+- Rejection control appears only for the latest `pending_review` snapshot.
+- Create new snapshot control appears only in the local gated context after rejected or no-snapshot posture.
+- Approval control appears only for the latest `pending_review` snapshot when the persisted review checklist has `missing_count == 0`.
+- Terminal approved snapshots expose no mutation controls.
+- Terminal rejected snapshots expose no mutation controls.
+- Historical snapshots expose no mutation controls.
+- Reviewer Work Queue remains read-only.
 
-ACCESS2 does not overwrite review evidence when a reviewer rejects a packet. The rejected packet remains a historical immutable audit artifact, including the packet JSON, packet Markdown, review state, reviewer assignment, rejection reason, and audit events. When evidence or outcomes are corrected, ACCESS2 creates a new immutable review packet snapshot from the current evidence. In the local synthetic scenario, the corrected current evidence is visible as a post-rejection care update and an improved `systolic_bp` outcome trend. Review controls apply to the new latest pending snapshot only, while old rejected/approved packets stay available as audit history.
+## Audit/Evidence Talk Track
+
+Use this proof-chain language:
+
+```text
+signal -> escalation -> intervention -> outcome -> evidence -> case summary -> immutable review packet snapshot -> assignment -> rejection -> corrected evidence -> new immutable review packet snapshot -> approval -> audit bundle/manifest expectations
+```
+
+ACCESS2 does not overwrite review evidence when a reviewer rejects a packet. The rejected packet remains a historical immutable audit artifact, including packet JSON, packet Markdown, review state, reviewer assignment, rejection reason, and audit events.
+
+When evidence or outcomes are corrected, ACCESS2 creates a new immutable review packet snapshot from current evidence. In the local synthetic scenario, the corrected current evidence is visible as a post-rejection care update and an improved `systolic_bp` outcome trend. Review controls apply to the new latest pending snapshot only, while old rejected and approved packets stay available as audit history.
 
 This supports the ACCESS proof chain because the system can show:
 
@@ -272,23 +357,42 @@ This supports the ACCESS proof chain because the system can show:
 - what intervention occurred
 - what measurable outcome followed
 - what evidence supported review
+- which packet was assigned
 - which packet was rejected and why
 - which new packet was created from corrected/current evidence
 - which corrected packet was approved after measurable outcome improvement
 - that historical packets were preserved unchanged
 
-## What Not To Do In Production
+## Production Do Nots
 
+- Do not run mutation E2E against `https://access2.salvardata.com`.
+- Do not run mutation E2E against `https://api.salvardata.com/api/v1`.
 - Do not run `scripts.seed_local_v2_rejection_mutation` against production.
-- Do not run `npm run test:e2e:local-mutation` against production.
 - Do not use Demo Patient 3 for repeatable mutation validation.
 - Do not mutate shared production demo data.
+- Do not use Railway startup commands for seed/reset.
 - Do not change Railway config.
 - Do not change the backend startup command; it remains `bash scripts/render-start.sh`.
+- Do not enable staging mutation until isolated staging is provisioned and approved.
 - Do not add superuser override approval or broad workflow mutation controls as part of this demo.
-- Do not treat local corrected approval as authorization for production mutation E2E.
 
 ## Troubleshooting
+
+### `frontend/.env.local` Backend URL Mismatch
+
+Symptom:
+
+```text
+Unable to sign in right now. Please try again.
+```
+
+Check:
+
+```text
+NEXT_PUBLIC_API_BASE_URL=http://localhost:8000/api/v1
+```
+
+Then confirm backend health before changing product code.
 
 ### Stale `.next` Cache
 
@@ -305,15 +409,51 @@ Fix:
 3. Restart the frontend.
 4. Reopen `/login`.
 
-### Port 3000 Held By Stale Node Processes
+### Frontend Port Mismatch
 
-If Windows will not stop stale node processes on port 3000, start a clean current-workspace frontend on another localhost port such as 3001 and set:
+If port 3000 is held by stale node processes, start a clean current-workspace frontend on another localhost port such as 3001 and set:
 
 ```powershell
 $env:ACCESS2_E2E_BASE_URL="http://localhost:3001"
 ```
 
 The local mutation spec still refuses production/Railway-like hosts.
+
+### Playwright Chromium `spawn EPERM`
+
+This can be local Windows permission noise. Rerun the local-only Playwright command with the approved execution path for this environment. Do not switch the target to production to work around a local browser issue.
+
+### Missing Safe Localhost Env Vars
+
+If the seed fails, confirm:
+
+```powershell
+$env:ACCESS2_ENABLE_LOCAL_MUTATION_E2E="true"
+$env:PYTHONPATH="C:\dev\access2\backend"
+```
+
+If the local E2E is skipped, confirm:
+
+```powershell
+$env:ACCESS2_ENABLE_LOCAL_MUTATION_E2E="true"
+$env:ACCESS2_E2E_BASE_URL="http://localhost:3001"
+$env:ACCESS2_LOCAL_V2_REJECTION_PATIENT_ID="<value printed by seed script>"
+```
+
+The local E2E intentionally skips when `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` is not set.
+
+### Production-Like URL Blocked By Host Guard
+
+The seed and local mutation E2E must fail closed when configured target values contain production or Railway-like hosts such as:
+
+```text
+access2.salvardata.com
+api.salvardata.com
+railway.app
+up.railway.app
+```
+
+This is expected safety behavior. Do not bypass it.
 
 ### Seed Starts From The Wrong Snapshot State
 
@@ -331,18 +471,28 @@ Expected result:
 - The latest snapshot is restored to `pending_review` by creating a new immutable snapshot when needed.
 - Old rejected snapshots remain preserved.
 
-### Playwright Chromium `spawn EPERM`
-
-This can be local Windows permission noise. Rerun the local-only Playwright command with the approved execution path for this environment.
-
 ## Stop Conditions
 
 Stop and investigate before changing product code if:
 
 - Backend health fails.
-- Frontend `.env.local` points to production.
+- `frontend/.env.local` points to production.
 - The local mutation spec tries to target production/Railway-like hosts.
 - Rejected snapshots lose persisted packet content.
-- Historical rejected/approved snapshots disappear from the backlog.
+- Historical rejected or approved snapshots disappear from the backlog.
 - Reviewer Work Queue exposes mutation controls.
 - Generated artifacts appear in `git status --short`.
+- Any real PHI appears.
+
+## Definition Of Done
+
+- Operator can complete or explain the local correction loop in 5-10 minutes.
+- Script includes prerequisites, seed/reset, E2E command, manual walkthrough, UI observations, audit talk track, production do nots, and troubleshooting.
+- Script contains no secrets, no real PHI, and no production mutation guidance.
+- Production remains read-only.
+
+## Recommended Next Slice
+
+After this demo polish, the recommended next non-staging product workflow slice is Candidate B from [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md): patient-detail correction-loop status messaging.
+
+That would be a future product frontend slice. It is not part of this docs-only demo polish.
