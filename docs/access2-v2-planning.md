@@ -309,6 +309,8 @@ Recommendation: choose Option A first if the goal is production-grade V2 promoti
 
 Use [access2-v2-isolated-staging-environment-plan.md](C:/dev/access2/docs/access2-v2-isolated-staging-environment-plan.md) for the isolated staging environment setup plan before any staging seed/reset implementation or staging mutation E2E work.
 
+Use [access2-v2-staging-provisioning-checklist.md](C:/dev/access2/docs/access2-v2-staging-provisioning-checklist.md) as the operator checklist before creating or validating any isolated ACCESS2 V2 staging environment.
+
 Local seed/reset command for this controlled assignment/rejection validation:
 
 ```powershell
