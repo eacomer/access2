@@ -156,14 +156,25 @@ Current dry-run-only contract check:
 cd C:\dev\access2
 $env:ACCESS2_STAGING_SEED_RESET_DRY_RUN="true"
 $env:ACCESS2_ENABLE_STAGING_MUTATION_DRY_RUN="true"
-$env:ACCESS2_STAGING_FRONTEND_URL="<STAGING_FRONTEND_URL>"
-$env:ACCESS2_STAGING_API_BASE_URL="<STAGING_BACKEND_API_URL>"
-$env:ACCESS2_STAGING_ENV_LABEL="<STAGING_OR_PREVIEW_LABEL>"
+$env:ACCESS2_STAGING_FRONTEND_URL="https://access2-v2-preview.example.test"
+$env:ACCESS2_STAGING_API_BASE_URL="https://api-access2-v2-preview.example.test/api/v1"
+$env:ACCESS2_STAGING_ENV_LABEL="v2-preview"
 $env:ACCESS2_STAGING_DATA_CLASSIFICATION="synthetic"
 py -3 backend\scripts\check_staging_v2_seed_reset_contract.py
 ```
 
 This command validates only non-secret inputs for a future staging seed/reset. It performs no database connection, no network call, no seed, no reset, and no mutation E2E run.
+
+Expected missing-variable refusal:
+
+```powershell
+cd C:\dev\access2
+py -3 backend\scripts\check_staging_v2_seed_reset_contract.py
+```
+
+This should fail safely until the explicit dry-run and staging mutation dry-run gates are set. A passing run prints only sanitized target summaries; refusal output must not expose passwords, tokens, database URLs, query strings, URL usernames, or URL passwords.
+
+The dry-run check must fail for production custom domains, `railway.app` or `up.railway.app` hosts, non-synthetic data classification, production-like environment labels, credential-bearing URLs, query strings, and missing gates. It is not permission to run staging mutation E2E.
 
 Future staging seed/reset should provide placeholder output shaped like:
 

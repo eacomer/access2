@@ -128,6 +128,13 @@ The refusal path is part of the contract. A failure to prove safety must stop th
 
 `backend/scripts/check_staging_v2_seed_reset_contract.py` is a dry-run-only input validation check for future staging seed/reset work. It does not seed or reset data, does not connect to a database, and does not make network calls.
 
+Purpose:
+
+- Validate future staging seed/reset inputs before seed/reset implementation exists.
+- Refuse unsafe, missing, malformed, production-like, or non-synthetic targets.
+- Print only sanitized target labels and pass/fail status.
+- Preserve the current posture that staging mutation E2E is not approved yet.
+
 The check requires all of these non-secret environment variables before it exits successfully:
 
 ```text
@@ -142,6 +149,75 @@ ACCESS2_STAGING_DATA_CLASSIFICATION=synthetic
 The check refuses production/custom-domain and Railway-like targets, credential-bearing URLs, query strings, non-synthetic data classification, and production-like environment labels. Localhost is refused unless `ACCESS2_ALLOW_LOCAL_STAGING_DRY_RUN=true` is set for local validation of the check itself.
 
 This dry-run check is not permission to run staging mutation E2E. A real staging seed/reset still requires an isolated database, a reviewed seed/reset implementation, completed staging checklist, synthetic-only data, and explicit approval. Production remains read-only.
+
+### Operator Procedure
+
+Expected safe failure when required variables are missing:
+
+```powershell
+cd C:\dev\access2
+py -3 backend\scripts\check_staging_v2_seed_reset_contract.py
+```
+
+This should exit non-zero and report missing required variables. That failure is expected and safe because the dry-run and staging mutation dry-run gates were not explicitly set.
+
+Safe placeholder-only dry-run:
+
+```powershell
+cd C:\dev\access2
+$env:ACCESS2_STAGING_SEED_RESET_DRY_RUN="true"
+$env:ACCESS2_ENABLE_STAGING_MUTATION_DRY_RUN="true"
+$env:ACCESS2_STAGING_FRONTEND_URL="https://access2-v2-preview.example.test"
+$env:ACCESS2_STAGING_API_BASE_URL="https://api-access2-v2-preview.example.test/api/v1"
+$env:ACCESS2_STAGING_ENV_LABEL="v2-preview"
+$env:ACCESS2_STAGING_DATA_CLASSIFICATION="synthetic"
+py -3 backend\scripts\check_staging_v2_seed_reset_contract.py
+```
+
+Use placeholders or approved isolated staging values only. Do not use real production domains, Railway production URLs, database URLs, passwords, tokens, or secret-store values in this command or in committed docs.
+
+Expected output shape:
+
+- A passing run prints a short sanitized checklist summary with the environment label, sanitized frontend target, sanitized API target, data classification, local validation mode, and dry-run-only confirmation.
+- A failing run prints a clear refusal reason and exits non-zero.
+- Output must not include passwords, tokens, database URLs, query strings, URL usernames, URL passwords, or credential material.
+
+Unsafe examples that must fail:
+
+- Production frontend URL: `https://access2.salvardata.com`
+- Production API URL: `https://api.salvardata.com/api/v1`
+- Any `railway.app` or `up.railway.app` host.
+- `ACCESS2_STAGING_DATA_CLASSIFICATION` set to anything other than `synthetic`.
+- Production-like environment labels such as `production`, `prod`, `live`, or `main`.
+- Credential-bearing URLs such as `https://user:password@access2-v2-preview.example.test`.
+- URLs containing query strings or fragments.
+- Missing `ACCESS2_STAGING_SEED_RESET_DRY_RUN=true`.
+- Missing `ACCESS2_ENABLE_STAGING_MUTATION_DRY_RUN=true`.
+
+Operator hygiene:
+
+- Do not commit `.env` files.
+- Do not paste secrets into logs, screenshots, docs, issues, or pull requests.
+- Redact tokens, passwords, connection strings, and secret-store values from diagnostics.
+- Keep generated artifacts out of commits.
+- Record only sanitized target labels, date, operator, and pass/fail result.
+
+Stop conditions:
+
+- Any uncertain target means stop.
+- Any production-like URL means stop.
+- Any Railway production-like target means stop.
+- Any missing database isolation proof means stop.
+- Any real PHI risk means stop.
+- Any need to mutate production means stop.
+- Any need to change Railway config or backend startup behavior means stop.
+
+Relationship to future staging seed/reset:
+
+- This guard is a prerequisite check, not the staging seed/reset implementation.
+- Future staging seed/reset still requires an isolated database, synthetic seed data, reset/rollback path, checklist completion, and explicit implementation approval.
+- Staging mutation E2E remains unapproved until a future implementation slice explicitly adds and validates it.
+- Production remains read-only.
 
 ## Reset And Rollback Expectations
 
