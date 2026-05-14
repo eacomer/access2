@@ -304,6 +304,42 @@ export default async function AuditReadinessPage({ searchParams }: PageProps) {
           </div>
         </header>
 
+        <section
+          className="timeline-arrival-context"
+          data-testid="reviewer-immutable-snapshot-copy"
+          aria-label="Immutable snapshot review posture"
+        >
+          <p className="worklist-context-label">Immutable snapshot review posture</p>
+          <div className="timeline-arrival-context-body">
+            <ul>
+              <li>
+                Reviewer Work Queue is read-only: use it to find and inspect persisted latest
+                review packets. Review decisions and correction-loop actions are intentionally
+                scoped to patient detail in local gated V2, and production V1 remains read-only.
+              </li>
+              <li>
+                Each review packet snapshot is an immutable audit record. Historical packet_json
+                and packet_markdown are not refreshed or overwritten; rejected and approved
+                snapshots are terminal historical evidence.
+              </li>
+              <li>
+                Only the latest pending_review snapshot can be actionable. Historical snapshots
+                stay read-only even after corrected evidence creates a new packet.
+              </li>
+              <li>
+                Corrections create a new review packet snapshot from current evidence, preserve
+                the old rejected packet, and approval applies to the corrected latest pending
+                packet.
+              </li>
+              <li>
+                Audit proof chain: signal -&gt; escalation -&gt; intervention -&gt; outcome -&gt;
+                evidence -&gt; case summary -&gt; immutable review packet snapshot -&gt; review
+                decision -&gt; audit bundle/manifest verification.
+              </li>
+            </ul>
+          </div>
+        </section>
+
         <Suspense fallback={<ReviewerSummaryLoading />}>
           <ReviewerSummarySection retryHref={retryHref} />
         </Suspense>

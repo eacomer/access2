@@ -9,6 +9,14 @@ function readPageSource() {
   return fs.readFileSync(pagePath, "utf8");
 }
 
+function extractImmutableSnapshotCopy(source) {
+  const match = source.match(
+    /data-testid="reviewer-immutable-snapshot-copy"[\s\S]*?<\/section>/,
+  );
+  assert.ok(match, "expected reviewer immutable snapshot copy section");
+  return match[0];
+}
+
 test("audit readiness page renders key backend fields in the read-only worklist", () => {
   const source = readPageSource();
 
@@ -62,6 +70,34 @@ test("audit readiness page renders key backend fields in the read-only worklist"
   });
 });
 
+test("audit readiness page explains immutable snapshot review posture", () => {
+  const source = readPageSource();
+  const immutableSnapshotCopy = extractImmutableSnapshotCopy(source);
+
+  [
+    "Reviewer Work Queue is read-only",
+    "find and inspect persisted latest",
+    "local gated V2",
+    "production V1 remains read-only",
+    "immutable audit record",
+    "packet_json",
+    "packet_markdown",
+    "terminal historical evidence",
+    "Only the latest pending_review snapshot can be actionable",
+    "Historical snapshots",
+    "stay read-only even after corrected evidence",
+    "Corrections create a new review packet snapshot",
+    "old rejected packet",
+    "approval applies to the corrected latest pending",
+    "audit bundle/manifest verification",
+  ].forEach((label) => {
+    assert.match(
+      immutableSnapshotCopy,
+      new RegExp(label.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")),
+    );
+  });
+});
+
 test("audit readiness rows link to patient detail without exposing mutation controls", () => {
   const source = readPageSource();
 
@@ -80,4 +116,14 @@ test("audit readiness rows link to patient detail without exposing mutation cont
   assert.doesNotMatch(source, />\s*Create Snapshot\s*</i);
   assert.doesNotMatch(source, /\/assignment/);
   assert.doesNotMatch(source, /assigned_reviewer_user_id:\s*/);
+});
+
+test("immutable snapshot copy stays read-only", () => {
+  const source = readPageSource();
+  const immutableSnapshotCopy = extractImmutableSnapshotCopy(source);
+
+  assert.doesNotMatch(immutableSnapshotCopy, /<button/i);
+  assert.doesNotMatch(immutableSnapshotCopy, /href=/i);
+  assert.doesNotMatch(immutableSnapshotCopy, /method:\s*"POST"/);
+  assert.doesNotMatch(immutableSnapshotCopy, /\/assignment/);
 });
