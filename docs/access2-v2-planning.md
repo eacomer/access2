@@ -279,6 +279,8 @@ Use [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correcti
 
 Use [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) for the current V2 checkpoint, production-ready versus local-only posture, highest risks, and recommended next implementation candidate.
 
+Use [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md) for the current non-staging product workflow decision. Recommendation: pause staging unless isolated staging infrastructure is actually available, then polish the V2 correction-loop demo script before any patient-detail UI copy or other product polish.
+
 Use [access2-v2-staging-mutation-readiness.md](C:/dev/access2/docs/access2-v2-staging-mutation-readiness.md) for the required staging or preview environment, seed/reset, credential, host-guard, and audit-evidence checklist before any mutation testing outside localhost.
 
 Use [access2-v2-staging-mutation-checklist.md](C:/dev/access2/docs/access2-v2-staging-mutation-checklist.md) as the final checkbox-based operator gate before staging mutation seed/reset or mutation E2E execution.

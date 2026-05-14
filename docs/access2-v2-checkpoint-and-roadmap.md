@@ -177,6 +177,14 @@ Suggested next prompt:
 - If staging infrastructure is available: `Document isolated staging environment setup plan`.
 - If staging infrastructure is not available: `Select next non-staging ACCESS2 V2 product workflow slice`.
 
+## Non-Staging Product Workflow Decision
+
+The current non-staging product decision is documented in [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md). Recommendation: choose Candidate A, V2 correction-loop demo script polish, before product UI polish. This is the lowest-risk next slice because it is docs-only, captures the completed localhost proof chain, improves operator storytelling, and avoids new mutation behavior.
+
+Secondary recommendation: Candidate B, patient-detail correction-loop status messaging, can follow after the demo script if product UI clarity is still the priority.
+
+Explicitly defer superuser override approval, broad workflow mutation controls, staging mutation E2E, production mutation E2E, and production demo data mutation.
+
 ## Recommended Next Implementation Candidate
 
 The next smallest implementation candidate depends on the decision above. If staging infrastructure is available, start with Option A: isolated staging environment setup planning. If staging infrastructure is not available, hold staging and choose Option D: a non-staging ACCESS2 V2 product workflow slice.
@@ -201,6 +209,7 @@ Override approval can approve a packet despite readiness gaps. That is useful fo
 
 - [access2-v2-planning.md](C:/dev/access2/docs/access2-v2-planning.md)
 - [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md)
+- [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md) - non-staging product workflow decision and recommended next demo-script slice.
 - [access2-v2-isolated-staging-environment-plan.md](C:/dev/access2/docs/access2-v2-isolated-staging-environment-plan.md) - required staging boundary plan before seed/reset implementation or staging mutation E2E.
 - [access2-v2-staging-provisioning-checklist.md](C:/dev/access2/docs/access2-v2-staging-provisioning-checklist.md) - operator checklist before creating or validating isolated V2 staging.
 - [access2-v2-staging-seed-reset-contract.md](C:/dev/access2/docs/access2-v2-staging-seed-reset-contract.md) - includes the dry-run guard operator command: `py -3 backend\scripts\check_staging_v2_seed_reset_contract.py`
