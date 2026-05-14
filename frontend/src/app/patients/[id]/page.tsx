@@ -964,6 +964,31 @@ const renderPatientBacklogPanel = ({
         patientId={backlog.patient_id}
         reviewStatus={backlog.audit_status.review_status}
       />
+      <div className="timeline-arrival-context" data-testid="patient-correction-loop-status">
+        <p className="worklist-context-label">Correction loop status</p>
+        <div className="timeline-arrival-context-body">
+          <ul>
+            <li>
+              Latest actionable packet: only the latest pending_review snapshot can expose assignment, rejection, or
+              approval controls, and any visible control applies only to that latest snapshot.
+            </li>
+            <li>
+              Historical packets: rejected and approved snapshots are audit evidence. Their packet_json and
+              packet_markdown are not refreshed or overwritten, and terminal snapshots stay read-only.
+            </li>
+            <li>
+              Corrected snapshots: corrections create a new review packet snapshot from current evidence. A corrected
+              packet appears as a new latest pending_review snapshot before approval; approval applies to that corrected
+              latest packet, not the old rejected packet.
+            </li>
+            <li>
+              Read-only posture: approved/rejected snapshots expose no mutation controls, Reviewer Work Queue remains
+              read-only, production V1 remains read-only, and V2 mutation behavior is local-only and gated until a
+              future approved environment exists.
+            </li>
+          </ul>
+        </div>
+      </div>
       <div className="queue-impact-grid">
         <div className="queue-impact-stat">
           <span className="queue-impact-value">{formatBooleanLabel(backlog.audit_status.has_snapshot)}</span>
