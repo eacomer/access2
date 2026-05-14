@@ -287,6 +287,15 @@ Use [access2-v2-staging-env-template.md](C:/dev/access2/docs/access2-v2-staging-
 
 Use [access2-v2-staging-seed-reset-contract.md](C:/dev/access2/docs/access2-v2-staging-seed-reset-contract.md) for the requirements a future isolated staging seed/reset process must satisfy before seed/reset code or staging mutation E2E is written.
 
+Use the staging seed/reset dry-run guard command only as a non-mutating prerequisite check for future staging input safety:
+
+```powershell
+cd C:\dev\access2
+py -3 backend\scripts\check_staging_v2_seed_reset_contract.py
+```
+
+This command is expected to fail safely until the required dry-run/staging guard variables are set. It does not seed, reset, connect to a database, make network calls, or authorize staging mutation E2E.
+
 Use [access2-v2-mutation-e2e-guard-behavior.md](C:/dev/access2/docs/access2-v2-mutation-e2e-guard-behavior.md) for the current localhost mutation guard behavior, blocked production/Railway-like target rules, safe-failure expectations, and future staging allowlist posture.
 
 Local seed/reset command for this controlled assignment/rejection validation:

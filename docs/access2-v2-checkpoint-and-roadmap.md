@@ -65,6 +65,7 @@ These V2 mutation paths must remain local-only until a disposable staging or pre
 - Controlled corrected-packet approval: patient-detail-only, latest `pending_review` only, requires persisted review checklist completeness, records approval through the existing review path, and leaves approved snapshots terminal/read-only.
 - V2 correction-loop E2E: local-only flow validates assignment, rejection, corrected evidence, new pending snapshot, corrected approval, preserved old rejected packet, approved terminal/read-only posture, and read-only queue posture.
 - Local seed proof story: disposable synthetic marker creates or repairs a local scenario with post-rejection correction evidence.
+- Staging seed/reset dry-run guard: validates non-secret future staging inputs only, refuses production/Railway-like targets, and performs no seed, reset, database, network, or mutation E2E operation.
 - Demo/runbook docs: local-only correction-loop script, troubleshooting, and production don’ts are documented.
 
 ## Latest Known Validation
@@ -133,6 +134,8 @@ Override approval can approve a packet despite readiness gaps. That is useful fo
 
 - [access2-v2-planning.md](C:/dev/access2/docs/access2-v2-planning.md)
 - [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md)
+- [access2-v2-staging-seed-reset-contract.md](C:/dev/access2/docs/access2-v2-staging-seed-reset-contract.md) - includes the dry-run guard operator command: `py -3 backend\scripts\check_staging_v2_seed_reset_contract.py`
+- [access2-v2-staging-env-template.md](C:/dev/access2/docs/access2-v2-staging-env-template.md) - placeholder environment values for the staging dry-run guard.
 - [access2-demo-data-recreation-checklist.md](C:/dev/access2/docs/access2-demo-data-recreation-checklist.md)
 - [access2-v1-demo-handoff-summary.md](C:/dev/access2/docs/access2-v1-demo-handoff-summary.md)
 - [access2-v1-scope-control.md](C:/dev/access2/docs/access2-v1-scope-control.md)
