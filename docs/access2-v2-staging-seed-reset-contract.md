@@ -124,6 +124,25 @@ The future script must:
 
 The refusal path is part of the contract. A failure to prove safety must stop the run.
 
+## Dry-Run Contract Check
+
+`backend/scripts/check_staging_v2_seed_reset_contract.py` is a dry-run-only input validation check for future staging seed/reset work. It does not seed or reset data, does not connect to a database, and does not make network calls.
+
+The check requires all of these non-secret environment variables before it exits successfully:
+
+```text
+ACCESS2_STAGING_SEED_RESET_DRY_RUN=true
+ACCESS2_ENABLE_STAGING_MUTATION_DRY_RUN=true
+ACCESS2_STAGING_FRONTEND_URL=<isolated staging or preview frontend URL>
+ACCESS2_STAGING_API_BASE_URL=<isolated staging or preview API URL>
+ACCESS2_STAGING_ENV_LABEL=<staging-or-preview-like label>
+ACCESS2_STAGING_DATA_CLASSIFICATION=synthetic
+```
+
+The check refuses production/custom-domain and Railway-like targets, credential-bearing URLs, query strings, non-synthetic data classification, and production-like environment labels. Localhost is refused unless `ACCESS2_ALLOW_LOCAL_STAGING_DRY_RUN=true` is set for local validation of the check itself.
+
+This dry-run check is not permission to run staging mutation E2E. A real staging seed/reset still requires an isolated database, a reviewed seed/reset implementation, completed staging checklist, synthetic-only data, and explicit approval. Production remains read-only.
+
 ## Reset And Rollback Expectations
 
 A failed staging seed/reset or mutation E2E run must have a documented cleanup path.

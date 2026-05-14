@@ -150,6 +150,21 @@ Staging requires a separate seed/reset command later.
 
 Do not invent or run a staging seed command in this docs slice. The existing local seed script, `backend/scripts/seed_local_v2_rejection_mutation.py`, is localhost-oriented and guarded by `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true`. It must not be run against production, Railway production, shared demo data, or any staging target unless a future implementation explicitly adapts and reviews it for that isolated target.
 
+Current dry-run-only contract check:
+
+```powershell
+cd C:\dev\access2
+$env:ACCESS2_STAGING_SEED_RESET_DRY_RUN="true"
+$env:ACCESS2_ENABLE_STAGING_MUTATION_DRY_RUN="true"
+$env:ACCESS2_STAGING_FRONTEND_URL="<STAGING_FRONTEND_URL>"
+$env:ACCESS2_STAGING_API_BASE_URL="<STAGING_BACKEND_API_URL>"
+$env:ACCESS2_STAGING_ENV_LABEL="<STAGING_OR_PREVIEW_LABEL>"
+$env:ACCESS2_STAGING_DATA_CLASSIFICATION="synthetic"
+py -3 backend\scripts\check_staging_v2_seed_reset_contract.py
+```
+
+This command validates only non-secret inputs for a future staging seed/reset. It performs no database connection, no network call, no seed, no reset, and no mutation E2E run.
+
 Future staging seed/reset should provide placeholder output shaped like:
 
 ```text
