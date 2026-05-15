@@ -70,6 +70,11 @@ These V2 mutation paths must remain local-only until a disposable staging or pre
 - Local seed proof story: disposable synthetic marker creates or repairs a local scenario with post-rejection correction evidence.
 - Staging seed/reset dry-run guard: validates non-secret future staging inputs only, refuses production/Railway-like targets, and performs no seed, reset, database, network, or mutation E2E operation.
 - Demo/runbook docs: local-only correction-loop script, troubleshooting, and production don’ts are documented.
+- Product clarity polish after the correction-loop proof:
+  - V2 correction-loop demo script is polished for a 5-10 minute operator walkthrough.
+  - Patient detail explains latest actionable packet, historical packets, corrected snapshots, and local-only/read-only posture.
+  - Reviewer Work Queue explains immutable snapshot review posture and remains read-only.
+  - Patient detail explains that audit bundles export immutable snapshot evidence and manifests verify exported artifacts.
 
 ## Latest Known Validation
 
@@ -81,6 +86,81 @@ typecheck: passed
 local mutation E2E: 1 passed in about 2.6 minutes, localhost only
 git diff --check: passed
 ```
+
+## V2 Product Clarity Checkpoint
+
+This checkpoint captures completed non-staging product clarity work after the localhost V2 correction-loop proof. It is documentation and handoff context only. It does not authorize backend behavior changes, new routes, new mutation controls, staging implementation, production mutation testing, Railway configuration changes, or backend startup changes.
+
+Current clarity status:
+
+- The local correction loop is proven: assignment -> rejection with reason -> immutable rejected packet -> corrected evidence -> new pending snapshot -> approval -> terminal/read-only posture.
+- The V2 correction-loop demo script is polished and operator-ready.
+- Patient detail explains correction-loop state, including latest actionable packet, historical rejected/approved packets, corrected snapshots, and local-only gated behavior.
+- Reviewer Work Queue explains immutable/read-only snapshot posture and remains read-only.
+- Audit bundle and manifest copy explains that the snapshot captures evidence, the bundle exports it, and the manifest verifies what was exported.
+- Production remains V1 read-only and synthetic/demo-only.
+
+Completed product clarity slices:
+
+- `Polish V2 correction loop demo script`
+- `Add patient correction loop status messaging`
+- `Clarify reviewer immutable snapshot UX`
+- `Polish audit bundle manifest visibility`
+
+What these slices improved:
+
+- Operator understanding of the latest actionable `pending_review` packet.
+- Operator understanding of historical approved/rejected packets as terminal audit evidence.
+- Clearer explanation that immutable `packet_json` and `packet_markdown` are not overwritten or refreshed.
+- Clearer explanation that corrected evidence creates a new immutable snapshot rather than repairing an old rejected packet.
+- Clearer explanation that audit bundles export persisted snapshot evidence and readiness reasons.
+- Clearer explanation that manifests verify exported artifacts against persisted snapshot data.
+- Clearer read-only posture for Reviewer Work Queue and production V1.
+
+What did not change:
+
+- No backend behavior changed.
+- No new mutation controls were added.
+- No new routes were added.
+- No production mutation testing was run.
+- No staging implementation was added.
+- No Railway configuration changed.
+- No superuser override approval was added.
+- No broad workflow mutation controls were added.
+
+Recent product clarity validation:
+
+- Patient correction-loop status messaging: `npm test` 73 passed, lint passed, typecheck passed.
+- Reviewer immutable snapshot UX: `npm test` 75 passed, lint passed, typecheck passed.
+- Audit bundle/manifest visibility: `npm test` 76 passed, lint passed, typecheck passed.
+- `git diff --check` passed for each slice with only normal CRLF warnings.
+- Local mutation E2E was skipped in recent copy-only slices when safe localhost env/listeners were unavailable.
+- Staging and production mutation tests were intentionally skipped.
+
+Recommended next options:
+
+- Option A: Continue product clarity. Candidate slices include small read-only demo/release summary polish, operator navigation between patient detail, Reviewer Work Queue, and the demo script, or a non-mutating audit proof checklist in UI/docs.
+- Option B: Return to staging only if isolated staging infrastructure is ready. Use [access2-v2-staging-provisioning-checklist.md](C:/dev/access2/docs/access2-v2-staging-provisioning-checklist.md) first.
+- Option C: Begin a carefully scoped next local-only product behavior only if it fits the existing correction-loop guardrails. Do not choose superuser override approval yet.
+
+Recommended next slice:
+
+`Document V2 demo readiness handoff`
+
+Rationale:
+
+- Lowest risk.
+- Docs-only.
+- Consolidates the demo story after product clarity polish.
+- Gives a clean checkpoint before either staging or more UI work.
+
+Explicitly defer:
+
+- Superuser override approval.
+- Broad workflow mutation controls.
+- Staging mutation E2E.
+- Production mutation E2E.
+- Production demo data mutation.
 
 ## What Remains Before Production-Grade V2
 

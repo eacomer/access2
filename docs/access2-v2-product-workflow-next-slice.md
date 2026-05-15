@@ -10,9 +10,52 @@ This is a docs-only decision point. It does not authorize product behavior chang
 
 - The local V2 correction loop is proven on localhost only.
 - The local proof covers assignment, rejection with reason, corrected evidence, a new immutable pending snapshot, corrected packet approval, preserved old immutable rejected packet history, and terminal read-only approved posture.
+- The V2 correction-loop demo script is polished and operator-ready.
+- Patient detail now explains latest actionable packet, historical approved/rejected packets, corrected snapshots, and local-only/read-only posture.
+- Reviewer Work Queue now explains immutable snapshot review posture and remains read-only.
+- Patient detail now explains that audit bundles export snapshot evidence and manifests verify exported artifacts.
 - Production remains V1 read-only and synthetic/demo-only.
 - The staging path is documented through readiness, environment template, seed/reset contract, dry-run guard, host guard behavior, decision point, isolated staging plan, and provisioning checklist, but staging is not implemented.
-- The next work should be product/demo clarity unless isolated staging is provisioned and approved.
+- The next work should either consolidate demo readiness, continue small read-only product clarity, or return to staging only if isolated staging is provisioned and approved.
+
+## Product Clarity Completion Checkpoint
+
+Completed product clarity slices:
+
+- `Polish V2 correction loop demo script`
+- `Add patient correction loop status messaging`
+- `Clarify reviewer immutable snapshot UX`
+- `Polish audit bundle manifest visibility`
+
+What improved:
+
+- Operators can explain the localhost correction loop in a 5-10 minute script.
+- Operators can distinguish the latest actionable `pending_review` packet from historical approved/rejected packets.
+- Patient detail and Reviewer Work Queue now state that immutable `packet_json` and `packet_markdown` are not refreshed or overwritten.
+- Corrected evidence is framed as creating a new immutable snapshot, not changing the old rejected packet.
+- Audit bundles are framed as read-only exports of persisted snapshot evidence.
+- Manifest verification is framed as proof that exported artifacts match persisted snapshot data, not as a review decision control.
+- Reviewer Work Queue and production V1 read-only posture remain explicit.
+
+What did not change:
+
+- No backend behavior changed.
+- No frontend mutation behavior changed.
+- No E2E mutation behavior changed.
+- No new routes or mutation controls were added.
+- No staging implementation was added.
+- No production mutation testing was run.
+- No Railway configuration changed.
+- No superuser override approval or broad workflow mutation controls were added.
+
+Validation summary:
+
+- Patient correction-loop status messaging: `npm test` 73 passed, lint passed, typecheck passed.
+- Reviewer immutable snapshot UX: `npm test` 75 passed, lint passed, typecheck passed.
+- Audit bundle/manifest visibility: `npm test` 76 passed, lint passed, typecheck passed.
+- `git diff --check` passed for each slice with only normal CRLF warnings.
+- Local mutation E2E was skipped in recent copy-only slices when safe localhost env/listeners were unavailable.
+- Staging and production mutation tests were intentionally skipped.
 
 ## Candidate Comparison
 
@@ -25,24 +68,30 @@ This is a docs-only decision point. It does not authorize product behavior chang
 | E. Superuser override approval | Potentially useful later for exceptions, but not needed for the current proof chain. | High. Requires permission, governance, audit wording, and staging validation. | Large. | Backend, frontend, E2E, docs, permissions. | Explicitly defer. |
 | F. Broad workflow mutation controls | Unclear value for the next narrow V2 slice. | High. Risks scope creep and premature mutation surface expansion. | Broad. | Backend, frontend, E2E, docs. | Explicitly reject for now. |
 
+## Current Recommended Next Options
+
+- Option A: Continue product clarity.
+  Candidate slices include small read-only demo/release summary polish, improved operator navigation between patient detail, Reviewer Work Queue, and the demo script, or a non-mutating audit proof checklist in UI/docs.
+- Option B: Return to staging.
+  Choose this only if isolated staging infrastructure is ready. Use [access2-v2-staging-provisioning-checklist.md](C:/dev/access2/docs/access2-v2-staging-provisioning-checklist.md) first.
+- Option C: Begin a carefully scoped next local-only product behavior.
+  Choose this only if it fits the existing correction-loop guardrails. Do not choose superuser override approval yet.
+
 ## Recommended Next Slice
 
-Recommend Candidate A: V2 correction-loop demo script polish.
+Recommend: `Document V2 demo readiness handoff`.
 
 Rationale:
 
-- It is the lowest-risk next slice.
-- It is docs-only.
-- It improves demo readiness without adding mutation behavior.
-- It captures the completed local V2 proof while the implementation details are fresh.
-- It gives operators a clean 5-10 minute story before any UI polish or staging work.
+- It is the lowest-risk next slice after the completed product clarity polish.
+- It is docs-only and does not add mutation behavior.
+- It consolidates the completed local V2 proof and product clarity story.
+- It gives operators a clean handoff before either staging work or more UI work.
 - It keeps production read-only and avoids broad workflow mutation controls.
 
 ## Secondary Recommendation
 
-Candidate B can follow after the demo script: patient-detail correction-loop status messaging.
-
-That later slice should stay read-only in copy and posture unless separately approved. It should explain the latest actionable packet, historical rejected packet, corrected pending or approved packet, and immutable snapshot history without adding new workflow controls.
+If the demo readiness handoff is already accepted, continue with a small read-only product clarity slice only if it improves the ACCESS proof chain. Otherwise, return to staging only after isolated staging infrastructure exists and the provisioning checklist is complete.
 
 ## Explicitly Deferred
 
@@ -53,22 +102,19 @@ That later slice should stay read-only in copy and posture unless separately app
 - Production demo data mutation.
 - Any production or shared Railway demo mutation.
 
-## Definition Of Done For Candidate A
+## Definition Of Done For Recommended Next Slice
 
-For V2 correction-loop demo script polish, done means:
+For `Document V2 demo readiness handoff`, done means:
 
-- An operator can explain the local correction loop in 5-10 minutes.
-- The script identifies prerequisites.
-- The script identifies the seed/reset command.
-- The script identifies the local E2E command.
-- The script explains expected UI observations.
-- The script explains the audit/evidence talk track.
-- The script states production do nots.
-- The script contains no secrets and no real PHI.
+- The handoff consolidates the completed local correction-loop proof and product clarity polish.
+- The handoff identifies the demo script, patient-detail clarity copy, Reviewer Work Queue read-only copy, and audit bundle/manifest proof copy.
+- The handoff states production read-only guardrails and production do nots.
+- The handoff distinguishes localhost-only V2 mutation proof from production V1 read-only posture.
+- The handoff contains no secrets, no real PHI, and no production mutation guidance.
 
 ## Suggested Next Prompt
 
-`Polish V2 correction-loop demo script`
+`Document V2 demo readiness handoff`
 
 ## Non-Goals
 

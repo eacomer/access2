@@ -281,6 +281,44 @@ Use [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkp
 
 Use [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md) for the current non-staging product workflow decision. Recommendation: pause staging unless isolated staging infrastructure is actually available, then polish the V2 correction-loop demo script before any patient-detail UI copy or other product polish.
 
+### V2 product clarity checkpoint
+
+The non-staging product clarity sequence after the local correction-loop proof is now complete:
+
+- `Polish V2 correction loop demo script`
+- `Add patient correction loop status messaging`
+- `Clarify reviewer immutable snapshot UX`
+- `Polish audit bundle manifest visibility`
+
+Current product clarity status:
+
+- Local correction-loop proof remains localhost-only.
+- Patient detail explains the latest actionable packet, historical rejected/approved packets, corrected snapshots, and local-only gated posture.
+- Reviewer Work Queue explains immutable snapshot history and remains read-only.
+- Audit bundle/manifest copy explains that the snapshot captures evidence, the bundle exports it, and the manifest verifies what was exported.
+- Production remains V1 read-only.
+
+What did not change:
+
+- No backend behavior.
+- No new routes.
+- No new mutation controls.
+- No staging implementation.
+- No production mutation testing.
+- No Railway configuration changes.
+- No superuser override approval.
+
+Recent validation from the product clarity slices:
+
+- Patient correction-loop status messaging: `npm test` 73 passed, lint passed, typecheck passed.
+- Reviewer immutable snapshot UX: `npm test` 75 passed, lint passed, typecheck passed.
+- Audit bundle/manifest visibility: `npm test` 76 passed, lint passed, typecheck passed.
+- `git diff --check` passed for each slice with only normal CRLF warnings.
+- Local mutation E2E was skipped in recent copy-only slices when safe localhost env/listeners were unavailable.
+- Staging and production mutation tests were intentionally skipped.
+
+Recommended next slice: `Document V2 demo readiness handoff`. This is the lowest-risk docs-only next step because it consolidates the demo story after product clarity polish and gives a clean checkpoint before staging or more UI work.
+
 Use [access2-v2-staging-mutation-readiness.md](C:/dev/access2/docs/access2-v2-staging-mutation-readiness.md) for the required staging or preview environment, seed/reset, credential, host-guard, and audit-evidence checklist before any mutation testing outside localhost.
 
 Use [access2-v2-staging-mutation-checklist.md](C:/dev/access2/docs/access2-v2-staging-mutation-checklist.md) as the final checkbox-based operator gate before staging mutation seed/reset or mutation E2E execution.
