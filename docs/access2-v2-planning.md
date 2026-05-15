@@ -319,6 +319,8 @@ Recent validation from the product clarity slices:
 
 Recommended next slice: `Document V2 demo readiness handoff`. This is the lowest-risk docs-only next step because it consolidates the demo story after product clarity polish and gives a clean checkpoint before staging or more UI work.
 
+Use [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md) for the consolidated V2 demo-ready handoff: localhost-only correction-loop proof, operator checklist, validation summary, known limitations, and the next rehearsal path. It is not a production mutation handoff or staging implementation handoff.
+
 Use [access2-v2-staging-mutation-readiness.md](C:/dev/access2/docs/access2-v2-staging-mutation-readiness.md) for the required staging or preview environment, seed/reset, credential, host-guard, and audit-evidence checklist before any mutation testing outside localhost.
 
 Use [access2-v2-staging-mutation-checklist.md](C:/dev/access2/docs/access2-v2-staging-mutation-checklist.md) as the final checkbox-based operator gate before staging mutation seed/reset or mutation E2E execution.

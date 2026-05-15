@@ -154,6 +154,8 @@ Rationale:
 - Consolidates the demo story after product clarity polish.
 - Gives a clean checkpoint before either staging or more UI work.
 
+The handoff now lives in [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md). It summarizes the localhost-only correction-loop proof, demo prerequisites, operator checklist, current limitations, and the recommended local rehearsal path without authorizing staging or production mutation.
+
 Explicitly defer:
 
 - Superuser override approval.
@@ -289,6 +291,7 @@ Override approval can approve a packet despite readiness gaps. That is useful fo
 
 - [access2-v2-planning.md](C:/dev/access2/docs/access2-v2-planning.md)
 - [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md)
+- [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md) - consolidated localhost-only V2 demo readiness handoff and rehearsal checklist.
 - [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md) - non-staging product workflow decision and recommended next demo-script slice.
 - [access2-v2-isolated-staging-environment-plan.md](C:/dev/access2/docs/access2-v2-isolated-staging-environment-plan.md) - required staging boundary plan before seed/reset implementation or staging mutation E2E.
 - [access2-v2-staging-provisioning-checklist.md](C:/dev/access2/docs/access2-v2-staging-provisioning-checklist.md) - operator checklist before creating or validating isolated V2 staging.
