@@ -158,20 +158,30 @@ Use [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-lo
 
 ## Recommended Next Options
 
-Option A: Demo-first.
+Option A: Live manual local demo rehearsal.
 
-- Use this handoff to run or practice the local V2 demo.
-- Collect feedback on clarity, operator flow, and proof-chain explanation.
-- Keep the rehearsal localhost-only.
+- Use [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md) to rehearse the demo manually.
+- Do not add code unless blockers are found.
+- Best if preparing for a stakeholder walkthrough.
 
-Option B: Staging-first.
+Option B: Package V2 local demo handoff.
+
+- Create a compact handoff index or release note linking the readiness handoff, detailed guide, and operator script.
+- Best if handing the repo to another operator or reviewer.
+
+Option C: Staging-first.
 
 - Choose this only if isolated staging infrastructure is ready.
 - Follow [access2-v2-staging-provisioning-checklist.md](C:/dev/access2/docs/access2-v2-staging-provisioning-checklist.md).
 - Do not run mutation E2E until staging gates, isolated data, dry-run checks, and explicit approvals are satisfied.
 
+Option D: V1 production demo hardening.
+
+- Keep production read-only.
+- Improve demo-day reliability, copy, or evidence explanation.
+
 ## Recommended Next Slice
 
-Recommend: `Run local V2 demo readiness rehearsal`.
+Recommend: `Run manual local V2 presenter rehearsal`.
 
-The rehearsal should be localhost-only. It must not mutate production demo data, target production URLs, target Railway production hosts, or imply that staging or production mutation is approved.
+The rehearsal should be localhost-only and use the operator script. It must not mutate production demo data, target production URLs, target Railway production hosts, or imply that staging or production mutation is approved.

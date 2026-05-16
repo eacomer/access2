@@ -268,6 +268,47 @@ git diff --check: passed
 
 The May 16, 2026 local rehearsal used frontend `http://localhost:3000` and API `http://localhost:8000/api/v1`, required local seed/reset for the disposable marker patient, and did not run any production, staging, Railway, `salvardata.com`, or non-loopback mutation test.
 
+### V2 local demo readiness checkpoint
+
+Local V2 demo readiness is complete for localhost-only demonstration.
+
+What is now complete:
+
+- The local-only correction-loop rehearsal passed with `npm run test:e2e:local-mutation`: `1 passed (10.6m)`.
+- The validated targets were frontend `http://localhost:3000` and API `http://localhost:8000/api/v1`.
+- The final disposable local patient reached an approved latest snapshot and `audit_bundle.available=true`.
+- Prior rejected terminal snapshots remained visible in backlog/history and were not edited or overwritten.
+- The local E2E harness was hardened for slow cold local Next.js/Docker timing.
+- The operator-facing one-page script now exists at [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md).
+
+Completed demo assets:
+
+- Technical handoff: [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md)
+- Detailed correction-loop guide: [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md)
+- Operator-facing script: [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md)
+- Roadmap checkpoint: [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md)
+
+This checkpoint is documentation-only. It does not approve staging mutation, Railway mutation, production mutation, production demo-data mutation, or any non-loopback mutation testing.
+
+Remaining explicit non-goals:
+
+- No isolated staging environment yet.
+- No staging mutation E2E.
+- No production or Railway mutation.
+- No override approval UI.
+- No EHR/FHIR or billing integration.
+- No real PHI.
+- V1 production remains read-only.
+
+Recommended next options:
+
+- Option A - Live manual local demo rehearsal: use the operator script to rehearse the demo manually, with no new code unless blockers are found.
+- Option B - Package V2 local demo handoff: create a compact handoff index or release note linking the three demo docs.
+- Option C - Provision isolated staging: use existing staging provisioning docs only after an isolated staging or preview environment is explicitly approved.
+- Option D - Return to V1 production demo hardening: keep production read-only and improve demo-day reliability, copy, or evidence explanation.
+
+Recommended next step: run one manual local presenter rehearsal using the operator script, then package the V2 local demo handoff if the talk track is stable.
+
 Intentionally out of scope:
 
 - No production mutation testing.

@@ -83,9 +83,56 @@ backend targeted approval tests: 3 passed
 frontend npm test: 55 passed
 lint: passed
 typecheck: passed
-local mutation E2E: 1 passed in about 2.6 minutes, localhost only
+local mutation E2E: May 16, 2026 rehearsal passed with 1 passed (10.6m), localhost only
 git diff --check: passed
 ```
+
+The May 16, 2026 local rehearsal used frontend `http://localhost:3000` and API `http://localhost:8000/api/v1`. The disposable local patient reached an approved latest snapshot, `audit_bundle.available=true`, and prior rejected terminal snapshots remained visible in backlog/history.
+
+## V2 Local Demo Readiness Checkpoint - May 16, 2026
+
+Local V2 demo readiness is complete for localhost-only demonstration. This means ACCESS2 has enough local proof, runbook coverage, and presenter material to rehearse and show the V2 correction loop on a disposable local environment.
+
+This checkpoint is documentation-only. It does not approve staging mutation, Railway mutation, production mutation, production demo-data mutation, or any non-loopback mutation testing.
+
+Completed proof points:
+
+- Local-only correction-loop rehearsal passed.
+- Local mutation E2E passed with `npm run test:e2e:local-mutation`: `1 passed (10.6m)`.
+- The rehearsal used frontend `http://localhost:3000` and API `http://localhost:8000/api/v1`.
+- The disposable local patient reached an approved latest snapshot.
+- `audit_bundle.available=true` for the approved latest snapshot.
+- Prior rejected terminal snapshots remained in backlog/history and were not edited or overwritten.
+- The local E2E harness was hardened for slow cold local Next.js/Docker timing.
+- The operator-facing one-page script now exists.
+
+Completed demo assets:
+
+- Technical handoff: [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md)
+- Detailed correction-loop guide: [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md)
+- Operator-facing script: [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md)
+- Planning/checkpoint routing: [access2-v2-planning.md](C:/dev/access2/docs/access2-v2-planning.md) and this roadmap.
+
+Still not done:
+
+- No isolated staging environment exists yet.
+- No staging mutation E2E exists.
+- No production mutation is approved.
+- No Railway mutation is approved.
+- No override approval UI exists.
+- No EHR/FHIR integration exists.
+- No billing integration exists.
+- No real PHI is used.
+- V1 production remains read-only.
+
+Recommended next options:
+
+- Option A - Live manual local demo rehearsal: use the operator script to rehearse the demo manually. Do not add code unless blockers are found. Best for preparing a stakeholder walkthrough.
+- Option B - Package V2 local demo handoff: create a compact handoff index or release note linking the three demo docs. Best when handing the repo to another operator or reviewer.
+- Option C - Provision isolated staging: use the existing staging provisioning docs only after an isolated staging or preview environment is explicitly approved. No production mutation.
+- Option D - Return to V1 production demo hardening: keep production read-only and improve demo-day reliability, copy, or evidence explanation. Best for external demos that do not require V2 mutation.
+
+Recommended next step: run one manual local presenter rehearsal using the operator script, then package the V2 local demo handoff if the talk track is stable.
 
 ## V2 Product Clarity Checkpoint
 
@@ -139,22 +186,23 @@ Recent product clarity validation:
 
 Recommended next options:
 
-- Option A: Continue product clarity. Candidate slices include small read-only demo/release summary polish, operator navigation between patient detail, Reviewer Work Queue, and the demo script, or a non-mutating audit proof checklist in UI/docs.
-- Option B: Return to staging only if isolated staging infrastructure is ready. Use [access2-v2-staging-provisioning-checklist.md](C:/dev/access2/docs/access2-v2-staging-provisioning-checklist.md) first.
-- Option C: Begin a carefully scoped next local-only product behavior only if it fits the existing correction-loop guardrails. Do not choose superuser override approval yet.
+- Option A: Live manual local demo rehearsal using [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md). No new code unless blockers are found.
+- Option B: Package V2 local demo handoff with a compact index or release note linking the readiness handoff, detailed guide, and operator script.
+- Option C: Return to staging only if isolated staging infrastructure is ready. Use [access2-v2-staging-provisioning-checklist.md](C:/dev/access2/docs/access2-v2-staging-provisioning-checklist.md) first.
+- Option D: Return to V1 production demo hardening while keeping production read-only.
 
 Recommended next slice:
 
-`Document V2 demo readiness handoff`
+`Run manual local V2 presenter rehearsal`
 
 Rationale:
 
 - Lowest risk.
 - Docs-only.
-- Consolidates the demo story after product clarity polish.
-- Gives a clean checkpoint before either staging or more UI work.
+- Uses the completed local proof and presenter script before any staging or broader V2 work.
+- Confirms the talk track and operator flow without changing production posture.
 
-The handoff now lives in [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md). It summarizes the localhost-only correction-loop proof, demo prerequisites, operator checklist, current limitations, and the recommended local rehearsal path without authorizing staging or production mutation.
+The handoff now lives in [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md). It summarizes the localhost-only correction-loop proof, demo prerequisites, operator checklist, current limitations, and the local rehearsal path without authorizing staging or production mutation.
 
 Explicitly defer:
 
