@@ -6,6 +6,8 @@ This handoff explains the current ACCESS2 V2 demo-ready state after the complete
 
 It is not a production mutation handoff. It is not a staging implementation handoff. It consolidates what an operator can safely show today and what must remain out of scope until staging or production guardrails change through a separate approved slice.
 
+Start with [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) when handing the localhost-only V2 demo package to another operator or reviewer.
+
 ## Current Demo Posture
 
 - V1 production demo remains read-only and synthetic/demo-only.

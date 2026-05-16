@@ -108,6 +108,7 @@ Completed proof points:
 
 Completed demo assets:
 
+- Handoff index: [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md)
 - Technical handoff: [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md)
 - Detailed correction-loop guide: [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md)
 - Operator-facing script: [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md)
@@ -338,6 +339,7 @@ Override approval can approve a packet despite readiness gaps. That is useful fo
 ## Reference Documents
 
 - [access2-v2-planning.md](C:/dev/access2/docs/access2-v2-planning.md)
+- [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) - entry point for the localhost-only V2 demo package.
 - [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md)
 - [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md) - consolidated localhost-only V2 demo readiness handoff and rehearsal checklist.
 - [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md) - non-staging product workflow decision and recommended next demo-script slice.
