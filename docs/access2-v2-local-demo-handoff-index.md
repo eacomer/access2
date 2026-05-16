@@ -17,7 +17,9 @@ Use it when handing the local demo to an operator or reviewer. It is not a new p
 
 ## Recommended Reading Order
 
-Start with [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product-release-positioning.md) if the operator needs the cross-version product and release framing before the V2 localhost demo package.
+For stakeholder-facing review of the combined V1/V2 demo package, start with [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md). For V2-only operator handoff, use this localhost package index and the reading order below.
+
+Use [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product-release-positioning.md) only when the operator needs additional cross-version product and release framing before the V2 localhost demo package.
 
 1. [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) - use to understand current V2 local readiness status and next options.
 2. [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md) - use for prerequisites, validation summary, limitations, and troubleshooting.
@@ -69,7 +71,7 @@ Common local issues:
 
 ## Recommended Next Step
 
-Recommended next step: use this handoff index for one clean manual local presenter rehearsal. If the talk track is stable, defer staging until an isolated staging environment is explicitly approved.
+Recommended next step: for stakeholder review, use [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md). Use this V2 handoff index only when running or explaining the localhost-only correction loop, and defer staging until an isolated staging environment is explicitly approved.
 
 ## Latest Clean Readiness Rehearsal - May 16, 2026
 

@@ -167,14 +167,12 @@ Still not done:
 - No real PHI is used.
 - V1 production remains read-only.
 
-Recommended next options:
+Current routing note:
 
-- Option A - Live manual local demo rehearsal: use the operator script to rehearse the demo manually. Do not add code unless blockers are found. Best for preparing a stakeholder walkthrough.
-- Option B - Package V2 local demo handoff: create a compact handoff index or release note linking the three demo docs. Best when handing the repo to another operator or reviewer.
-- Option C - Provision isolated staging: use the existing staging provisioning docs only after an isolated staging or preview environment is explicitly approved. No production mutation.
-- Option D - Return to V1 production demo hardening: keep production read-only and improve demo-day reliability, copy, or evidence explanation. Best for external demos that do not require V2 mutation.
-
-Recommended next step: run one manual local presenter rehearsal using the operator script, then package the V2 local demo handoff if the talk track is stable.
+- The manual local presenter rehearsal and V2 local handoff package are complete.
+- For stakeholder review of the combined V1/V2 package, use [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md).
+- For V2-only localhost operator handoff, use [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md).
+- Isolated staging remains deferred until a separate staging or preview environment is explicitly approved.
 
 ## V2 Product Clarity Checkpoint
 
@@ -226,23 +224,14 @@ Recent product clarity validation:
 - Local mutation E2E was skipped in recent copy-only slices when safe localhost env/listeners were unavailable.
 - Staging and production mutation tests were intentionally skipped.
 
-Recommended next options:
+Current routing note:
 
-- Option A: Live manual local demo rehearsal using [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md). No new code unless blockers are found.
-- Option B: Package V2 local demo handoff with a compact index or release note linking the readiness handoff, detailed guide, and operator script.
-- Option C: Return to staging only if isolated staging infrastructure is ready. Use [access2-v2-staging-provisioning-checklist.md](C:/dev/access2/docs/access2-v2-staging-provisioning-checklist.md) first.
-- Option D: Return to V1 production demo hardening while keeping production read-only.
+- The live manual local rehearsal and V2 local demo package handoff are complete.
+- Use [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md) for stakeholder review of the complete demo package.
+- Use [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) only for V2-only localhost operator handoff.
+- Isolated staging provisioning remains deferred until explicitly approved.
 
-Recommended next slice:
-
-`Run manual local V2 presenter rehearsal`
-
-Rationale:
-
-- Lowest risk.
-- Docs-only.
-- Uses the completed local proof and presenter script before any staging or broader V2 work.
-- Confirms the talk track and operator flow without changing production posture.
+Recommended next slice: stakeholder package review through [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md), with only small docs or copy follow-up unless a real blocker is found.
 
 The handoff now lives in [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md). It summarizes the localhost-only correction-loop proof, demo prerequisites, operator checklist, current limitations, and the local rehearsal path without authorizing staging or production mutation.
 
@@ -351,15 +340,15 @@ Suggested next prompt:
 
 ## Non-Staging Product Workflow Decision
 
-The current non-staging product decision is documented in [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md). Recommendation: choose Candidate A, V2 correction-loop demo script polish, before product UI polish. This is the lowest-risk next slice because it is docs-only, captures the completed localhost proof chain, improves operator storytelling, and avoids new mutation behavior.
+The non-staging product decision is documented in [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md). Candidate A and the V2 local demo handoff package are now complete. The current non-staging route is stakeholder package review through [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md), with only small docs or copy follow-up unless review exposes a concrete gap.
 
-Secondary recommendation: Candidate B, patient-detail correction-loop status messaging, can follow after the demo script if product UI clarity is still the priority.
+The prior Candidate B, patient-detail correction-loop status messaging, is also complete. Do not reopen UI or workflow mutation work unless a new, explicitly scoped stakeholder review gap requires it.
 
 Explicitly defer superuser override approval, broad workflow mutation controls, staging mutation E2E, production mutation E2E, and production demo data mutation.
 
-## Recommended Next Implementation Candidate
+## Future Implementation Candidate
 
-The next smallest implementation candidate depends on the decision above. If staging infrastructure is available, start with Option A: isolated staging environment setup planning. If staging infrastructure is not available, hold staging and choose Option D: a non-staging ACCESS2 V2 product workflow slice.
+No implementation slice is recommended from this stakeholder-readiness checkpoint. If staging infrastructure is later approved, start with isolated staging environment setup planning. If staging infrastructure is not available, hold staging and keep follow-up to small docs or copy clarity unless a real demo blocker appears.
 
 Recommended boundaries:
 
@@ -384,7 +373,7 @@ Override approval can approve a packet despite readiness gaps. That is useful fo
 - [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) - entry point for the localhost-only V2 demo package.
 - [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md)
 - [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md) - consolidated localhost-only V2 demo readiness handoff and rehearsal checklist.
-- [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md) - non-staging product workflow decision and recommended next demo-script slice.
+- [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md) - historical non-staging product workflow decision context.
 - [access2-v2-isolated-staging-environment-plan.md](C:/dev/access2/docs/access2-v2-isolated-staging-environment-plan.md) - required staging boundary plan before seed/reset implementation or staging mutation E2E.
 - [access2-v2-staging-provisioning-checklist.md](C:/dev/access2/docs/access2-v2-staging-provisioning-checklist.md) - operator checklist before creating or validating isolated V2 staging.
 - [access2-v2-staging-seed-reset-contract.md](C:/dev/access2/docs/access2-v2-staging-seed-reset-contract.md) - includes the dry-run guard operator command: `py -3 backend\scripts\check_staging_v2_seed_reset_contract.py`

@@ -300,14 +300,12 @@ Remaining explicit non-goals:
 - No real PHI.
 - V1 production remains read-only.
 
-Recommended next options:
+Current routing:
 
-- Option A - Live manual local demo rehearsal: use the operator script to rehearse the demo manually, with no new code unless blockers are found.
-- Option B - Package V2 local demo handoff: create a compact handoff index or release note linking the three demo docs.
-- Option C - Provision isolated staging: use existing staging provisioning docs only after an isolated staging or preview environment is explicitly approved.
-- Option D - Return to V1 production demo hardening: keep production read-only and improve demo-day reliability, copy, or evidence explanation.
-
-Recommended next step: run one manual local presenter rehearsal using the operator script, then package the V2 local demo handoff if the talk track is stable.
+- The manual local presenter rehearsal and V2 local handoff package are complete.
+- For stakeholder review of the combined V1/V2 package, use [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md).
+- For V2-only localhost operator handoff, use [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) and [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md).
+- Isolated staging remains deferred until a separate staging or preview environment is explicitly approved.
 
 Intentionally out of scope:
 
@@ -320,11 +318,11 @@ Intentionally out of scope:
 
 Use [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md) for the manual demo script and local-only validation commands.
 
-Use [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) as the entry point for handing the localhost-only V2 demo package to an operator or reviewer.
+For stakeholder-facing review of the combined V1/V2 demo package, start with [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md). Use [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) as the entry point only for V2-only localhost operator handoff.
 
 Use [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md) for the concise live presenter script.
 
-Use [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) for the current V2 checkpoint, production-ready versus local-only posture, highest risks, and recommended next implementation candidate.
+Use [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) for the current V2 checkpoint, production-ready versus local-only posture, highest risks, and future implementation boundaries.
 
 Post-demo package checkpoint: V1 production is external/demo-day ready in a read-only posture, the V2 localhost-only demo package is complete and rehearsed, and [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product-release-positioning.md) now carries the cross-version product/release explanation. Use [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md) for the stakeholder-facing package review. Keep mutation expansion deferred until isolated staging or preview infrastructure is explicitly approved.
 
@@ -366,7 +364,7 @@ Recent validation from the product clarity slices:
 - Local mutation E2E was skipped in recent copy-only slices when safe localhost env/listeners were unavailable.
 - Staging and production mutation tests were intentionally skipped.
 
-Recommended next slice: `Document V2 demo readiness handoff`. This is the lowest-risk docs-only next step because it consolidates the demo story after product clarity polish and gives a clean checkpoint before staging or more UI work.
+Current note: the V2 demo readiness handoff is complete. Use [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md) for combined package review and [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md) for localhost-only V2 details.
 
 Use [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md) for the consolidated V2 demo-ready handoff: localhost-only correction-loop proof, operator checklist, validation summary, known limitations, and the next rehearsal path. It is not a production mutation handoff or staging implementation handoff.
 
@@ -514,7 +512,9 @@ This section is inspection and planning only. It does not authorize production m
 - No reviewer directory, role/permission redesign, intervention/task mutation, evidence editing, broad workflow mutation, or architecture redesign.
 - No real PHI and no secrets.
 
-### Recommended next implementation
+### Historical Implementation Candidate
+
+This candidate remains future-only. Current stakeholder-readiness work should not start implementation, and mutation expansion remains deferred until an isolated staging or preview environment is explicitly approved.
 
 Keep mutation validation local-only until a disposable staging tenant or isolated preview environment exists. The next implementation slice should be a small planning-to-code bridge that generalizes the existing local fail-closed guard pattern into a reusable mutation-target guard for future non-local disposable environments, with tests proving that production and shared Railway demo targets are refused by default.
 
