@@ -1,76 +1,105 @@
-# ACCESS2 V1 Demo-Day Operator Script
+# ACCESS2 V1 Production Demo-Day Walkthrough
 
 ## Purpose
 
-Use this script to present the production ACCESS2 V1 demo to stakeholders. The demo shows how ACCESS2 proves that chronic-care interventions led to measurable outcomes and audit-ready evidence.
+Use this as the external demo-day entry point for the production ACCESS2 V1 walkthrough. The goal is to show how ACCESS2 proves that a chronic-care need moved through signal, escalation, intervention, outcome, evidence, immutable review, audit bundle readiness, and manifest verification.
 
 Core evidence chain:
 
 ```text
-signal → escalation → intervention → outcome → evidence → case summary → immutable review packet snapshot → approval/rejection → audit bundle → manifest verification
+signal -> escalation -> intervention -> outcome -> evidence -> case summary -> immutable review packet snapshot -> approval/rejection -> audit bundle -> manifest verification
 ```
 
-This script is read-only. Do not create real patients, enter real PHI, approve, reject, override, assign, export, or change workflow state during the stakeholder walkthrough.
+This walkthrough is read-only. It is for a stakeholder or reviewer presentation, not for creating patients, approving packets, rejecting packets, overriding review, assigning reviewers, exporting new workflow state, or changing seeded demo data.
 
 ## Production Access
 
-- Frontend: https://access2.salvardata.com
-- Backend API: https://api.salvardata.com/api/v1
+- Frontend: `https://access2.salvardata.com`
+- Backend API: `https://api.salvardata.com/api/v1`
 - Login: `admin@example.com` / `Admin123!`
 - Data posture: synthetic/demo data only; no real PHI.
+- Validation baseline: `8 passed, 2 skipped, 0 failed`
 
-## Demo Flow
+## Read-Only Guardrails
 
-1. Open the production frontend and sign in.
-2. Open `Demo Guide` at `/demo-guide`.
+- Do not enter real PHI.
+- Do not create, edit, approve, reject, override, assign, or create review-packet snapshots during the production walkthrough.
+- Do not run production mutation paths or V2 localhost mutation E2E as part of this V1 production demo.
+- Do not mutate Railway production data, change Railway config, or change the backend startup command.
+- Treat Demo Patient 3 and Demo Patient 4 as read-only seeded postures, not live mutation targets.
+- V2 correction-loop mutation remains localhost-only and separate from this V1 production walkthrough.
+
+## Expected Seeded Demo Patients
+
+- Demo Patient 1 - Audit Ready: `f4c31931-8fc2-41d6-9f45-9ab0bd039088`
+- Demo Patient 2 - Missing Evidence: `1c5c7db8-96f8-47af-a643-741641ecdcf3`
+- Demo Patient 3 - Rejected Review: `4c1ef5ef-1216-453d-b317-b965a0dd1dea`
+- Demo Patient 4 - Override Approval: `2e9dc25c-2e56-4d6a-aea0-8706d33b0444`
+
+Use these patients to show the four intended production postures: audit-ready/export-ready, missing evidence, rejected review, and override-approved review.
+
+## Recommended Presenter Sequence
+
+1. Open `https://access2.salvardata.com` and sign in with the synthetic demo account.
+2. Open `Demo Guide` at `/demo-guide` to frame the ACCESS2 proof chain and no-PHI expectation.
 3. Open `Release Summary` at `/demo/release-summary`.
-4. Open `Reviewer Queue` at `/audit-readiness`.
-5. Walk the four seeded synthetic demo patients:
-   - Demo Patient 1 - Audit Ready: `f4c31931-8fc2-41d6-9f45-9ab0bd039088`
-   - Demo Patient 2 - Missing Evidence: `1c5c7db8-96f8-47af-a643-741641ecdcf3`
-   - Demo Patient 3 - Rejected Review: `4c1ef5ef-1216-453d-b317-b965a0dd1dea`
-   - Demo Patient 4 - Override Approval: `2e9dc25c-2e56-4d6a-aea0-8706d33b0444`
-6. For Demo Patient 1, show audit bundle download posture and manifest verification at `/audit-bundle-verify`.
+4. Show the Evidence Proof Checklist across the four seeded patients.
+5. Open `Reviewer Queue` at `/audit-readiness`.
+6. Show lifecycle counts, latest review-packet posture, patient-detail links, next-step text, review state, and export state.
+7. Open Demo Patient 1 and show the complete audit-ready path.
+8. If visible, show JSON, Markdown, and PDF audit bundle download posture for the approved/export-ready snapshot.
+9. Open `/audit-bundle-verify` and explain manifest verification using a copied JSON bundle `audit_manifest`.
+10. Open Demo Patient 2 to show missing evidence and readiness reasons.
+11. Open Demo Patient 3 to show rejected review posture and blocked audit readiness.
+12. Open Demo Patient 4 to show override-approved posture without exposing override controls.
+13. Close by restating that ACCESS2 preserves immutable proof history and verifies audit bundles against persisted snapshot data.
 
-## Page Walkthrough
+## Page Talk Track
 
 ### Demo Guide
 
-Show that the guide frames the ACCESS2 evidence story and confirms the demo uses synthetic data. Use this page to set expectations: ACCESS2 V1 is about audit evidence, not broad platform scope.
+Say: "ACCESS2 is proving the evidence chain, not just showing a task list. This demo uses synthetic data only and keeps production read-only."
+
+Confirm that the page explains:
+
+- The ACCESS2 proof chain.
+- Synthetic/demo-only safety expectations.
+- No real PHI.
+- Links or routes for the four seeded demo scenarios.
 
 ### Demo Release Summary
 
-Show the Evidence Proof Checklist. Point out that it covers all four synthetic patients and makes the signal-to-manifest-verification chain explicit.
+Say: "This is the production operator summary. It lets us verify the demo posture before opening patient-level evidence."
 
-What to say:
+Show:
 
-- Demo Patient 1 proves the complete audit-ready path.
-- Demo Patient 2 proves ACCESS2 can identify missing evidence before audit readiness.
-- Demo Patient 3 proves a rejected review posture is visible and blocks audit readiness.
-- Demo Patient 4 proves override-approved posture is visible without exposing override controls.
+- Production/demo frontend posture.
+- Evidence Proof Checklist.
+- All four seeded patient scenarios.
+- Signal, escalation, intervention, outcome, evidence, case summary, immutable review packet snapshot, review posture, audit bundle status, manifest verification, readiness reasons, and next step.
+- Expected production E2E baseline: `8 passed, 2 skipped, 0 failed`.
 
-What not to expect:
-
-- No approve, reject, override, assign, export, or create-snapshot controls appear on this read-only summary.
+Do not expect approve, reject, override, assign, export, or create-snapshot controls on this read-only summary.
 
 ### Reviewer Work Queue
 
-Open `/audit-readiness`. Show lifecycle counts, read-only queue rows, patient-detail links, next-step text, review state, and export state.
+Say: "The Reviewer Queue is a read-only posture and navigation surface in V1. It helps operators find audit-ready, blocked, rejected, override-approved, pending, and exported-bundle states without changing the audit record."
 
-What to say:
+Show:
 
-- The queue helps reviewers find audit-ready, missing-evidence, rejected, override-approved, pending, and exported bundle states.
-- It is a review posture and navigation surface in V1, not a mutation workflow.
+- Lifecycle counts.
+- Read-only queue rows.
+- Patient-detail links.
+- Next-step text.
+- Review and export state.
 
-What not to click or expect:
-
-- Do not look for approve, reject, override, assign, export, or create-snapshot actions here.
+Do not look for approve, reject, override, assign, export, or create-snapshot actions here.
 
 ## Patient Walkthroughs
 
 ### Demo Patient 1 - Audit Ready
 
-Open the patient detail page for `f4c31931-8fc2-41d6-9f45-9ab0bd039088`.
+Open patient `f4c31931-8fc2-41d6-9f45-9ab0bd039088`.
 
 Show:
 
@@ -80,17 +109,11 @@ Show:
 - Review packet backlog and approved/export-ready audit bundle posture.
 - JSON, Markdown, and PDF audit bundle download availability when shown.
 
-Evidence story:
-
-- This patient demonstrates the complete path from signal to outcome proof, approved immutable snapshot, audit bundle availability, and manifest verification.
-
-Do not:
-
-- Use this page to create a new snapshot or change approval state.
+Say: "This patient demonstrates the complete path from signal to outcome proof, approved immutable snapshot, audit bundle availability, and manifest verification."
 
 ### Demo Patient 2 - Missing Evidence
 
-Open the patient detail page for `1c5c7db8-96f8-47af-a643-741641ecdcf3`.
+Open patient `1c5c7db8-96f8-47af-a643-741641ecdcf3`.
 
 Show:
 
@@ -98,35 +121,23 @@ Show:
 - Missing or incomplete outcome/evidence proof.
 - Next-step explanation.
 
-Evidence story:
-
-- ACCESS2 does not treat workflow activity alone as audit-ready. The system must prove a measurable outcome with supporting evidence.
-
-Do not:
-
-- Add evidence live or try to force audit readiness during the demo.
+Say: "ACCESS2 does not treat workflow activity alone as audit-ready. The system must prove measurable outcome evidence."
 
 ### Demo Patient 3 - Rejected Review
 
-Open the patient detail page for `4c1ef5ef-1216-453d-b317-b965a0dd1dea`.
+Open patient `4c1ef5ef-1216-453d-b317-b965a0dd1dea`.
 
 Show:
 
-- Existing proof packet/snapshot posture.
+- Existing proof packet or snapshot posture.
 - Rejected review state.
 - Blocked export/readiness posture.
 
-Evidence story:
-
-- ACCESS2 preserves reviewer decision state and shows that rejected review blocks audit readiness.
-
-Do not:
-
-- Expect a reviewer rejection button in V1. Rejection through UI is intentionally skipped in production E2E.
+Say: "The rejected state is preserved as review history. Production V1 shows this posture without exposing a live rejection control."
 
 ### Demo Patient 4 - Override Approval
 
-Open the patient detail page for `2e9dc25c-2e56-4d6a-aea0-8706d33b0444`.
+Open patient `2e9dc25c-2e56-4d6a-aea0-8706d33b0444`.
 
 Show:
 
@@ -134,42 +145,28 @@ Show:
 - Evidence panels and manifest verification posture.
 - Read-only override explanation.
 
-Evidence story:
+Say: "ACCESS2 can surface override-approved evidence state while keeping this production frontend walkthrough read-only."
 
-- ACCESS2 can surface override-approved evidence state while preserving a read-only frontend demo posture.
+## What The Demo Proves
 
-Do not:
+- A seeded operator can sign in to the production frontend.
+- The Demo Guide and Release Summary explain the ACCESS2 proof chain with synthetic data.
+- The Reviewer Queue shows latest review-packet posture without mutation controls.
+- The four seeded patients cover audit-ready, missing-evidence, rejected-review, and override-approved postures.
+- Patient detail pages show evidence, readiness reasons, immutable review-packet posture, and audit-bundle posture.
+- Demo Patient 1 can show approved/export-ready audit bundle posture and manifest verification.
+- Audit bundle verification compares a submitted manifest against persisted snapshot data.
+- Immutable review packet snapshots are presented as review history, not rebuilt live during audit reads.
 
-- Expect a superuser override approval button in V1. Override approval through UI is intentionally skipped in production E2E.
+## What The Demo Does Not Prove
 
-## Audit Bundle And Manifest Verification
+- It does not prove production mutation workflows are enabled.
+- It does not demonstrate reviewer rejection, superuser override approval, assignment, or snapshot creation through the production UI.
+- It does not demonstrate V2 correction-loop mutation; V2 mutation remains localhost-only.
+- It does not demonstrate real CMS submission.
+- It does not demonstrate EHR, FHIR, billing, payment reconciliation, AI recommendations, predictive analytics, patient portal, or real PHI workflows.
 
-Use Demo Patient 1 when an approved/export-ready bundle is visible.
-
-1. Download the JSON audit bundle.
-2. Show that JSON includes persisted readiness reasons.
-3. Download Markdown and PDF if time allows.
-4. Copy the JSON `audit_manifest` object.
-5. Open `/audit-bundle-verify`.
-6. Paste the snapshot ID and manifest JSON.
-7. Verify the manifest.
-
-What to say:
-
-- Audit bundles use persisted snapshot, evidence, and event metadata.
-- Verification compares the submitted manifest against persisted snapshot data.
-- Manifest verification is read-only and does not submit to CMS.
-
-## Talk Track
-
-- ACCESS2 proves the chain from signal to measurable outcome to audit evidence.
-- Immutable review packet snapshots preserve what was reviewed.
-- Readiness reasons explain why a case is audit-ready, missing evidence, rejected, or override-approved.
-- Audit bundles are generated from persisted evidence, not rebuilt from changing live views.
-- Manifests verify exported bundles against persisted snapshot data.
-- The Reviewer Work Queue is read-only in V1 and helps operators navigate proof posture safely.
-
-## Expected Skipped Tests
+## Expected Skipped Mutation Paths
 
 Production E2E baseline:
 
@@ -182,29 +179,26 @@ The two skipped tests are intentional V1 read-only constraints:
 - Demo Patient 3 reviewer rejection through UI.
 - Demo Patient 4 superuser override approval through UI.
 
-Reason: ACCESS2 V1 does not expose reviewer rejection or superuser override approval mutation controls in the frontend.
+Reason: ACCESS2 V1 production exposes rejected and override-approved states as seeded read-only postures. It does not expose reviewer rejection or superuser override approval mutation controls in the frontend.
 
-## Demo Failure Fallback
+## Troubleshooting Pointers
 
-1. Check backend health:
+- If the frontend does not load, verify `https://access2.salvardata.com`.
+- If login fails, verify the synthetic demo credentials and confirm the frontend is using `https://api.salvardata.com/api/v1`.
+- If pages render stale content, check the deployed custom-domain baseline in [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md).
+- If production E2E does not return `8 passed, 2 skipped, 0 failed`, use the troubleshooting section in [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md) before changing product code.
+- If seeded patient pages are missing, use [access2-demo-data-recreation-checklist.md](C:/dev/access2/docs/access2-demo-data-recreation-checklist.md) and keep production demo data synthetic.
+- If JSON, Markdown, or PDF bundle links are unavailable, confirm the selected snapshot is approved/export-ready; do not force a live production mutation.
 
-   ```powershell
-   Invoke-RestMethod "https://api.salvardata.com/api/v1/health/live"
-   Invoke-RestMethod "https://api.salvardata.com/api/v1/health/ready"
-   ```
+Production health checks, if needed:
 
-2. Confirm the login account is synthetic and unchanged:
+```powershell
+Invoke-RestMethod "https://api.salvardata.com/api/v1/health/live"
+Invoke-RestMethod "https://api.salvardata.com/api/v1/health/ready"
+```
 
-   ```text
-   admin@example.com / Admin123!
-   ```
+Do not use troubleshooting as a reason to enter PHI, run production mutation tests, change Railway startup commands, or add mutation controls.
 
-3. Confirm the frontend is using the production API base:
+## Close
 
-   ```text
-   https://api.salvardata.com/api/v1
-   ```
-
-4. If production E2E fails, use the troubleshooting section in [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md) before changing product code.
-
-5. Do not enter real PHI, change Railway startup commands, or add frontend mutation controls as a demo workaround.
+Say: "ACCESS2 V1 demonstrates a read-only production evidence path: synthetic patients, visible proof gaps, immutable review-packet history, approved audit bundle posture, and manifest verification against persisted data. The skipped mutation paths are intentional because production V1 remains read-only."

@@ -10,7 +10,7 @@ The demo release path is:
 login -> patient/worklist -> intervention/outcome evidence -> review packet -> approval -> audit bundle export -> verification
 ```
 
-This checklist is for readiness validation only. It does not add product scope or replace the detailed runbook in [access2-v1-demo-runbook.md](C:/dev/access2/docs/access2-v1-demo-runbook.md) or the operator walkthrough in [access2-v1-frontend-demo-script.md](C:/dev/access2/docs/access2-v1-frontend-demo-script.md).
+This checklist is for readiness validation only. It does not add product scope or replace the detailed runbook in [access2-v1-demo-runbook.md](C:/dev/access2/docs/access2-v1-demo-runbook.md), the production demo-day walkthrough in [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md), or the local operator walkthrough in [access2-v1-frontend-demo-script.md](C:/dev/access2/docs/access2-v1-frontend-demo-script.md).
 
 ## Required Local Prerequisites
 
