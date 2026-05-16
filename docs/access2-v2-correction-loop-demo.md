@@ -140,10 +140,12 @@ Before a timed rehearsal, warm the local dev routes in a browser or with a local
 Latest known local result:
 
 ```text
-1 passed in about 2.6 minutes, localhost only
+May 16, 2026: 1 passed (10.6m), localhost only, using http://localhost:3000 and http://localhost:8000/api/v1
 ```
 
 The local E2E proves the scripted path, including assignment, rejection, correction evidence, new snapshot creation, corrected approval, terminal read-only posture, and read-only Reviewer Work Queue posture. Manual demo observations still matter because the demo is meant to explain why the proof chain is defensible.
+
+The May 16, 2026 rehearsal needed local seed/reset and local troubleshooting only. The first non-elevated Playwright run hit Chromium `spawn EPERM`, partial warmed runs exposed slow Docker-backed Next.js route compilation, and the local frontend on port `3000` needed stale `.next` output cleared before the successful run. No production, staging, Railway, `salvardata.com`, or non-loopback mutation target was used.
 
 ## Manual Walkthrough Script
 
@@ -406,6 +408,8 @@ Symptom:
 ```text
 Cannot find module './570.js'
 ```
+
+or an `ENOENT` for a compiled page such as `.next/server/app/login/page.js`.
 
 Fix:
 

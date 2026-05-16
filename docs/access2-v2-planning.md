@@ -262,9 +262,11 @@ backend targeted approval tests: 3 passed
 frontend npm test: 55 passed
 lint: passed
 typecheck: passed
-local mutation E2E: 1 passed in about 2.6 minutes, localhost only
+local mutation E2E: May 16, 2026 rehearsal passed with 1 passed (10.6m), localhost only
 git diff --check: passed
 ```
+
+The May 16, 2026 local rehearsal used frontend `http://localhost:3000` and API `http://localhost:8000/api/v1`, required local seed/reset for the disposable marker patient, and did not run any production, staging, Railway, `salvardata.com`, or non-loopback mutation test.
 
 Intentionally out of scope:
 
@@ -368,6 +370,7 @@ Local E2E command:
 cd C:\dev\access2\frontend
 $env:ACCESS2_ENABLE_LOCAL_MUTATION_E2E="true"
 $env:ACCESS2_E2E_BASE_URL="http://localhost:3000"
+$env:ACCESS2_E2E_API_BASE_URL="http://localhost:8000/api/v1"
 $env:ACCESS2_E2E_ADMIN_EMAIL="admin@example.com"
 $env:ACCESS2_E2E_ADMIN_PASSWORD="Admin123!"
 & "C:\Program Files\nodejs\npm.cmd" run test:e2e:local-mutation

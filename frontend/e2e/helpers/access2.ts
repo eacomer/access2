@@ -149,7 +149,7 @@ export async function login(page: Page) {
 
   try {
     await page.waitForURL((url) => !url.pathname.includes("/login"), {
-      timeout: 30_000,
+      timeout: 150_000,
     });
   } catch {
     throw new Error(

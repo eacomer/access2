@@ -88,6 +88,10 @@ Do not commit local `.env` files or paste credentials into screenshots, logs, ti
 
 Latest known validation from the completed V2 correction-loop and product clarity sequence:
 
+- Local rehearsal on May 16, 2026 passed on localhost only: `npm run test:e2e:local-mutation` completed with `1 passed (10.6m)` using frontend `http://localhost:3000` and API `http://localhost:8000/api/v1`.
+- The rehearsal used the disposable local patient `3a3dbb11-f8f5-4ac3-8f3a-4dcd8b48160d`; seed/reset was needed because the marker was absent and again after partial local timeout attempts.
+- The rehearsal verified assignment persistence, rejection persistence, corrected/new snapshot creation, approval persistence, terminal rejected/approved read-only posture, prior rejected snapshot immutability, and read-only Reviewer Work Queue posture.
+- No production, staging, Railway, `salvardata.com`, or non-loopback mutation target was used.
 - Local V2 mutation E2E previously passed: `1 passed` in about 2.6 minutes on localhost only.
 - Patient correction-loop status messaging: `npm test` 73 passed, lint passed, typecheck passed.
 - Reviewer immutable snapshot UX: `npm test` 75 passed, lint passed, typecheck passed.
@@ -133,9 +137,9 @@ Latest known validation from the completed V2 correction-loop and product clarit
 ## Known Troubleshooting
 
 - `frontend/.env.local` backend URL mismatch: confirm it points to `http://localhost:8000/api/v1`.
-- Stale Next.js cache with `Cannot find module './570.js'`: restart the local frontend and clear stale build/cache artifacts only as local generated files.
+- Stale Next.js cache with `.next` module or page `ENOENT` errors: stop the local frontend, clear only local generated `frontend\.next`, restart the frontend, then reopen `/login`.
 - Frontend port mismatch: confirm whether the current frontend is on `3000` or `3001`, then set `ACCESS2_E2E_BASE_URL` accordingly.
-- Cold local Next.js route compilation or timeout before approval assertions: warm `/login`, the seeded patient detail page, and `/audit-readiness` on the loopback frontend, set `ACCESS2_E2E_API_BASE_URL=http://localhost:8000/api/v1`, then rerun only the localhost-gated command.
+- Cold local Next.js route compilation or timeout before approval assertions: warm `/login`, the seeded patient detail page, and `/audit-readiness` on the loopback frontend, set `ACCESS2_E2E_API_BASE_URL=http://localhost:8000/api/v1`, then rerun only the localhost-gated command. In the May 16, 2026 rehearsal, the Docker frontend on port `3000` was slow but valid after clearing stale `.next` output; port `3001` did not remain reachable.
 - Playwright spawn `EPERM`: restart the local shell or Playwright process and rerun only the localhost-gated command.
 - Missing safe localhost env vars: the local mutation E2E intentionally skips or refuses to run.
 - Production-like URL blocked by host guard: stop and correct the target before running any local mutation command.

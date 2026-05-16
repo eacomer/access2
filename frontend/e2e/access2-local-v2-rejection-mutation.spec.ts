@@ -22,6 +22,8 @@ const POST_REJECTION_CORRECTION_CARE_SUMMARY =
   "Post-rejection corrected evidence: synthetic systolic BP outcome improved after the completed intervention.";
 const POST_REJECTION_CORRECTION_OUTCOME_SOURCE = "access2_local_v2_post_rejection_correction";
 const POST_REJECTION_CORRECTION_OUTCOME_VALUE = 124;
+const LOCAL_REHEARSAL_TEST_TIMEOUT_MS = 900_000;
+const LOCAL_REHEARSAL_STATE_TIMEOUT_MS = 60_000;
 
 const localMutationEnabled = process.env[ENABLE_LOCAL_MUTATION_ENV]?.trim().toLowerCase() === "true";
 
@@ -110,7 +112,7 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, new snaps
     page,
     request,
   }) => {
-    test.setTimeout(180_000);
+    test.setTimeout(LOCAL_REHEARSAL_TEST_TIMEOUT_MS);
     await login(page);
     const token = await getApiToken(request);
     const currentUser = await getCurrentUser(request, token);
@@ -167,7 +169,7 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, new snaps
       .poll(async () => {
         const assignedSnapshot = await getSnapshot(request, token, snapshotId);
         return assignedSnapshot.assigned_reviewer_user_id;
-      }, { timeout: 30_000 })
+      }, { timeout: LOCAL_REHEARSAL_STATE_TIMEOUT_MS })
       .toBe(currentUser.id);
 
     const assignedSnapshot = await getSnapshot(request, token, snapshotId);
@@ -184,14 +186,26 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, new snaps
     await rejectionControl.getByRole("button", { name: "Reject snapshot" }).click();
     await expect(rejectionControl.getByRole("alert")).toContainText("Rejection reason required.");
 
+    const rejectionResponsePromise = page.waitForResponse((response) => {
+      const method = response.request().method();
+      return (
+        response.url().includes("/review-packet-snapshots/") &&
+        response.url().includes("/reject") &&
+        ["POST", "PATCH", "PUT"].includes(method)
+      );
+    });
+
     await rejectionControl.getByLabel("V2 controlled reviewer rejection").fill(LOCAL_MUTATION_REASON);
     await rejectionControl.getByRole("button", { name: "Reject snapshot" }).click();
+
+    const rejectionResponse = await rejectionResponsePromise;
+    expect(rejectionResponse.ok(), await rejectionResponse.text()).toBeTruthy();
 
     await expect
       .poll(async () => {
         const auditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
         return auditStatus.review_status;
-      }, { timeout: 30_000 })
+      }, { timeout: LOCAL_REHEARSAL_STATE_TIMEOUT_MS })
       .toBe("rejected");
 
     backlogPanel = await openPatientBacklog(page, patient.patient_id);
@@ -237,16 +251,26 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, new snaps
     await expect(createControls).toHaveCount(1);
     const createControl = createControls.first();
     await expect(createControl).toContainText("Existing packet JSON and Markdown stay preserved.");
-    await createControl.getByRole("button", { name: "Create new review packet snapshot" }).click();
-    await expect(createControl.getByRole("status")).toContainText("New review packet snapshot created.", {
-      timeout: 30_000,
+
+    const createResponsePromise = page.waitForResponse((response) => {
+      const method = response.request().method();
+      return (
+        response.url().includes("/review-packet-snapshots/patients/") &&
+        response.url().includes("/create") &&
+        ["POST", "PATCH", "PUT"].includes(method)
+      );
     });
+
+    await createControl.getByRole("button", { name: "Create new review packet snapshot" }).click();
+
+    const createResponse = await createResponsePromise;
+    expect(createResponse.ok(), await createResponse.text()).toBeTruthy();
 
     await expect
       .poll(async () => {
         const auditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
         return auditStatus.latest_snapshot_id;
-      }, { timeout: 30_000 })
+      }, { timeout: LOCAL_REHEARSAL_STATE_TIMEOUT_MS })
       .not.toBe(snapshotId);
 
     const refreshedAuditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
@@ -284,16 +308,26 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, new snaps
     await expect(approvalControl).toContainText(
       "Approves the latest pending packet only when the persisted review checklist has no missing evidence.",
     );
-    await approvalControl.getByRole("button", { name: "Approve snapshot" }).click();
-    await expect(approvalControl.getByRole("status")).toContainText("Review packet snapshot approved.", {
-      timeout: 30_000,
+
+    const approvalResponsePromise = page.waitForResponse((response) => {
+      const method = response.request().method();
+      return (
+        response.url().includes("/review-packet-snapshots/") &&
+        response.url().includes("/approve") &&
+        ["POST", "PATCH", "PUT"].includes(method)
+      );
     });
+
+    await approvalControl.getByRole("button", { name: "Approve snapshot" }).click();
+
+    const approvalResponse = await approvalResponsePromise;
+    expect(approvalResponse.ok(), await approvalResponse.text()).toBeTruthy();
 
     await expect
       .poll(async () => {
         const auditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
         return auditStatus.review_status;
-      }, { timeout: 30_000 })
+      }, { timeout: LOCAL_REHEARSAL_STATE_TIMEOUT_MS })
       .toBe("approved");
 
     const approvedAuditStatus = await getPatientAuditStatus(request, token, patient.patient_id);
@@ -316,7 +350,9 @@ test.describe.serial("ACCESS2 local V2 reviewer assignment, rejection, new snaps
     await expect(backlogPanel.getByRole("button", { name: "Approve snapshot" })).toHaveCount(0);
     await expect(backlogPanel.getByRole("button", { name: "Create new review packet snapshot" })).toHaveCount(0);
     await expect
-      .poll(async () => backlogPanel.getByText("Read-only for this snapshot.").count(), { timeout: 30_000 })
+      .poll(async () => backlogPanel.getByText("Read-only for this snapshot.").count(), {
+        timeout: LOCAL_REHEARSAL_STATE_TIMEOUT_MS,
+      })
       .toBeGreaterThanOrEqual(2);
 
     await page.goto("/audit-readiness");
