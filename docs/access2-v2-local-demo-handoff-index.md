@@ -17,6 +17,8 @@ Use it when handing the local demo to an operator or reviewer. It is not a new p
 
 ## Recommended Reading Order
 
+Start with [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product-release-positioning.md) if the operator needs the cross-version product and release framing before the V2 localhost demo package.
+
 1. [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) - use to understand current V2 local readiness status and next options.
 2. [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md) - use for prerequisites, validation summary, limitations, and troubleshooting.
 3. [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md) - use for detailed correction-loop mechanics and local E2E/seed guidance.

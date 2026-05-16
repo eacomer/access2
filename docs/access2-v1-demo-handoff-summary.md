@@ -15,6 +15,7 @@ Current known baseline:
 
 Use these documents by job:
 
+- Explain the product/release posture: [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product-release-positioning.md)
 - Run the stakeholder demo: [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md)
 - Validate production readiness: [access2-v1-demo-release-checklist.md](C:/dev/access2/docs/access2-v1-demo-release-checklist.md), [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md), and [access2-railway-demo-validation.md](C:/dev/access2/docs/access2-railway-demo-validation.md)
 - Troubleshoot production E2E: [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md)
