@@ -69,6 +69,16 @@ Common local issues:
 
 Recommended next step: use this handoff index for one clean manual local presenter rehearsal. If the talk track is stable, defer staging until an isolated staging environment is explicitly approved.
 
+## Latest Clean Readiness Rehearsal - May 16, 2026
+
+- Scope: localhost-only; no staging, Railway, production, `https://`, or non-loopback mutation target was used.
+- Targets checked: frontend `http://localhost:3000`; API `http://localhost:8000/api/v1`.
+- Local stack health: backend live/ready returned 200; frontend `/login` returned 200.
+- Seed/reset: needed because the disposable patient was terminal-approved from the prior rehearsal; the documented local seed/reset restored latest `pending_review`.
+- Rehearsal path: local API-backed presenter sequence completed; automated local mutation E2E was not run.
+- Result: reviewer assignment persisted, rejection persisted, corrected/new snapshot creation worked, approval persisted, `audit_bundle.available=true`, and prior rejected snapshot history remained preserved/read-only.
+- Latest approved snapshot after this run: `1a2929c5-fabd-43d2-a53a-8c9020e7ffe1`.
+
 ## Confirmation
 
 This handoff package is documentation-only and does not approve staging, Railway, or production mutation.
