@@ -26,6 +26,7 @@ The demo shows reviewer assignment, rejection, corrected evidence, new snapshot 
   - `ACCESS2_E2E_BASE_URL=http://localhost:3000` or verified `http://localhost:3001`
   - `ACCESS2_E2E_API_BASE_URL=http://localhost:8000/api/v1`
   - `ACCESS2_LOCAL_V2_REJECTION_PATIENT_ID=<disposable-local-patient-id>`
+- Confirm the disposable patient starts at latest `pending_review`; if the latest snapshot is terminal, run the local seed/reset before demoing mutation steps.
 - Run seed/reset only if needed, only locally, and only with `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true`.
 
 ## Demo Opening Talk Track
@@ -62,6 +63,7 @@ V2 adds a local reviewer correction loop. A reviewer can assign a packet, reject
 - If local Next.js cold route compilation causes delays: "The local dev server is compiling routes. The workflow is still localhost-only; we can pause here or use the already recorded local E2E result."
 - If port `3000` is stale: "We are switching only to a verified current-workspace loopback frontend on `3001`. The API remains `http://localhost:8000/api/v1`."
 - If Playwright hits `spawn EPERM` or leaves generated artifacts: "This is a local browser/process issue. It does not change the product proof. We will rerun only against loopback and clean generated artifacts before handoff."
+- If local browser tooling is unavailable: "The browser control surface is blocked locally. We will stop the live UI path here, keep mutation targets loopback-only, and use the recorded local rehearsal result or local API proof to continue the walkthrough."
 - If the local E2E is not run live: "The latest recorded localhost rehearsal passed with `1 passed (10.6m)` and verified assignment, rejection, corrected snapshot creation, approval, read-only terminal snapshots, and preserved rejected history."
 
 ## Do Not Say Or Do
@@ -76,3 +78,12 @@ V2 adds a local reviewer correction loop. A reviewer can assign a packet, reject
 ## Close
 
 ACCESS2 can show the correction loop while preserving immutable audit history: the rejected packet remains as evidence, the corrected current case state creates a new packet, and the approved latest packet is ready for audit bundle export.
+
+## Manual Rehearsal Note - May 16, 2026
+
+- Scope: localhost-only; no staging, Railway, production, `https://`, or non-loopback mutation target was used.
+- Targets checked: frontend `http://localhost:3000`; API `http://localhost:8000/api/v1`.
+- Seed/reset: needed because the disposable patient was already terminal-approved from the prior rehearsal.
+- Browser path: stopped before UI interaction because the local in-app browser connection failed with a Windows `AppData` permission error.
+- Local fallback: API-backed rehearsal completed the presenter sequence and verified assignment, rejection, corrected/new snapshot creation, approval, `audit_bundle.available=true`, and preserved prior rejected snapshot history.
+- Script polish: added the explicit terminal-state reset check and browser-tooling fallback language.
