@@ -126,11 +126,16 @@ Run only against localhost:
 cd C:\dev\access2\frontend
 $env:ACCESS2_ENABLE_LOCAL_MUTATION_E2E="true"
 $env:ACCESS2_E2E_BASE_URL="http://localhost:3001"
+$env:ACCESS2_E2E_API_BASE_URL="http://localhost:8000/api/v1"
 $env:ACCESS2_E2E_ADMIN_EMAIL="admin@example.com"
 $env:ACCESS2_E2E_ADMIN_PASSWORD="Admin123!"
 $env:ACCESS2_LOCAL_V2_REJECTION_PATIENT_ID="<value printed by seed script>"
 & "C:\Program Files\nodejs\npm.cmd" run test:e2e:local-mutation
 ```
+
+If the current clean frontend is on `http://localhost:3000` instead of `http://localhost:3001`, use `http://localhost:3000` for `ACCESS2_E2E_BASE_URL` only after confirming it is the current workspace and not a stale `.next` instance. Keep `ACCESS2_E2E_API_BASE_URL` pointed at the local backend API.
+
+Before a timed rehearsal, warm the local dev routes in a browser or with a local-only smoke visit to `/login`, the seeded patient detail URL, and `/audit-readiness`. Cold Next.js route compilation can otherwise consume the Playwright timeout even when the workflow itself is healthy.
 
 Latest known local result:
 
@@ -437,10 +442,27 @@ If the local E2E is skipped, confirm:
 ```powershell
 $env:ACCESS2_ENABLE_LOCAL_MUTATION_E2E="true"
 $env:ACCESS2_E2E_BASE_URL="http://localhost:3001"
+$env:ACCESS2_E2E_API_BASE_URL="http://localhost:8000/api/v1"
 $env:ACCESS2_LOCAL_V2_REJECTION_PATIENT_ID="<value printed by seed script>"
 ```
 
 The local E2E intentionally skips when `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` is not set.
+
+### Cold Local Next.js Route Compilation
+
+Symptom:
+
+```text
+The local mutation E2E reaches assignment, rejection, corrected evidence, or new snapshot creation, then exceeds the Playwright timeout before approval assertions.
+```
+
+Check:
+
+- The frontend target is loopback-only, such as `http://localhost:3000` or `http://localhost:3001`.
+- `ACCESS2_E2E_API_BASE_URL` is explicitly set to `http://localhost:8000/api/v1`.
+- The seeded patient detail route and `/audit-readiness` have been opened once after the dev server starts.
+
+Then rerun only the localhost-gated command. Do not switch to production, Railway, or staging targets to work around local route compilation latency.
 
 ### Production-Like URL Blocked By Host Guard
 

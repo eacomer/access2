@@ -60,6 +60,12 @@ The snapshot captures the evidence. The bundle exports it. The manifest verifies
   ```
 
 - Safe localhost mutation environment variables are set.
+- `ACCESS2_E2E_API_BASE_URL` is set to the local backend API when running local mutation E2E:
+
+  ```text
+  http://localhost:8000/api/v1
+  ```
+
 - No real PHI is used.
 - No production URLs are present in local mutation target variables.
 - No Railway production targets are present in local mutation target variables.
@@ -115,6 +121,7 @@ Latest known validation from the completed V2 correction-loop and product clarit
 - [ ] Local backend is healthy.
 - [ ] Local frontend is healthy.
 - [ ] Safe local env vars are set.
+- [ ] Local mutation E2E frontend and API targets are both loopback-only.
 - [ ] Local seed/reset completed.
 - [ ] Local demo patient ID recorded.
 - [ ] No production URLs appear in env vars.
@@ -128,6 +135,7 @@ Latest known validation from the completed V2 correction-loop and product clarit
 - `frontend/.env.local` backend URL mismatch: confirm it points to `http://localhost:8000/api/v1`.
 - Stale Next.js cache with `Cannot find module './570.js'`: restart the local frontend and clear stale build/cache artifacts only as local generated files.
 - Frontend port mismatch: confirm whether the current frontend is on `3000` or `3001`, then set `ACCESS2_E2E_BASE_URL` accordingly.
+- Cold local Next.js route compilation or timeout before approval assertions: warm `/login`, the seeded patient detail page, and `/audit-readiness` on the loopback frontend, set `ACCESS2_E2E_API_BASE_URL=http://localhost:8000/api/v1`, then rerun only the localhost-gated command.
 - Playwright spawn `EPERM`: restart the local shell or Playwright process and rerun only the localhost-gated command.
 - Missing safe localhost env vars: the local mutation E2E intentionally skips or refuses to run.
 - Production-like URL blocked by host guard: stop and correct the target before running any local mutation command.
