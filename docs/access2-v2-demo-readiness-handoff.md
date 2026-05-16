@@ -101,6 +101,8 @@ Latest known validation from the completed V2 correction-loop and product clarit
 
 ## What A Demo Operator Should Show
 
+Use [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md) for the concise live presenter script.
+
 - Patient detail correction-loop status messaging.
 - Latest actionable packet explanation.
 - Terminal historical snapshot read-only posture.

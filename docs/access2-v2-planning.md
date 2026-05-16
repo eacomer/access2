@@ -279,6 +279,8 @@ Intentionally out of scope:
 
 Use [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md) for the manual demo script and local-only validation commands.
 
+Use [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md) for the concise live presenter script.
+
 Use [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) for the current V2 checkpoint, production-ready versus local-only posture, highest risks, and recommended next implementation candidate.
 
 Use [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md) for the current non-staging product workflow decision. Recommendation: pause staging unless isolated staging infrastructure is actually available, then polish the V2 correction-loop demo script before any patient-detail UI copy or other product polish.
