@@ -326,7 +326,9 @@ Use [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-lo
 
 Use [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) for the current V2 checkpoint, production-ready versus local-only posture, highest risks, and recommended next implementation candidate.
 
-Use [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md) for the current non-staging product workflow decision. Recommendation: pause staging unless isolated staging infrastructure is actually available, then polish the V2 correction-loop demo script before any patient-detail UI copy or other product polish.
+Post-demo package checkpoint: V1 production is external/demo-day ready in a read-only posture, the V2 localhost-only demo package is complete and rehearsed, and [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product-release-positioning.md) now carries the cross-version product/release explanation. The recommended next slice is a stakeholder-facing demo package review using the positioning doc, V1 production walkthrough, and V2 localhost handoff. Keep mutation expansion deferred until isolated staging or preview infrastructure is explicitly approved.
+
+Use [access2-v2-product-workflow-next-slice.md](C:/dev/access2/docs/access2-v2-product-workflow-next-slice.md) for historical non-staging product workflow decision context. The V2 correction-loop demo script, local handoff package, and product/release positioning docs are now complete; do not reopen UI or workflow mutation work unless a new, explicitly scoped demo blocker or staging approval changes the next slice.
 
 ### V2 product clarity checkpoint
 

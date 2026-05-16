@@ -23,6 +23,47 @@ original pending snapshot -> assign reviewer -> reject with reason -> corrected 
 
 The local proof strengthens the core ACCESS2 product requirement: interventions must connect to measurable outcomes and defensible evidence. A rejected packet is not refreshed or edited. Corrected current evidence is captured by creating a new immutable review packet snapshot, and that corrected packet can be approved locally while historical rejected/approved packets remain available as read-only audit evidence.
 
+## Post-Demo Package Checkpoint - May 16, 2026
+
+ACCESS2 now has a complete demo and positioning package for the current release posture:
+
+- V1 production demo readiness is complete for external read-only walkthroughs using synthetic data at `https://access2.salvardata.com`.
+- V1 production E2E remains documented at `8 passed, 2 skipped, 0 failed`; the two skips remain intentional mutation-path skips.
+- V2 local demo readiness is complete for localhost-only correction-loop demonstration.
+- The clean V2 local presenter rehearsal was recorded with loopback-only targets and preserved immutable rejected snapshot history.
+- The product/release positioning doc now explains the cross-version story: V1 production is read-only, V2 mutation is localhost-only, and staging mutation waits for explicit isolated staging approval.
+
+Current proof boundaries:
+
+- Production proves read-only evidence visibility, review-packet posture, approved audit bundle posture, and manifest verification.
+- Localhost V2 proves assignment, rejection, corrected/new snapshot creation, corrected approval, `audit_bundle.available=true`, and preserved rejected snapshot history.
+- No production, Railway, staging, `https://`, or non-loopback mutation target is approved.
+
+Current non-goals:
+
+- No production mutation.
+- No staging mutation.
+- No Railway mutation.
+- No override approval UI.
+- No EHR/FHIR, billing, AI, predictive analytics, real CMS submission, or real PHI workflow.
+
+Staging prerequisites before any mutation expansion:
+
+- Explicit approval for an isolated staging or preview environment.
+- Separate frontend, API, database, tenant, credentials, and synthetic seed data from production.
+- Deterministic seed/reset ownership and teardown.
+- Fail-closed mutation host guards that continue to refuse production/custom-domain/Railway-like targets.
+- Mutation E2E kept separate from production read-only E2E.
+
+Recommended next options:
+
+- Option A - Stakeholder-facing demo package review: use [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product-release-positioning.md), [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md), and [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) to rehearse the combined story without new code.
+- Option B - V1 production demo hardening: keep production read-only and improve only operator reliability, copy clarity, or validation documentation if a real demo-day gap appears.
+- Option C - Isolated staging preparation: use existing staging docs only after isolated staging or preview infrastructure is explicitly approved; do not run mutation E2E yet.
+- Option D - Small read-only product clarity: improve docs or UI copy only where it directly clarifies the ACCESS2 proof chain without adding workflow mutation.
+
+Recommended next slice: run a stakeholder-facing demo package review using the product/release positioning doc plus the V1 production walkthrough and V2 localhost handoff. Keep it docs-only unless the review exposes a concrete demo blocker.
+
 ## What V2 Proves Today
 
 - A reviewer can reject the latest `pending_review` packet with a required reason in a controlled local flow.
