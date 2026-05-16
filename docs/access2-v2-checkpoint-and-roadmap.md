@@ -57,12 +57,12 @@ Staging prerequisites before any mutation expansion:
 
 Recommended next options:
 
-- Option A - Stakeholder-facing demo package review: use [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product-release-positioning.md), [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md), and [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) to rehearse the combined story without new code.
+- Option A - Stakeholder-facing demo package review: use [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md) to rehearse the combined story without new code.
 - Option B - V1 production demo hardening: keep production read-only and improve only operator reliability, copy clarity, or validation documentation if a real demo-day gap appears.
 - Option C - Isolated staging preparation: use existing staging docs only after isolated staging or preview infrastructure is explicitly approved; do not run mutation E2E yet.
 - Option D - Small read-only product clarity: improve docs or UI copy only where it directly clarifies the ACCESS2 proof chain without adding workflow mutation.
 
-Recommended next slice: run a stakeholder-facing demo package review using the product/release positioning doc plus the V1 production walkthrough and V2 localhost handoff. Keep it docs-only unless the review exposes a concrete demo blocker.
+Recommended next slice: run a stakeholder-facing demo package review using [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md). Keep it docs-only unless the review exposes a concrete demo blocker.
 
 ## What V2 Proves Today
 
@@ -380,6 +380,7 @@ Override approval can approve a packet despite readiness gaps. That is useful fo
 ## Reference Documents
 
 - [access2-v2-planning.md](C:/dev/access2/docs/access2-v2-planning.md)
+- [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md) - stakeholder-facing reading order, presenter order, proof boundaries, and next decision.
 - [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) - entry point for the localhost-only V2 demo package.
 - [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md)
 - [access2-v2-demo-readiness-handoff.md](C:/dev/access2/docs/access2-v2-demo-readiness-handoff.md) - consolidated localhost-only V2 demo readiness handoff and rehearsal checklist.
