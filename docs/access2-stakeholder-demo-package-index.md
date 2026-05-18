@@ -105,3 +105,5 @@ After stakeholder review, choose one:
 - Begin isolated staging planning only if a separate staging or preview environment is explicitly approved.
 
 Default recommendation: keep production read-only and use stakeholder feedback to decide whether the next slice is demo clarity or isolated staging planning. Do not expand mutation beyond localhost without explicit isolated staging approval.
+
+Latest feedback checkpoint: [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md).

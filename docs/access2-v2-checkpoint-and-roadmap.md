@@ -64,6 +64,8 @@ Recommended next options:
 
 Recommended next slice: run a stakeholder-facing demo package review using [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md). Keep it docs-only unless the review exposes a concrete demo blocker.
 
+Latest stakeholder feedback checkpoint: [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md). The v1 walkthrough completed with no concrete objections or confusion reported; production remains read-only and V2 mutation remains localhost-only.
+
 ## What V2 Proves Today
 
 - A reviewer can reject the latest `pending_review` packet with a required reason in a controlled local flow.
