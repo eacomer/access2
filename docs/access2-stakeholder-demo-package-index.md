@@ -107,3 +107,15 @@ After stakeholder review, choose one:
 Default recommendation: keep production read-only and use stakeholder feedback to decide whether the next slice is demo clarity or isolated staging planning. Do not expand mutation beyond localhost without explicit isolated staging approval.
 
 Latest feedback checkpoint: [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md).
+
+## Second Walkthrough Capture Checklist
+
+For the next stakeholder walkthrough, reuse the same package and capture only decision-useful feedback:
+
+- Confirm whether the chronic-care outcome accountability story is clear.
+- Confirm whether immutable review packets and preserved rejected history are clear.
+- Confirm whether audit bundle posture and manifest verification are clear.
+- Confirm whether the V1 production read-only boundary and V2 localhost-only mutation boundary are clear.
+- Record concrete confusion, objections, or follow-up questions.
+- Record any request for staging, production mutation, EHR/FHIR, billing, AI, admin features, or override approval as follow-up only.
+- Use the reusable capture block in [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md) after the walkthrough.

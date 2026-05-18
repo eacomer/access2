@@ -56,6 +56,25 @@ Recommended next slice: run another stakeholder walkthrough using the same packa
 
 If the next walkthrough remains clear, keep the current package stable. If specific confusion appears, use a small docs/copy clarity slice rather than changing product behavior.
 
+## Reusable Walkthrough Feedback Capture
+
+Use this short capture block for the next stakeholder walkthrough. Keep answers concrete and do not treat requests for new capabilities as approval to build them.
+
+- Walkthrough date:
+- Stakeholder role or audience type:
+- Demo path used: V1 production read-only only / V1 plus V2 localhost narrative / V1 plus V2 localhost live demo.
+- What landed well:
+- What caused confusion:
+- Objections or risks raised:
+- Follow-up questions:
+- Was the V1 production read-only boundary clear?
+- Was the V2 localhost-only mutation boundary clear?
+- Was immutable review-packet history clear?
+- Was audit bundle or manifest verification clear?
+- Any requests for staging, production mutation, EHR/FHIR, billing, AI, admin features, or override approval:
+- Recommended next docs/copy clarification, if any:
+- Go/no-go recommendation for continued stakeholder walkthrough use:
+
 ## Safety Confirmation
 
 - Production remained read-only.
