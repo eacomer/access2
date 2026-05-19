@@ -95,6 +95,87 @@ Use this checklist before the next live stakeholder walkthrough if no live feedb
 - If the recommendation is `no-go`, identify the specific clarity or evidence blocker and keep remediation docs-only/copy-only unless a separate implementation slice is approved.
 - Restate that the decision does not authorize staging, production mutation, real PHI, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, AI features, or new product scope.
 
+## July MVP Walkthrough Checkpoint - May 19, 2026
+
+Status: actual stakeholder feedback has not yet been provided for the full July MVP package. Unknowns are marked explicitly below rather than inferred.
+
+### Walkthrough Date / Checkpoint
+
+- Date: May 19, 2026.
+- Checkpoint name: July MVP package feedback/go-no-go readiness checkpoint.
+- Presenter/operator: unknown.
+- Package version or docs reviewed: current July MVP package connecting V1 production read-only demo, V2 localhost-only correction-loop narrative or rehearsal, and local CSV dry-run validation.
+
+### Audience / Persona
+
+- Stakeholder role or audience type: unknown.
+- Primary decision lens: unknown.
+- Prior ACCESS2 context: unknown.
+
+### V1 Production Read-Only Demo Feedback
+
+- What can be shown now in production: not yet confirmed by stakeholder feedback.
+- Synthetic/demo-only data posture: not yet confirmed by stakeholder feedback.
+- Production read-only boundary: not yet confirmed by stakeholder feedback.
+- Evidence-to-audit-bundle story: not yet confirmed by stakeholder feedback.
+- Confusion, objections, or requested copy clarification: unknown.
+
+### V2 Localhost-Only Correction-Loop Feedback
+
+- Localhost-only mutation boundary: not yet confirmed by stakeholder feedback.
+- Disposable synthetic local data posture: not yet confirmed by stakeholder feedback.
+- Preserved rejected snapshot history: not yet confirmed by stakeholder feedback.
+- Corrected/new immutable snapshot and corrected latest approval: not yet confirmed by stakeholder feedback.
+- `audit_bundle.available=true` handoff point: not yet confirmed by stakeholder feedback.
+- Confusion, objections, or requested copy clarification: unknown.
+
+### CSV Dry-Run Validation Feedback
+
+- Dry-run/no-write boundary: not yet confirmed by stakeholder feedback.
+- Synthetic fixture/no real PHI posture: not yet confirmed by stakeholder feedback.
+- No patient, evidence, review packet, audit bundle, database, API, or frontend state creation: not yet confirmed by stakeholder feedback.
+- Not FHIR/EHR integration, CMS production submission, claims ingestion, or billing automation: not yet confirmed by stakeholder feedback.
+- Confusion, objections, or requested copy clarification: unknown.
+
+### Questions / Objections
+
+- Questions asked: unknown.
+- Objections or risks raised: unknown.
+- Requests for staging, production mutation, real PHI, CMS submission, FHIR/EHR integration, claims ingestion, billing automation, AI, admin features, or override approval: unknown.
+
+### Decision-Useful Feedback
+
+- What landed well: unknown.
+- What was unclear enough to affect stakeholder confidence: unknown.
+- What evidence or documentation would improve a partner/pilot conversation: unknown.
+- What can remain unchanged for July MVP: unknown.
+
+### July Must-Fix Items
+
+- Must-fix item: none identified from actual stakeholder feedback yet.
+- Owner: not assigned.
+- Required by: unknown.
+- Evidence needed for closure: actual stakeholder feedback.
+
+### Future Production Hardening Items
+
+These remain future hardening categories and are not authorized by this checkpoint:
+
+- Production mutation governance.
+- Compliance/security/data-use approval for real PHI.
+- Isolated staging or preview environment.
+- FHIR/EHR integration.
+- CMS production submission.
+- Claims ingestion or billing automation.
+- Operational support, monitoring, and reset/reseed ownership.
+
+### Go/No-Go Recommendation
+
+- Recommendation: conditional go for conducting the live July MVP stakeholder walkthrough using the current package; not yet a go/no-go decision on stakeholder acceptance because actual feedback is unavailable.
+- Reason: the package is prepared for capture, but the feedback fields needed for a final July MVP walkthrough recommendation are still unknown.
+- Conditions or blockers: capture audience/persona, V1 feedback, V2 feedback, CSV dry-run feedback, questions/objections, July must-fix items, future hardening items, and a final go / conditional go / no-go decision after the live walkthrough.
+- Explicit non-authorization: this recommendation does not approve staging, production mutation, real PHI, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, AI features, or new product scope.
+
 ### Walkthrough Date / Checkpoint
 
 - Date:
