@@ -9,22 +9,24 @@ This index is not a new product spec and does not authorize production mutation,
 ## Recommended Reading Order
 
 1. [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product-release-positioning.md) - use first for the product purpose, release posture, and stakeholder talk track.
-2. [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md) - use for the production read-only stakeholder walkthrough.
-3. [access2-v1-demo-handoff-summary.md](C:/dev/access2/docs/access2-v1-demo-handoff-summary.md) - use for production baseline, validation evidence, and handoff map.
-4. [access2-v1-demo-release-checklist.md](C:/dev/access2/docs/access2-v1-demo-release-checklist.md) - use when validating local or production demo readiness details.
-5. [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) - use when introducing the localhost-only V2 correction-loop package.
-6. [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md) - use only for the actual localhost V2 presenter sequence.
-7. [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) - use for current proof boundaries, non-goals, staging prerequisites, and next options.
+2. [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) - use to separate what can be shown now, what can be pilot-positioned by July, and what remains future production hardening.
+3. [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md) - use for the production read-only stakeholder walkthrough.
+4. [access2-v1-demo-handoff-summary.md](C:/dev/access2/docs/access2-v1-demo-handoff-summary.md) - use for production baseline, validation evidence, and handoff map.
+5. [access2-v1-demo-release-checklist.md](C:/dev/access2/docs/access2-v1-demo-release-checklist.md) - use when validating local or production demo readiness details.
+6. [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) - use when introducing the localhost-only V2 correction-loop package.
+7. [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md) - use only for the actual localhost V2 presenter sequence.
+8. [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) - use for current proof boundaries, non-goals, staging prerequisites, and next options.
 
 ## Recommended Presenter Order
 
 1. Open with the product positioning: ACCESS2 proves chronic-care outcome accountability by connecting signal, escalation, intervention, outcome, care update, resolution, evidence, immutable review, and audit bundle posture.
-2. Run the V1 production read-only walkthrough first at `https://access2.salvardata.com`.
-3. Show the four seeded production demo postures: audit-ready, missing evidence, rejected review, and override-approved review.
-4. Explain the production baseline: `8 passed, 2 skipped, 0 failed`; the skips are intentional read-only mutation-path skips.
-5. If the audience needs the future workflow story, switch to the V2 localhost-only correction-loop narrative.
-6. Present the V2 correction loop only on verified loopback targets, or use the recorded rehearsal result if local browser tooling is unavailable.
-7. Close with the current release decision: production remains read-only, V2 mutation remains localhost-only, and staging mutation waits for isolated staging approval.
+2. Use the July MVP readiness plan to frame the distinction between what can be shown now, what can be pilot-positioned by July, and what remains future production hardening.
+3. Run the V1 production read-only walkthrough first at `https://access2.salvardata.com`.
+4. Show the four seeded production demo postures: audit-ready, missing evidence, rejected review, and override-approved review.
+5. Explain the production baseline: `8 passed, 2 skipped, 0 failed`; the skips are intentional read-only mutation-path skips.
+6. If the audience needs the future workflow story, switch to the V2 localhost-only correction-loop narrative.
+7. Present the V2 correction loop only on verified loopback targets, or use the recorded rehearsal result if local browser tooling is unavailable.
+8. Close with the current release decision: production remains read-only, V2 mutation remains localhost-only, July MVP/pilot readiness includes a bounded external CSV intake requirement/spec candidate, and staging mutation waits for isolated staging approval.
 
 ## Which Demo To Use
 
@@ -33,6 +35,7 @@ This index is not a new product spec and does not authorize production mutation,
 - Engineering handoff: use the V1 handoff summary, V2 local demo handoff index, and V2 checkpoint/roadmap.
 - Demo-day readiness check: use the V1 demo-day script and release checklist; keep V2 local rehearsal separate unless explicitly planned.
 - Future staging decision review: use the V2 checkpoint/roadmap and staging docs only after isolated staging or preview infrastructure is explicitly approved.
+- July MVP/pilot-readiness conversation: use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) to explain what can be shown now, what can be pilot-positioned by July, and what remains future production hardening.
 
 ## V1 Production Walkthrough Summary
 

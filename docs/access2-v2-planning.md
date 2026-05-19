@@ -8,6 +8,22 @@ signal -> escalation -> intervention -> outcome -> evidence -> case summary -> i
 
 The core product question remains whether ACCESS2 can prove that chronic care interventions led to measurable outcomes and that the evidence was reviewed through a defensible audit lifecycle.
 
+## July MVP Candidate Scope
+
+Use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) for the July 2026 MVP/pilot-readiness plan.
+
+July candidate scope should stay bounded to:
+
+- Operator-repeatable localhost-only correction-loop rehearsal.
+- Controlled external CSV intake as a requirement/spec candidate, not importer code yet.
+- Source and batch metadata preservation for accepted pilot or synthetic rows.
+- Strict validation and rejection of malformed rows.
+- Synthetic or explicitly approved pilot data only.
+- No real PHI until compliance, security, and data-use approvals are complete.
+- No full FHIR/EHR integration in the July MVP; FHIR-based exchange remains the future CMS-aligned direction.
+- No CMS production submission, claims ingestion, or billing automation.
+- No production mutation controls, override approval expansion, broad admin features, AI features, or broad UI redesign.
+
 ## V1 Recap
 
 ### Complete
