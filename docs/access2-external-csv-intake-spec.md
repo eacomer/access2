@@ -4,7 +4,7 @@ Date/checkpoint: May 19, 2026
 
 ## Purpose
 
-This is a July MVP docs/spec artifact only. It does not authorize backend code, frontend code, database migrations, CSV importer implementation, staging work, or production mutation.
+This began as a July MVP docs/spec artifact. The first approved implementation is a local-only dry-run validator at `backend/scripts/validate_external_csv_intake.py`; it performs no database writes, no database reads, no network calls, no frontend upload, no API endpoint, and no importer persistence.
 
 The purpose is to define a controlled external CSV intake path for provider, payor, or partner outcome records to enter the ACCESS2 proof chain using synthetic or explicitly approved pilot data. The July MVP intent is to show how externally supplied outcome and care evidence can become traceable review evidence, not to create an open upload platform or production healthcare integration.
 
@@ -133,7 +133,16 @@ The sample is synthetic only. It must not be copied into real patient records or
 
 ## Implementation Boundary
 
-This specification does not authorize code changes yet. Future implementation should be small, controlled, operator-only, and tested locally first.
+This specification authorizes only the local dry-run validator already noted above. It does not authorize CSV upload/import persistence, API routes, frontend upload UI, database migrations, staging work, or production mutation. Future implementation should be small, controlled, operator-only, and tested locally first.
+
+Local dry-run validator command shape:
+
+```powershell
+cd C:\dev\access2\backend
+py -3 -m scripts.validate_external_csv_intake C:\path\to\synthetic-intake.csv
+```
+
+The validator prints the source file name, row count, accepted row count, rejected row count, source metadata, and row-level validation errors. It exits non-zero if any row is rejected.
 
 Any future implementation slice should:
 
@@ -147,6 +156,6 @@ Any future implementation slice should:
 
 ## Recommended Next Implementation Slice
 
-Recommended future slice: implement a local-only dry-run CSV intake validator that parses the strict template, validates rows, reports accepted/rejected counts, preserves row numbers and validation errors, and performs no database writes.
+Recommended future slice: add operator-facing dry-run examples and a sample synthetic CSV fixture for rehearsal, or extend the validator with a JSON report output if an operator workflow needs machine-readable validation results.
 
-Do not implement that slice in this task. Do not add CSV upload/import code, database migrations, FHIR/EHR integration, CMS submission, claims ingestion, billing automation, staging mutation, production mutation, or AI features as part of this docs-only specification.
+Do not add CSV upload/import code, database migrations, FHIR/EHR integration, CMS submission, claims ingestion, billing automation, staging mutation, production mutation, or AI features as part of that future slice unless explicitly approved.

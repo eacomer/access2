@@ -154,6 +154,8 @@ Optional fields:
 
 ## Recommended Next Slice
 
-Recommended next slice: implement a local-only dry-run CSV intake validator for the strict template in [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md), only after that implementation is explicitly approved.
+The first approved implementation is a local-only dry-run CSV intake validator for the strict template in [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md). It performs no database writes, no database reads, no network calls, no frontend upload, no API endpoint, and no importer persistence.
 
-Do not implement CSV upload/import code, FHIR/EHR integration, CMS submission, claims ingestion, billing automation, staging mutation, or production mutation until a separate implementation slice is approved.
+Recommended next slice: add operator-facing dry-run examples and a sample synthetic CSV fixture for rehearsal, or add a JSON report option if a machine-readable dry-run result is needed.
+
+Do not implement CSV upload/import persistence, FHIR/EHR integration, CMS submission, claims ingestion, billing automation, staging mutation, or production mutation until a separate implementation slice is approved.
