@@ -9,6 +9,8 @@ const PROOF_CHAIN = [
   "escalation",
   "intervention",
   "outcome",
+  "care update",
+  "resolution",
   "evidence",
   "case summary",
   "immutable review packet snapshot",
@@ -66,6 +68,11 @@ export default async function DemoGuidePage() {
           ACCESS2 demonstrates how chronic care workflow evidence can support CMS ACCESS-aligned
           outcome-based payment review. Use this guide to present the proof story without changing
           workflow state.
+        </p>
+        <p>
+          For new stakeholders, the key point is that ACCESS2 is not just a worklist. It shows why a
+          patient needed action, what changed after intervention, which evidence supports closure,
+          and how approved review packets and audit bundles can defend reimbursement evidence.
         </p>
       </section>
 
@@ -147,11 +154,16 @@ export default async function DemoGuidePage() {
       <section className="section-card" aria-labelledby="demo-guide-e2e">
         <h2 id="demo-guide-e2e">Expected E2E Baseline</h2>
         <p>
-          Latest production custom-domain validation result: <strong>6 passed, 2 skipped, 0 failed</strong>.
+          Latest production custom-domain validation result: <strong>8 passed, 2 skipped, 0 failed</strong>.
         </p>
         <p>
           The skipped tests are expected because V1 exposes reviewer rejection and override approval
           as read-only seeded demo postures, not UI mutation workflows.
+        </p>
+        <p>
+          V2 correction-loop mutation stays localhost-only because it requires disposable synthetic
+          data, repeatable reset/seed behavior, and fail-closed host guards before any non-local
+          mutation target is considered.
         </p>
       </section>
 

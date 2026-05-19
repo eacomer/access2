@@ -1,6 +1,7 @@
 require("./api.test.cjs");
 require("./audit-bundle-route.test.cjs");
 require("./audit-readiness-page.test.cjs");
+require("./demo-guide-page.test.cjs");
 require("./demo-release-summary-page.test.cjs");
 require("./patient-detail-page.test.cjs");
 require("./audit-bundle-verify-route.test.cjs");
