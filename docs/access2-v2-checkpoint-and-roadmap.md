@@ -66,6 +66,25 @@ Recommended next slice: run a stakeholder-facing demo package review using [acce
 
 Latest stakeholder feedback checkpoint: [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md). The v1 walkthrough completed with no concrete objections or confusion reported; production remains read-only and V2 mutation remains localhost-only.
 
+## V1 Demo Validation Hardening Checkpoint - May 19, 2026
+
+ACCESS2 now has a hardened validation split for the V1 production demo:
+
+- The V1 Demo Guide clarity polish is deployed and validated on `https://access2.salvardata.com`.
+- The strict no-data-change production smoke path exists for post-deploy Demo Guide and stakeholder-copy checks: `npm run test:e2e:production-readonly-smoke`.
+- The smoke path passed against production with `1 passed` and guards against audit bundle export/download, manifest verification, assignment, approval, rejection, create-snapshot, correction-loop, and unexpected write routes.
+- The full production E2E baseline remains documented as `8 passed, 2 skipped, 0 failed`, with reviewer rejection UI and superuser override approval UI intentionally skipped because V1 production mutation is disabled.
+- The full production E2E suite remains reserved for validation windows where audit bundle export/download reads and resulting `audit_bundle_exported` event recording are acceptable.
+
+Current decision:
+
+- V1 production remains the external read-only demo.
+- V2 correction-loop mutation remains proven on localhost only.
+- Isolated staging remains deferred unless explicitly approved with separate frontend, API, database, tenant, credentials, seed/reset ownership, and teardown.
+- The next slice should resume V2 local product development planning, not staging.
+
+Recommended next slice: add a small localhost-only V2 correction-loop operator clarity checkpoint. Keep it docs-first and focused on how operators identify the latest actionable packet, explain preserved rejected history, and avoid non-loopback mutation. Do not add production mutation controls, staging setup, override approval, or new workflows.
+
 ## What V2 Proves Today
 
 - A reviewer can reject the latest `pending_review` packet with a required reason in a controlled local flow.
