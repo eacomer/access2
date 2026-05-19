@@ -10,6 +10,7 @@
     "lint": "next lint",
     "test": "node src/lib/run-tests.cjs",
     "test:e2e": "playwright test access2-railway-demo.spec.ts",
+    "test:e2e:production-readonly-smoke": "playwright test access2-production-readonly-smoke.spec.ts",
     "test:e2e:local-mutation": "playwright test access2-local-v2-rejection-mutation.spec.ts"
   },
   "dependencies": {
