@@ -31,6 +31,17 @@ The local V2 proof shows this controlled correction-loop story:
 9. Audit bundle exports package the persisted snapshot evidence.
 10. Manifest verification confirms the exported artifacts match persisted evidence.
 
+## Operator Clarity Checkpoint - May 19, 2026
+
+Use this checkpoint before a live localhost-only V2 walkthrough so the presenter explains the correction loop consistently:
+
+- The latest actionable packet is the newest review packet snapshot with `review_status=pending_review`; assignment, rejection, and approval controls must apply only to that current pending packet.
+- A rejected terminal snapshot remains preserved and read-only because it is the audit record of what was reviewed, who made the decision, when it happened, and why it was rejected.
+- Corrected/new snapshot creation proves the correction loop by capturing the current corrected evidence in a new immutable packet instead of editing, refreshing, or repairing the rejected packet.
+- Approval must apply only to the corrected latest pending snapshot, after the persisted review checklist has no missing evidence, so the approved packet represents the corrected current case state.
+- `audit_bundle.available=true` is the handoff point from review workflow to audit-package posture; it means the corrected approved snapshot is ready for bundle export and later manifest verification.
+- All assignment, rejection, corrected/new snapshot creation, and approval mutation remains localhost-only. Do not run these steps against production, Railway, staging, `https://`, or non-loopback targets.
+
 ## ACCESS2 Proof Chain Talk Track
 
 Use this chain when explaining why the correction loop matters:
@@ -181,6 +192,6 @@ Option D: Hold new work.
 
 ## Recommended Next Slice
 
-Recommend: stakeholder-facing demo package review using [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md).
+Recommend: one local-only V2 operator rehearsal using the operator clarity checkpoint above and [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md).
 
-Keep any follow-up docs-only unless a real demo blocker appears, and keep V2 mutation localhost-only. This does not authorize staging, Railway, or production mutation.
+Keep any follow-up docs-only or copy-only unless a real localhost demo blocker appears, and keep V2 mutation localhost-only. This does not authorize staging, Railway, or production mutation.
