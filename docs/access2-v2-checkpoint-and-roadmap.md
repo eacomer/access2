@@ -25,7 +25,7 @@ The local proof strengthens the core ACCESS2 product requirement: interventions 
 
 ## July ACCESS MVP Readiness Checkpoint - May 19, 2026
 
-The July 2026 CMS ACCESS timeline makes MVP/pilot readiness the next planning focus. Use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) as the July readiness plan.
+The July 2026 CMS ACCESS timeline makes MVP/pilot readiness the next planning focus. Use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) as the July readiness plan and [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) as the controlled external CSV intake specification.
 
 Current July posture:
 
@@ -34,6 +34,7 @@ Current July posture:
 - July planning focuses on MVP/pilot readiness, not a claim of fully production-ready real PHI or live CMS reimbursement operations.
 - Controlled external CSV intake is a bounded MVP requirement/spec candidate for synthetic or explicitly approved pilot records.
 - Source/batch metadata preservation and strict row validation are part of the CSV intake requirement.
+- The next CSV-related implementation slice, if approved later, should start as a local-only dry-run validator rather than an importer.
 - FHIR-based exchange remains the future CMS-aligned integration direction, not current July build scope.
 - Full EHR integration, CMS production submission, claims ingestion, billing automation, AI features, production mutation controls, and override/admin expansion remain out of scope.
 - Isolated staging remains deferred unless explicitly approved with separate frontend, API, database, tenant, credentials, seed/reset ownership, and teardown.
@@ -406,6 +407,7 @@ Override approval can approve a packet despite readiness gaps. That is useful fo
 
 - [access2-v2-planning.md](C:/dev/access2/docs/access2-v2-planning.md)
 - [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) - July MVP/pilot readiness plan, external CSV intake requirement, and future FHIR boundary.
+- [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) - controlled external CSV intake columns, validation rules, batch/source metadata, and rejection examples.
 - [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md) - stakeholder-facing reading order, presenter order, proof boundaries, and next decision.
 - [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) - entry point for the localhost-only V2 demo package.
 - [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md)

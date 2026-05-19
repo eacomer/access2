@@ -10,12 +10,13 @@ This index is not a new product spec and does not authorize production mutation,
 
 1. [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product-release-positioning.md) - use first for the product purpose, release posture, and stakeholder talk track.
 2. [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) - use to separate what can be shown now, what can be pilot-positioned by July, and what remains future production hardening.
-3. [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md) - use for the production read-only stakeholder walkthrough.
-4. [access2-v1-demo-handoff-summary.md](C:/dev/access2/docs/access2-v1-demo-handoff-summary.md) - use for production baseline, validation evidence, and handoff map.
-5. [access2-v1-demo-release-checklist.md](C:/dev/access2/docs/access2-v1-demo-release-checklist.md) - use when validating local or production demo readiness details.
-6. [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) - use when introducing the localhost-only V2 correction-loop package.
-7. [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md) - use only for the actual localhost V2 presenter sequence.
-8. [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) - use for current proof boundaries, non-goals, staging prerequisites, and next options.
+3. [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) - use when stakeholders ask how approved pilot or partner outcome records could enter the ACCESS2 proof chain without FHIR/EHR integration yet.
+4. [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md) - use for the production read-only stakeholder walkthrough.
+5. [access2-v1-demo-handoff-summary.md](C:/dev/access2/docs/access2-v1-demo-handoff-summary.md) - use for production baseline, validation evidence, and handoff map.
+6. [access2-v1-demo-release-checklist.md](C:/dev/access2/docs/access2-v1-demo-release-checklist.md) - use when validating local or production demo readiness details.
+7. [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) - use when introducing the localhost-only V2 correction-loop package.
+8. [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md) - use only for the actual localhost V2 presenter sequence.
+9. [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) - use for current proof boundaries, non-goals, staging prerequisites, and next options.
 
 ## Recommended Presenter Order
 
@@ -36,6 +37,7 @@ This index is not a new product spec and does not authorize production mutation,
 - Demo-day readiness check: use the V1 demo-day script and release checklist; keep V2 local rehearsal separate unless explicitly planned.
 - Future staging decision review: use the V2 checkpoint/roadmap and staging docs only after isolated staging or preview infrastructure is explicitly approved.
 - July MVP/pilot-readiness conversation: use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) to explain what can be shown now, what can be pilot-positioned by July, and what remains future production hardening.
+- External intake conversation: use [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) to explain the controlled CSV template, validation/rejection posture, source/batch metadata, and why this is not FHIR/EHR integration, CMS production submission, claims ingestion, or billing automation.
 
 ## V1 Production Walkthrough Summary
 

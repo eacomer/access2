@@ -10,7 +10,7 @@ The core product question remains whether ACCESS2 can prove that chronic care in
 
 ## July MVP Candidate Scope
 
-Use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) for the July 2026 MVP/pilot-readiness plan.
+Use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) for the July 2026 MVP/pilot-readiness plan and [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) for the controlled external CSV intake specification.
 
 July candidate scope should stay bounded to:
 

@@ -87,6 +87,8 @@ ACCESS2 will support a narrow, controlled external data intake path using a stri
 
 This is not a full EHR/FHIR integration, not CMS production submission, not claims ingestion, and not approved for real PHI until compliance, security, and data-use controls are explicitly completed. FHIR-based exchange remains the future CMS-aligned integration path.
 
+Use [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) for the controlled external CSV intake specification, including required columns, validation rules, batch/source metadata, accepted-row mapping, and rejection examples.
+
 This requirement is a July MVP candidate/spec only until a separate implementation slice is approved. It should be treated as controlled operator/admin intake, not an open upload platform.
 
 ### Candidate CSV Template
@@ -152,6 +154,6 @@ Optional fields:
 
 ## Recommended Next Slice
 
-Recommended next slice: document the controlled external CSV intake specification in a dedicated docs-only artifact, including validation rules, row-level rejection examples, source/batch metadata handling, and mapping from accepted rows into ACCESS2 outcome/evidence concepts.
+Recommended next slice: implement a local-only dry-run CSV intake validator for the strict template in [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md), only after that implementation is explicitly approved.
 
-Do not implement CSV upload/import code, FHIR/EHR integration, CMS submission, claims ingestion, billing automation, staging mutation, or production mutation in that slice.
+Do not implement CSV upload/import code, FHIR/EHR integration, CMS submission, claims ingestion, billing automation, staging mutation, or production mutation until a separate implementation slice is approved.
