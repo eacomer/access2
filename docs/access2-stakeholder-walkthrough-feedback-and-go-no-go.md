@@ -60,6 +60,41 @@ If the next walkthrough remains clear, keep the current package stable. If speci
 
 Use this section for the July MVP package walkthrough that connects the V1 production read-only demo, V2 localhost-only correction-loop narrative or rehearsal, and local external CSV dry-run validation. This is a feedback and decision record only. It does not authorize staging, production mutation, real PHI, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, AI features, or new product scope.
 
+## July MVP Facilitator Rehearsal Checklist
+
+Use this checklist before the next live stakeholder walkthrough if no live feedback has been captured yet. The facilitator should collect decision-useful feedback, not approval for new scope.
+
+### Pre-Walkthrough Setup
+
+- Confirm the walkthrough uses [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md) as the entry point.
+- Confirm the presenter order: V1 production read-only demo, V2 localhost-only correction-loop narrative or rehearsal, then local CSV dry-run validation result.
+- Confirm the audience understands the July MVP posture: pilot-positioned evidence, not full production-user readiness.
+- Confirm no real PHI will be entered, pasted, imported, or discussed as live patient data.
+
+### Facilitation Prompts
+
+- Ask what the audience believes ACCESS2 can show now.
+- Ask what the audience believes is pilot-positioned by July.
+- Ask what the audience believes remains future production hardening.
+- Ask whether the V1 production read-only boundary is clear.
+- Ask whether the V2 localhost-only mutation boundary is clear.
+- Ask whether the CSV validator dry-run/no-write boundary is clear.
+- Ask whether the path from evidence to immutable review packet to audit bundle handoff is clear.
+
+### Live Capture Reminders
+
+- Capture questions in the exact words used by stakeholders when practical.
+- Separate July must-fix items from future production hardening requests.
+- Record requests for staging, production mutation, real PHI, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, AI, admin features, or override approval as future-scope requests unless they block the July MVP story.
+- Do not treat verbal interest in future capabilities as approval to build them.
+
+### Immediate Post-Walkthrough Decision
+
+- Mark the recommendation as `go`, `conditional go`, or `no-go` for continued July MVP stakeholder walkthrough use.
+- List any conditions required for a `conditional go`.
+- If the recommendation is `no-go`, identify the specific clarity or evidence blocker and keep remediation docs-only/copy-only unless a separate implementation slice is approved.
+- Restate that the decision does not authorize staging, production mutation, real PHI, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, AI features, or new product scope.
+
 ### Walkthrough Date / Checkpoint
 
 - Date:
