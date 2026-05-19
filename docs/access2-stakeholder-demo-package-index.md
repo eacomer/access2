@@ -70,7 +70,7 @@ Use this package when the stakeholder conversation needs the full July MVP and p
 
 - V1 production read-only demo: current production walkthrough with synthetic data, read-only evidence posture, approved audit bundle posture, and manifest verification.
 - V2 localhost-only correction loop: disposable local data proof that rejection preserves immutable history and a corrected latest packet can become audit-bundle-ready.
-- Local external CSV dry-run validation: synthetic fixture validated by `backend/scripts/validate_external_csv_intake.py` with `row count: 2`, `accepted row count: 2`, and `rejected row count: 0`.
+- Local external CSV dry-run validation: synthetic fixture validated by `backend/scripts/validate_external_csv_intake.py` with `row count: 2`, `accepted row count: 2`, and `rejected row count: 0`; the recorded operator checkpoint is in [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md).
 
 This is pilot-positioned evidence, not full production-user readiness. The CSV validator is dry-run/no-write; V1 production remains read-only; V2 mutation remains localhost-only; and the package does not claim real PHI intake, CMS production submission, FHIR/EHR integration, billing/claims ingestion, staging mutation, or production mutation.
 
