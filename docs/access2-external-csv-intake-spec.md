@@ -112,6 +112,8 @@ Rejected rows should not create partial patient, outcome, evidence, care update,
 
 ## Synthetic Sample CSV
 
+Use [docs/examples/access2_external_csv_intake_valid_sample.csv](C:/dev/access2/docs/examples/access2_external_csv_intake_valid_sample.csv) as the local-only valid synthetic fixture for operator rehearsal.
+
 ```csv
 external_record_id,source_entity_name,source_system,patient_external_id,patient_first_name,patient_last_name,patient_dob,condition_track,measure_name,baseline_value,baseline_date,current_value,current_value_date,patient_reported_outcome,intervention_summary,evidence_note,care_update_summary,provider_npi,organization_tin,consent_status,data_quality_flag,source_file_batch_id
 SYN-REC-001,Synthetic Partner Clinic,partner_outcomes_csv,SYN-PAT-001,Alex,Sample,1968-04-12,hypertension,systolic_bp,156,2026-04-01,128,2026-05-15,"Reports fewer headaches and improved home BP readings","Medication adherence coaching and home BP monitoring completed","Synthetic BP log reviewed; current systolic value improved","Follow-up completed and outcome reviewed",1999999999,999999999,synthetic_only,validated,SYN-BATCH-20260519-A
@@ -119,6 +121,33 @@ SYN-REC-002,Synthetic Partner Clinic,partner_outcomes_csv,SYN-PAT-002,Jordan,Exa
 ```
 
 The sample is synthetic only. It must not be copied into real patient records or treated as PHI.
+
+## Local Dry-Run Operator Example
+
+Run the validator from PowerShell against the synthetic fixture:
+
+```powershell
+cd C:\dev\access2\backend
+py -3 scripts\validate_external_csv_intake.py ..\docs\examples\access2_external_csv_intake_valid_sample.csv
+```
+
+Expected successful output shape:
+
+```text
+ACCESS2 external CSV intake dry-run report
+- source file name: access2_external_csv_intake_valid_sample.csv
+- row count: 2
+- accepted row count: 2
+- rejected row count: 0
+- source entity name(s): Synthetic Partner Clinic
+- source system(s): partner_outcomes_csv
+- dry-run only: no database, network, or file write operations were performed
+- validation summary: all rows accepted
+```
+
+Documented rejected-row example: if row 2 omits `source_system`, the dry run should reject the row, preserve `row_number=2`, report `missing required field: source_system`, and exit non-zero. The row must not create partial patient, outcome, evidence, review packet, audit bundle, or persisted importer state.
+
+This dry run is local-only and no-write. It is not production PHI intake, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, or an open upload workflow.
 
 ## Privacy And Compliance Guardrails
 
