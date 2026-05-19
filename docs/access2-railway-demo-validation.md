@@ -59,6 +59,11 @@ Production E2E baseline:
 - Validates Markdown audit bundle output includes `Audit Readiness Reasons`.
 - Validates PDF audit bundle output is non-empty PDF content.
 
+No-data-change post-deploy copy validation:
+- Use `npm run test:e2e:production-readonly-smoke` when the goal is only to confirm deployed Demo Guide/stakeholder copy without recording audit export events.
+- Do not use the full production E2E suite for strict no-data-change checks because audit bundle export/download paths can record `audit_bundle_exported` events.
+- Reserve the full production E2E suite for validation windows where recording those audit export events is acceptable.
+
 Production E2E command:
 
 ```powershell

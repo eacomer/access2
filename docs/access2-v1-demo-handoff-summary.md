@@ -19,6 +19,7 @@ Use these documents by job:
 - Explain the product/release posture: [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product-release-positioning.md)
 - Run the stakeholder demo: [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md)
 - Validate production readiness: [access2-v1-demo-release-checklist.md](C:/dev/access2/docs/access2-v1-demo-release-checklist.md), [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md), and [access2-railway-demo-validation.md](C:/dev/access2/docs/access2-railway-demo-validation.md)
+- Validate deployed Demo Guide/copy with no production data changes: [access2-v1-demo-guide-clarity-validation.md](C:/dev/access2/docs/access2-v1-demo-guide-clarity-validation.md) and `npm run test:e2e:production-readonly-smoke`
 - Troubleshoot production E2E: [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md)
 - Recreate synthetic demo data: [access2-demo-data-recreation-checklist.md](C:/dev/access2/docs/access2-demo-data-recreation-checklist.md)
 - Demonstrate the local-only V2 correction loop after the V1 demo: [access2-v2-correction-loop-demo.md](C:/dev/access2/docs/access2-v2-correction-loop-demo.md). This is localhost-only and must not be run against shared production demo data.
@@ -127,6 +128,8 @@ Production Railway E2E:
 Fresh production validation on 2026-05-11 returned this baseline against `https://access2.salvardata.com`. One earlier transient login-helper assertion failure passed on rerun and did not indicate a production auth outage.
 
 The two skipped production tests remain expected V1 read-only constraints for Demo Patient 3 reviewer rejection through UI and Demo Patient 4 superuser override approval through UI.
+
+For strict no-data-change post-deploy Demo Guide or copy validation, use `npm run test:e2e:production-readonly-smoke` instead of the full production E2E suite. The full suite exercises audit bundle export/download paths and can record `audit_bundle_exported` events, so reserve it for validation windows where those audit export events are acceptable.
 
 ## Known Non-Blocking Warnings
 

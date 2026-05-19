@@ -43,6 +43,7 @@ V1 production is the safe external demo:
 - Data: synthetic demo data only.
 - Posture: read-only.
 - Baseline: `8 passed, 2 skipped, 0 failed`.
+- Strict no-data-change post-deploy copy check: use `npm run test:e2e:production-readonly-smoke`; use the full production E2E suite only when recording audit export events is acceptable.
 
 The V1 walkthrough shows patient/worklist views, audit-readiness posture, patient evidence panels, immutable review packet history, approved audit bundle posture, and manifest verification. It does not expose production reviewer rejection, override approval, assignment, or snapshot creation mutation controls.
 
@@ -90,7 +91,8 @@ V1 production explains and verifies the audit evidence chain safely in a read-on
 ## Troubleshooting Pointers
 
 - V1 production issue: use [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md) and [access2-v1-demo-handoff-summary.md](C:/dev/access2/docs/access2-v1-demo-handoff-summary.md) first.
-- Production E2E or custom-domain issue: use [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md).
+- Strict post-deploy Demo Guide/copy check: use [access2-v1-demo-guide-clarity-validation.md](C:/dev/access2/docs/access2-v1-demo-guide-clarity-validation.md) and run `npm run test:e2e:production-readonly-smoke`.
+- Full production E2E or custom-domain issue: use [access2-railway-custom-domain-validation.md](C:/dev/access2/docs/access2-railway-custom-domain-validation.md). Do not use the full suite for strict no-data-change validation because audit bundle export/download paths can record `audit_bundle_exported` events.
 - Production seeded data issue: use [access2-demo-data-recreation-checklist.md](C:/dev/access2/docs/access2-demo-data-recreation-checklist.md) and keep data synthetic.
 - V2 local timing, stale `.next`, port, or Playwright issue: use [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) and [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md).
 - Staging question: use [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md); do not run staging mutation until isolated staging is explicitly approved.
