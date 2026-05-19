@@ -149,6 +149,37 @@ Documented rejected-row example: if row 2 omits `source_system`, the dry run sho
 
 This dry run is local-only and no-write. It is not production PHI intake, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, or an open upload workflow.
 
+## Operator Validation Checkpoint - May 19, 2026
+
+Local-only rehearsal command:
+
+```powershell
+cd C:\dev\access2\backend
+py -3 scripts\validate_external_csv_intake.py ..\docs\examples\access2_external_csv_intake_valid_sample.csv
+```
+
+Observed dry-run output:
+
+```text
+ACCESS2 external CSV intake dry-run report
+- source file name: access2_external_csv_intake_valid_sample.csv
+- row count: 2
+- accepted row count: 2
+- rejected row count: 0
+- source entity name(s): Synthetic Partner Clinic
+- source system(s): partner_outcomes_csv
+- dry-run only: no database, network, or file write operations were performed
+- validation summary: all rows accepted
+```
+
+Rehearsal confirmation:
+
+- Row count: `2`.
+- Accepted row count: `2`.
+- Rejected row count: `0`.
+- The dry-run report confirmed no database, network, or file-write operations.
+- The fixture is synthetic demo data only and contains no real PHI.
+
 ## Privacy And Compliance Guardrails
 
 - No real PHI until compliance, security, and data-use approvals are complete.
