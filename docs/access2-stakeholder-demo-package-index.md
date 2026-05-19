@@ -27,7 +27,8 @@ This index is not a new product spec and does not authorize production mutation,
 5. Explain the production baseline: `8 passed, 2 skipped, 0 failed`; the skips are intentional read-only mutation-path skips.
 6. If the audience needs the future workflow story, switch to the V2 localhost-only correction-loop narrative.
 7. Present the V2 correction loop only on verified loopback targets, or use the recorded rehearsal result if local browser tooling is unavailable.
-8. Close with the current release decision: production remains read-only, V2 mutation remains localhost-only, July MVP/pilot readiness includes a bounded external CSV intake requirement/spec candidate, and staging mutation waits for isolated staging approval.
+8. Use the local CSV dry-run result to explain how a synthetic partner outcome file can be validated before any import or persistence exists.
+9. Close with the current release decision: production remains read-only, V2 mutation remains localhost-only, July MVP/pilot readiness includes a bounded external CSV intake requirement/spec candidate, and staging mutation waits for isolated staging approval.
 
 ## Which Demo To Use
 
@@ -62,6 +63,16 @@ V2 localhost is the controlled correction-loop proof:
 - Posture: localhost-only mutation.
 
 The V2 local proof shows reviewer assignment, rejection with reason, immutable rejected snapshot history, corrected/new snapshot creation, corrected approval, `audit_bundle.available=true`, and preserved rejected snapshot backlog/history. It must not run against production, Railway, staging, `https://`, or any non-loopback target.
+
+## July MVP Operator Rehearsal Package
+
+Use this package when the stakeholder conversation needs the full July MVP and pilot-readiness story:
+
+- V1 production read-only demo: current production walkthrough with synthetic data, read-only evidence posture, approved audit bundle posture, and manifest verification.
+- V2 localhost-only correction loop: disposable local data proof that rejection preserves immutable history and a corrected latest packet can become audit-bundle-ready.
+- Local external CSV dry-run validation: synthetic fixture validated by `backend/scripts/validate_external_csv_intake.py` with `row count: 2`, `accepted row count: 2`, and `rejected row count: 0`.
+
+This is pilot-positioned evidence, not full production-user readiness. The CSV validator is dry-run/no-write; V1 production remains read-only; V2 mutation remains localhost-only; and the package does not claim real PHI intake, CMS production submission, FHIR/EHR integration, billing/claims ingestion, staging mutation, or production mutation.
 
 ## Product Positioning Summary
 

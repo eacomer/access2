@@ -141,6 +141,16 @@ Optional fields:
 - July messaging clearly states that real PHI, production mutation, CMS production submission, claims ingestion, billing automation, and full FHIR/EHR integration are out of scope without later approvals.
 - The audit-bundle handoff point remains `audit_bundle.available=true` for the approved latest packet.
 
+## July MVP Operator Rehearsal Package
+
+The July MVP operator package combines three bounded evidence tracks:
+
+1. V1 production read-only demo: show the current stakeholder-safe production walkthrough at `https://access2.salvardata.com` with synthetic demo data and no production mutation controls.
+2. V2 localhost-only correction-loop rehearsal: show reviewer assignment, rejection, preserved rejected snapshot history, corrected/new immutable snapshot creation, corrected approval, and `audit_bundle.available=true` only on loopback targets with disposable synthetic local data.
+3. Local external CSV dry-run validation: show that the synthetic CSV fixture validates through the no-write local validator with `row count: 2`, `accepted row count: 2`, and `rejected row count: 0`.
+
+This package is pilot-positioned evidence for stakeholder walkthroughs and controlled partner conversations. It is not full production-user readiness and does not approve real PHI intake, production mutation, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, or staging mutation.
+
 ## Risks And Guardrails
 
 - Do not blur V1 production read-only demo readiness with production mutation readiness.
