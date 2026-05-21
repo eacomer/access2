@@ -17,6 +17,7 @@ Use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-re
 July candidate scope should stay bounded to:
 
 - Operator-repeatable localhost-only correction-loop rehearsal.
+- Read-only Outcome Evidence Readiness walkthrough from persisted packet evidence, including ACCESS track, metric, baseline/follow-up, readiness status, completeness, and care update milestone.
 - Controlled external CSV intake as a requirement/spec candidate, not importer code yet.
 - Source and batch metadata preservation for accepted pilot or synthetic rows.
 - Strict validation and rejection of malformed rows.
@@ -25,6 +26,8 @@ July candidate scope should stay bounded to:
 - No full FHIR/EHR integration in the July MVP; FHIR-based exchange remains the future CMS-aligned direction.
 - No CMS production submission, claims ingestion, or billing automation.
 - No production mutation controls, override approval expansion, broad admin features, AI features, or broad UI redesign.
+
+May 21, 2026 checkpoint: the July MVP package now includes Outcome Evidence Readiness as a completed read-only capability. The current July story is V1 production read-only demo, V2 localhost-only correction loop, Outcome Evidence Readiness, and local CSV dry-run validation. The next step is a final combined stakeholder/demo rehearsal and feedback capture; staging mutation remains deferred until explicitly approved.
 
 ## V1 Recap
 

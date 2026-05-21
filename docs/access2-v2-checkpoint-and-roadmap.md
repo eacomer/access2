@@ -29,10 +29,17 @@ The patient detail walkthrough now includes a read-only Outcome Evidence Readine
 
 The July 2026 CMS ACCESS timeline makes MVP/pilot readiness the next planning focus. Use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) as the July readiness plan and [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) as the controlled external CSV intake specification.
 
+### May 21, 2026 Update
+
+After the Outcome Evidence Readiness work, the July MVP package has a clearer clinical proof layer: patient detail can now explain ACCESS track outcome evidence, baseline/follow-up, readiness status, evidence completeness, and care update milestone as read-only review readiness from persisted packet evidence. This strengthens the July story from signal to escalation to intervention to measurable outcome to care update to immutable review packet to approval/rejection to audit-ready evidence.
+
+This update does not change the boundary: V1 production remains read-only, V2 mutation remains localhost-only, CSV validation remains dry-run/no-write unless a later slice approves implementation, and CMS submission, claims submission, billing automation, real PHI, and staging mutation remain out of scope.
+
 Current July posture:
 
 - V1 remains the production read-only stakeholder demo.
 - V2 mutation remains localhost-only through the correction-loop proof and operator rehearsal path.
+- Outcome Evidence Readiness is now a completed read-only July MVP capability for stakeholder walkthroughs.
 - July planning focuses on MVP/pilot readiness, not a claim of fully production-ready real PHI or live CMS reimbursement operations.
 - Controlled external CSV intake is a bounded MVP requirement/spec candidate for synthetic or explicitly approved pilot records.
 - Source/batch metadata preservation and strict row validation are part of the CSV intake requirement.
@@ -40,6 +47,13 @@ Current July posture:
 - FHIR-based exchange remains the future CMS-aligned integration direction, not current July build scope.
 - Full EHR integration, CMS production submission, claims ingestion, billing automation, AI features, production mutation controls, and override/admin expansion remain out of scope.
 - Isolated staging remains deferred unless explicitly approved with separate frontend, API, database, tenant, credentials, seed/reset ownership, and teardown.
+
+Remaining July readiness gaps:
+
+- Full July stakeholder walkthrough feedback still needs to be captured.
+- A final combined rehearsal should cover V1 production, V2 localhost correction loop, Outcome Evidence Readiness, and CSV dry-run validation.
+- The final go/no-go checkpoint should stay pending until real stakeholder feedback is recorded.
+- Any non-local mutation path still requires separate isolated staging approval.
 
 ## Post-Demo Package Checkpoint - May 16, 2026
 

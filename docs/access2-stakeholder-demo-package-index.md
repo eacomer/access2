@@ -38,7 +38,7 @@ This index is not a new product spec and does not authorize production mutation,
 - Engineering handoff: use the V1 handoff summary, V2 local demo handoff index, and V2 checkpoint/roadmap.
 - Demo-day readiness check: use the V1 demo-day script and release checklist; keep V2 local rehearsal separate unless explicitly planned.
 - Future staging decision review: use the V2 checkpoint/roadmap and staging docs only after isolated staging or preview infrastructure is explicitly approved.
-- July MVP/pilot-readiness conversation: use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) to explain what can be shown now, what can be pilot-positioned by July, and what remains future production hardening.
+- July MVP/pilot-readiness conversation: use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) to explain the May 21, 2026 checkpoint, what can be shown now, what can be pilot-positioned by July, and what remains future production hardening.
 - External intake conversation: use [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) to explain the controlled CSV template, validation/rejection posture, source/batch metadata, and why this is not FHIR/EHR integration, CMS production submission, claims ingestion, or billing automation.
 
 ## V1 Production Walkthrough Summary
@@ -83,6 +83,7 @@ Use this package when the stakeholder conversation needs the full July MVP and p
 
 - V1 production read-only demo: current production walkthrough with synthetic data, read-only evidence posture, approved audit bundle posture, and manifest verification.
 - V2 localhost-only correction loop: disposable local data proof that rejection preserves immutable history and a corrected latest packet can become audit-bundle-ready.
+- Outcome Evidence Readiness: read-only patient-detail proof that ACCESS track outcome evidence, baseline/follow-up, readiness status, completeness, and care update milestone help reviewers see whether the outcome story is complete enough for review.
 - Local external CSV dry-run validation: synthetic fixture validated by `backend/scripts/validate_external_csv_intake.py` with `row count: 2`, `accepted row count: 2`, and `rejected row count: 0`; the recorded operator checkpoint is in [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md).
 
 This is pilot-positioned evidence, not full production-user readiness. The CSV validator is dry-run/no-write; V1 production remains read-only; V2 mutation remains localhost-only; and the package does not claim real PHI intake, CMS production submission, FHIR/EHR integration, billing/claims ingestion, staging mutation, or production mutation.
