@@ -23,6 +23,8 @@ original pending snapshot -> assign reviewer -> reject with reason -> corrected 
 
 The local proof strengthens the core ACCESS2 product requirement: interventions must connect to measurable outcomes and defensible evidence. A rejected packet is not refreshed or edited. Corrected current evidence is captured by creating a new immutable review packet snapshot, and that corrected packet can be approved locally while historical rejected/approved packets remain available as read-only audit evidence.
 
+The patient detail walkthrough now includes a read-only Outcome Evidence Readiness section when persisted packet evidence is available. For the local synthetic demo patient, this can show ACCESS track outcome evidence such as eCKM hypertension, systolic BP baseline/follow-up, outcome readiness status, evidence completeness, and care update milestone. This is an evidence-readiness layer only; it is not CMS submission, claims submission, billing automation, real PHI workflow, or production mutation.
+
 ## July ACCESS MVP Readiness Checkpoint - May 19, 2026
 
 The July 2026 CMS ACCESS timeline makes MVP/pilot readiness the next planning focus. Use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) as the July readiness plan and [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) as the controlled external CSV intake specification.
@@ -110,6 +112,7 @@ Recommended next slice: add a small localhost-only V2 correction-loop operator c
 - The approved snapshot becomes terminal/read-only and audit-bundle-ready.
 - Old `packet_json` and `packet_markdown` remain preserved for rejected, approved, and historical packets.
 - Local seed/reset can create a visible synthetic correction story using a later `systolic_bp` outcome and post-rejection care update.
+- Patient detail can show Outcome Evidence Readiness from persisted packet evidence: ACCESS track, metric, baseline/follow-up, readiness status, completeness, and care update milestone.
 - Local mutation E2E validates the chain from assignment to rejection to corrected evidence to new pending snapshot to approved terminal snapshot.
 - Reviewer Work Queue remains read-only; mutation controls stay patient-detail-only.
 - Local mutation E2E is gated by `ACCESS2_ENABLE_LOCAL_MUTATION_E2E=true` and refuses production/Railway-like hosts.
@@ -148,11 +151,13 @@ These V2 mutation paths must remain local-only until a disposable staging or pre
 - Local seed proof story: disposable synthetic marker creates or repairs a local scenario with post-rejection correction evidence.
 - Staging seed/reset dry-run guard: validates non-secret future staging inputs only, refuses production/Railway-like targets, and performs no seed, reset, database, network, or mutation E2E operation.
 - Demo/runbook docs: local-only correction-loop script, troubleshooting, and production don’ts are documented.
+- ACCESS track outcome evidence readiness: backend/demo data supports ACCESS clinical tracks and persisted packet fields, and patient detail displays those fields read-only for stakeholder walkthroughs.
 - Product clarity polish after the correction-loop proof:
   - V2 correction-loop demo script is polished for a 5-10 minute operator walkthrough.
   - Patient detail explains latest actionable packet, historical packets, corrected snapshots, and local-only/read-only posture.
   - Reviewer Work Queue explains immutable snapshot review posture and remains read-only.
   - Patient detail explains that audit bundles export immutable snapshot evidence and manifests verify exported artifacts.
+  - Patient detail explains Outcome Evidence Readiness as readiness evidence, not CMS/claims/billing submission.
 
 ## Latest Known Validation
 

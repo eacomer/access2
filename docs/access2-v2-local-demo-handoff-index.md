@@ -34,6 +34,7 @@ Use [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product
 - Corrected/new snapshot creation from current corrected evidence.
 - Approval of the corrected latest snapshot.
 - `audit_bundle.available=true` after approval.
+- Read-only Outcome Evidence Readiness from persisted packet evidence, including synthetic ACCESS track, metric, baseline/follow-up, readiness status, completeness, and care update milestone.
 - Prior rejected snapshots remain in backlog/history and are not overwritten.
 - Immutable review packet history is preserved.
 
@@ -52,10 +53,11 @@ Use [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product
 1. Confirm local backend and frontend health.
 2. Confirm frontend and API targets are loopback-only.
 3. Confirm the disposable patient starts at latest `pending_review`.
-4. Run the documented local seed/reset only if the disposable patient is terminal.
-5. Follow the operator script for the live walkthrough.
-6. Use fallback language if local browser tooling or local Next.js timing is unavailable.
-7. Record whether the manual rehearsal completed or where it stopped.
+4. On patient detail, explain Outcome Evidence Readiness as read-only readiness evidence, not CMS submission, claims submission, billing, or production mutation.
+5. Run the documented local seed/reset only if the disposable patient is terminal.
+6. Follow the operator script for the live walkthrough.
+7. Use fallback language if local browser tooling or local Next.js timing is unavailable.
+8. Record whether the manual rehearsal completed or where it stopped.
 
 ## Troubleshooting Pointers
 

@@ -12,6 +12,7 @@ For stakeholder-facing review of the complete ACCESS2 demo package, start with [
 
 - V1 production demo remains read-only and synthetic/demo-only.
 - V2 mutation and correction-loop behavior is localhost-only.
+- Outcome Evidence Readiness is a read-only display layer on patient detail when persisted packet evidence is available.
 - The staging path is documented, but staging is not implemented.
 - Production mutation remains prohibited.
 - Shared production demo data must not be mutated.
@@ -25,11 +26,12 @@ The local V2 proof shows this controlled correction-loop story:
 3. The rejected packet remains immutable historical evidence.
 4. Historical `packet_json` and `packet_markdown` are not refreshed or overwritten.
 5. Corrected evidence posture creates a new review packet snapshot.
-6. The corrected latest `pending_review` packet is approved.
-7. The approved packet becomes terminal and read-only.
-8. Historical approved and rejected snapshots remain read-only.
-9. Audit bundle exports package the persisted snapshot evidence.
-10. Manifest verification confirms the exported artifacts match persisted evidence.
+6. Outcome Evidence Readiness can show the synthetic ACCESS track, metric, baseline, follow-up, readiness status, evidence completeness, and care update milestone from the persisted packet.
+7. The corrected latest `pending_review` packet is approved.
+8. The approved packet becomes terminal and read-only.
+9. Historical approved and rejected snapshots remain read-only.
+10. Audit bundle exports package the persisted snapshot evidence.
+11. Manifest verification confirms the exported artifacts match persisted evidence.
 
 ## Operator Clarity Checkpoint - May 19, 2026
 
@@ -39,6 +41,7 @@ Use this checkpoint before a live localhost-only V2 walkthrough so the presenter
 - A rejected terminal snapshot remains preserved and read-only because it is the audit record of what was reviewed, who made the decision, when it happened, and why it was rejected.
 - Corrected/new snapshot creation proves the correction loop by capturing the current corrected evidence in a new immutable packet instead of editing, refreshing, or repairing the rejected packet.
 - Approval must apply only to the corrected latest pending snapshot, after the persisted review checklist has no missing evidence, so the approved packet represents the corrected current case state.
+- Outcome Evidence Readiness should be explained as read-only evidence readiness, not a CMS submission, claims submission, billing workflow, or mutation control. The presenter should identify the ACCESS track/condition, metric, baseline/follow-up, outcome readiness status, completeness, and care update milestone when shown.
 - `audit_bundle.available=true` is the handoff point from review workflow to audit-package posture; it means the corrected approved snapshot is ready for bundle export and later manifest verification.
 - All assignment, rejection, corrected/new snapshot creation, and approval mutation remains localhost-only. Do not run these steps against production, Railway, staging, `https://`, or non-loopback targets.
 
@@ -47,13 +50,19 @@ Use this checkpoint before a live localhost-only V2 walkthrough so the presenter
 Use this chain when explaining why the correction loop matters:
 
 ```text
-signal → escalation → intervention → outcome → evidence → case summary → immutable review packet snapshot → assignment → review decision → audit bundle → manifest verification
+signal -> escalation -> intervention -> outcome -> care update -> evidence -> case summary -> immutable review packet snapshot -> assignment -> review decision -> audit bundle -> manifest verification
 ```
 
 Concise demo phrase:
 
 ```text
 The snapshot captures the evidence. The bundle exports it. The manifest verifies what was exported.
+```
+
+Outcome evidence phrase:
+
+```text
+This is not a claim submission or CMS submission. This is the evidence-readiness layer that helps a provider prove whether the outcome story is complete enough for review.
 ```
 
 ## Demo Prerequisites
@@ -109,6 +118,7 @@ Latest known validation from the completed V2 correction-loop and product clarit
 - Patient correction-loop status messaging: `npm test` 73 passed, lint passed, typecheck passed.
 - Reviewer immutable snapshot UX: `npm test` 75 passed, lint passed, typecheck passed.
 - Audit bundle/manifest visibility: `npm test` 76 passed, lint passed, typecheck passed.
+- Outcome Evidence Readiness backend/demo-data validation passed in the completed prior slice with targeted backend tests, broader backend tests, and `git diff --check`; the frontend display was validated with patient-detail tests, typecheck, lint, build, and `git diff --check`.
 - Product clarity checkpoint: `git diff --check` passed; trailing whitespace scan passed.
 - Staging and production mutation tests were intentionally skipped.
 
@@ -117,6 +127,7 @@ Latest known validation from the completed V2 correction-loop and product clarit
 Use [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md) for the concise live presenter script.
 
 - Patient detail correction-loop status messaging.
+- Outcome Evidence Readiness on patient detail when persisted packet evidence is available, including synthetic ACCESS track, metric, baseline/follow-up, readiness status, completeness, and care update milestone.
 - Latest actionable packet explanation.
 - Terminal historical snapshot read-only posture.
 - Reviewer Work Queue immutable/read-only posture.
@@ -134,6 +145,7 @@ Use [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-lo
 - Do not imply superuser override approval is ready.
 - Do not imply staging mutation E2E is ready.
 - Do not imply production mutation support.
+- Do not imply Outcome Evidence Readiness is a CMS submission, claims submission, billing workflow, or real PHI workflow.
 
 ## Demo Readiness Checklist
 
@@ -146,6 +158,7 @@ Use [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-lo
 - [ ] No production URLs appear in env vars.
 - [ ] Operator can explain the immutable rejected packet.
 - [ ] Operator can explain the corrected new snapshot.
+- [ ] Operator can explain Outcome Evidence Readiness as read-only packet evidence readiness, not CMS/claims/billing submission.
 - [ ] Operator can explain audit bundle and manifest verification.
 - [ ] Production read-only posture is understood.
 

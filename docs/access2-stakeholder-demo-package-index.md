@@ -24,11 +24,12 @@ This index is not a new product spec and does not authorize production mutation,
 2. Use the July MVP readiness plan to frame the distinction between what can be shown now, what can be pilot-positioned by July, and what remains future production hardening.
 3. Run the V1 production read-only walkthrough first at `https://access2.salvardata.com`.
 4. Show the four seeded production demo postures: audit-ready, missing evidence, rejected review, and override-approved review.
-5. Explain the production baseline: `8 passed, 2 skipped, 0 failed`; the skips are intentional read-only mutation-path skips.
-6. If the audience needs the future workflow story, switch to the V2 localhost-only correction-loop narrative.
-7. Present the V2 correction loop only on verified loopback targets, or use the recorded rehearsal result if local browser tooling is unavailable.
-8. Use the local CSV dry-run result to explain how a synthetic partner outcome file can be validated before any import or persistence exists.
-9. Close with the current release decision: production remains read-only, V2 mutation remains localhost-only, July MVP/pilot readiness includes a bounded external CSV intake requirement/spec candidate, and staging mutation waits for isolated staging approval.
+5. On patient detail, call out Outcome Evidence Readiness when visible: ACCESS track, qualifying condition, metric, baseline, follow-up, readiness status, evidence completeness, and care update milestone.
+6. Explain the production baseline: `8 passed, 2 skipped, 0 failed`; the skips are intentional read-only mutation-path skips.
+7. If the audience needs the future workflow story, switch to the V2 localhost-only correction-loop narrative.
+8. Present the V2 correction loop only on verified loopback targets, or use the recorded rehearsal result if local browser tooling is unavailable.
+9. Use the local CSV dry-run result to explain how a synthetic partner outcome file can be validated before any import or persistence exists.
+10. Close with the current release decision: production remains read-only, V2 mutation remains localhost-only, July MVP/pilot readiness includes a bounded external CSV intake requirement/spec candidate, and staging mutation waits for isolated staging approval.
 
 ## Which Demo To Use
 
@@ -51,7 +52,7 @@ V1 production is the safe external demo:
 - Baseline: `8 passed, 2 skipped, 0 failed`.
 - Strict no-data-change post-deploy copy check: use `npm run test:e2e:production-readonly-smoke`; use the full production E2E suite only when recording audit export events is acceptable.
 
-The V1 walkthrough shows patient/worklist views, audit-readiness posture, patient evidence panels, immutable review packet history, approved audit bundle posture, and manifest verification. It does not expose production reviewer rejection, override approval, assignment, or snapshot creation mutation controls.
+The V1 walkthrough shows patient/worklist views, audit-readiness posture, patient evidence panels, Outcome Evidence Readiness when persisted packet data is available, immutable review packet history, approved audit bundle posture, and manifest verification. It does not expose production reviewer rejection, override approval, assignment, or snapshot creation mutation controls.
 
 ## V2 Localhost Walkthrough Summary
 
@@ -62,7 +63,19 @@ V2 localhost is the controlled correction-loop proof:
 - Data: disposable synthetic local demo patient only.
 - Posture: localhost-only mutation.
 
-The V2 local proof shows reviewer assignment, rejection with reason, immutable rejected snapshot history, corrected/new snapshot creation, corrected approval, `audit_bundle.available=true`, and preserved rejected snapshot backlog/history. It must not run against production, Railway, staging, `https://`, or any non-loopback target.
+The V2 local proof shows reviewer assignment, rejection with reason, immutable rejected snapshot history, corrected/new snapshot creation, corrected approval, `audit_bundle.available=true`, Outcome Evidence Readiness for synthetic ACCESS track evidence, and preserved rejected snapshot backlog/history. It must not run against production, Railway, staging, `https://`, or any non-loopback target.
+
+## Outcome Evidence Readiness Talk Track
+
+Use this short explanation when the patient detail page shows the Outcome Evidence Readiness section:
+
+```text
+This is not a claim submission or CMS submission. This is the evidence-readiness layer that helps a provider prove whether the outcome story is complete enough for review.
+```
+
+The section is read-only. It uses persisted review packet data and shows the ACCESS clinical track and qualifying condition, the metric being reviewed, baseline and follow-up evidence, outcome readiness status, evidence completeness, and the care update milestone. In the current demo, this uses synthetic local/demo data only.
+
+Plain-English value proposition: ACCESS2 is connecting the chain from signal to intervention to measurable outcome to care update to immutable review packet to audit-ready evidence. The readiness section helps stakeholders see whether the clinical outcome story is complete enough to review; it is not CMS production submission, claims submission, billing automation, or proof that production mutation is enabled.
 
 ## July MVP Operator Rehearsal Package
 
@@ -87,12 +100,13 @@ V1 production explains and verifies the audit evidence chain safely in a read-on
 ## Proof Boundaries
 
 - V1 production proves read-only evidence posture, audit-readiness visibility, approved audit bundle posture, and manifest verification.
+- V1 and V2 walkthroughs can show Outcome Evidence Readiness as a read-only explanation of clinical track, metric, baseline/follow-up, readiness status, completeness, and care update milestone when persisted packet evidence is available.
 - V2 localhost proves the correction-loop mutation pattern on disposable local data only.
 - Production mutation is not approved.
 - Staging mutation is not approved.
 - Railway mutation is not approved.
 - Override approval UI is not ready.
-- EHR/FHIR, billing, AI, real CMS submission, and real PHI workflows are not claimed.
+- EHR/FHIR, billing, claims submission, AI, real CMS submission, and real PHI workflows are not claimed.
 
 ## Demo-Day Do Not Do
 
@@ -131,6 +145,7 @@ Latest feedback checkpoint: [access2-stakeholder-walkthrough-feedback-and-go-no-
 For the next stakeholder walkthrough, reuse the same package and capture only decision-useful feedback:
 
 - Confirm whether the chronic-care outcome accountability story is clear.
+- Confirm whether the Outcome Evidence Readiness section is understandable as readiness evidence, not CMS/claims/billing submission.
 - Confirm whether immutable review packets and preserved rejected history are clear.
 - Confirm whether audit bundle posture and manifest verification are clear.
 - Confirm whether the V1 production read-only boundary and V2 localhost-only mutation boundary are clear.

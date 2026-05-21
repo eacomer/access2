@@ -4,9 +4,11 @@ This document is a planning artifact only. It does not authorize implementation 
 
 ACCESS2 V2 should extend the V1 evidence chain carefully:
 
-signal -> escalation -> intervention -> outcome -> evidence -> case summary -> immutable review packet snapshot -> assignment -> approval/rejection -> audit bundle -> manifest verification
+signal -> escalation -> intervention -> outcome -> care update -> evidence -> case summary -> immutable review packet snapshot -> assignment -> approval/rejection -> audit bundle -> manifest verification
 
 The core product question remains whether ACCESS2 can prove that chronic care interventions led to measurable outcomes and that the evidence was reviewed through a defensible audit lifecycle.
+
+Outcome Evidence Readiness is now part of the local/demo proof story as a read-only patient-detail display when persisted packet evidence is available. It shows ACCESS track, qualifying condition, metric, baseline/follow-up, outcome readiness status, evidence completeness, and care update milestone. It remains evidence-readiness only, not CMS submission, claims submission, billing automation, real PHI workflow, or production mutation.
 
 ## July MVP Candidate Scope
 

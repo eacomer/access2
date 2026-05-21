@@ -4,7 +4,7 @@
 
 Use this one-page script for a live localhost-only ACCESS2 V2 correction-loop demo.
 
-The demo shows reviewer assignment, rejection, corrected evidence, new snapshot creation, corrected approval, audit bundle readiness, and immutable snapshot history. It is a presenter script, not the full technical handoff.
+The demo shows reviewer assignment, rejection, corrected evidence, read-only Outcome Evidence Readiness, new snapshot creation, corrected approval, audit bundle readiness, and immutable snapshot history. It is a presenter script, not the full technical handoff.
 
 ## Safety Scope
 
@@ -35,25 +35,29 @@ ACCESS2 proves that a patient need moved through signal, escalation, interventio
 
 V2 adds a local reviewer correction loop. A reviewer can assign a packet, reject it with a reason, preserve the rejected packet as immutable history, create a new packet from corrected current evidence, and approve the corrected packet when the persisted checklist is complete.
 
+Outcome Evidence Readiness is the read-only bridge from clinical outcome data to review readiness. It can show the ACCESS track, metric, baseline, follow-up, outcome status, completeness, and care update milestone from persisted packet evidence. It is not CMS submission, claims submission, billing automation, or production mutation.
+
 ## Live Demo Sequence
 
 1. Open the local frontend on the verified loopback URL.
 2. Log in to the local demo environment.
 3. Navigate to the disposable local demo patient.
 4. Show the current review packet posture in the patient review-packet backlog.
-5. Assign the latest `pending_review` snapshot to the reviewer.
-6. Reject the latest pending snapshot with a demo-safe reason.
-7. Show that the rejected snapshot is terminal, read-only, and not audit-bundle-ready.
-8. Create a corrected/new review packet snapshot from current corrected evidence.
-9. Approve the corrected latest `pending_review` snapshot.
-10. Show the latest snapshot is `approved` and audit bundle availability is true.
-11. Show the prior rejected snapshot still appears in backlog/history and was not edited or overwritten.
+5. Show Outcome Evidence Readiness when available, including synthetic ACCESS track evidence, baseline/follow-up, readiness status, completeness, and care update milestone.
+6. Assign the latest `pending_review` snapshot to the reviewer.
+7. Reject the latest pending snapshot with a demo-safe reason.
+8. Show that the rejected snapshot is terminal, read-only, and not audit-bundle-ready.
+9. Create a corrected/new review packet snapshot from current corrected evidence.
+10. Approve the corrected latest `pending_review` snapshot.
+11. Show the latest snapshot is `approved` and audit bundle availability is true.
+12. Show the prior rejected snapshot still appears in backlog/history and was not edited or overwritten.
 
 ## Key Phrases To Say
 
 - "The reviewer is not editing the old snapshot; they are making a decision on an immutable packet."
 - "A rejection does not overwrite the evidence trail."
 - "The correction creates a new packet from the current corrected case state."
+- "This is not a claim submission or CMS submission. This is the evidence-readiness layer that helps a provider prove whether the outcome story is complete enough for review."
 - "The prior rejected snapshot remains part of the audit history."
 - "Approval is only allowed when the persisted checklist has no missing evidence."
 - "This is local-only today; production V1 remains read-only."

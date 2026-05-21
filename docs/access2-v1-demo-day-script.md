@@ -2,12 +2,12 @@
 
 ## Purpose
 
-Use this as the external demo-day entry point for the production ACCESS2 V1 walkthrough. The goal is to show how ACCESS2 proves that a chronic-care need moved through signal, escalation, intervention, outcome, evidence, immutable review, audit bundle readiness, and manifest verification.
+Use this as the external demo-day entry point for the production ACCESS2 V1 walkthrough. The goal is to show how ACCESS2 proves that a chronic-care need moved through signal, escalation, intervention, outcome, care update, evidence, immutable review, audit bundle readiness, and manifest verification.
 
 Core evidence chain:
 
 ```text
-signal -> escalation -> intervention -> outcome -> evidence -> case summary -> immutable review packet snapshot -> approval/rejection -> audit bundle -> manifest verification
+signal -> escalation -> intervention -> outcome -> care update -> evidence -> case summary -> immutable review packet snapshot -> approval/rejection -> audit bundle -> manifest verification
 ```
 
 This walkthrough is read-only. It is for a stakeholder or reviewer presentation, not for creating patients, approving packets, rejecting packets, overriding review, assigning reviewers, exporting new workflow state, or changing seeded demo data.
@@ -47,12 +47,13 @@ Use these patients to show the four intended production postures: audit-ready/ex
 5. Open `Reviewer Queue` at `/audit-readiness`.
 6. Show lifecycle counts, latest review-packet posture, patient-detail links, next-step text, review state, and export state.
 7. Open Demo Patient 1 and show the complete audit-ready path.
-8. If visible, show JSON, Markdown, and PDF audit bundle download posture for the approved/export-ready snapshot.
-9. Open `/audit-bundle-verify` and explain manifest verification using a copied JSON bundle `audit_manifest`.
-10. Open Demo Patient 2 to show missing evidence and readiness reasons.
-11. Open Demo Patient 3 to show rejected review posture and blocked audit readiness.
-12. Open Demo Patient 4 to show override-approved posture without exposing override controls.
-13. Close by restating that ACCESS2 preserves immutable proof history and verifies audit bundles against persisted snapshot data.
+8. If visible, show Outcome Evidence Readiness as read-only evidence-readiness context, not CMS submission or claims submission.
+9. If visible, show JSON, Markdown, and PDF audit bundle download posture for the approved/export-ready snapshot.
+10. Open `/audit-bundle-verify` and explain manifest verification using a copied JSON bundle `audit_manifest`.
+11. Open Demo Patient 2 to show missing evidence and readiness reasons.
+12. Open Demo Patient 3 to show rejected review posture and blocked audit readiness.
+13. Open Demo Patient 4 to show override-approved posture without exposing override controls.
+14. Close by restating that ACCESS2 preserves immutable proof history and verifies audit bundles against persisted snapshot data.
 
 ## Page Talk Track
 
@@ -106,10 +107,13 @@ Show:
 - Evidence Chain panel.
 - Manifest Verification panel.
 - Outcome Proof Gaps panel.
+- Outcome Evidence Readiness section, if present.
 - Review packet backlog and approved/export-ready audit bundle posture.
 - JSON, Markdown, and PDF audit bundle download availability when shown.
 
 Say: "This patient demonstrates the complete path from signal to outcome proof, approved immutable snapshot, audit bundle availability, and manifest verification."
+
+If Outcome Evidence Readiness is visible, say: "This is not a claim submission or CMS submission. This is the evidence-readiness layer that helps a provider prove whether the outcome story is complete enough for review. It shows the ACCESS track and condition, metric, baseline, follow-up, readiness status, completeness, and care update milestone from persisted packet evidence."
 
 ### Demo Patient 2 - Missing Evidence
 
@@ -119,6 +123,7 @@ Show:
 
 - Outcome Proof Gaps and readiness reasons.
 - Missing or incomplete outcome/evidence proof.
+- Missing or incomplete Outcome Evidence Readiness, if present.
 - Next-step explanation.
 
 Say: "ACCESS2 does not treat workflow activity alone as audit-ready. The system must prove measurable outcome evidence."
@@ -154,6 +159,7 @@ Say: "ACCESS2 can surface override-approved evidence state while keeping this pr
 - The Reviewer Queue shows latest review-packet posture without mutation controls.
 - The four seeded patients cover audit-ready, missing-evidence, rejected-review, and override-approved postures.
 - Patient detail pages show evidence, readiness reasons, immutable review-packet posture, and audit-bundle posture.
+- Patient detail can show Outcome Evidence Readiness as read-only persisted packet context for ACCESS track, metric, baseline/follow-up, readiness status, completeness, and care update milestone.
 - Demo Patient 1 can show approved/export-ready audit bundle posture and manifest verification.
 - Audit bundle verification compares a submitted manifest against persisted snapshot data.
 - Immutable review packet snapshots are presented as review history, not rebuilt live during audit reads.
@@ -163,7 +169,7 @@ Say: "ACCESS2 can surface override-approved evidence state while keeping this pr
 - It does not prove production mutation workflows are enabled.
 - It does not demonstrate reviewer rejection, superuser override approval, assignment, or snapshot creation through the production UI.
 - It does not demonstrate V2 correction-loop mutation; V2 mutation remains localhost-only.
-- It does not demonstrate real CMS submission.
+- It does not demonstrate claims submission, billing automation, or CMS production submission.
 - It does not demonstrate EHR, FHIR, billing, payment reconciliation, AI recommendations, predictive analytics, patient portal, or real PHI workflows.
 
 ## Expected Skipped Mutation Paths

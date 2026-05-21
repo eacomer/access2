@@ -187,6 +187,7 @@ Expected observation:
 - Patient detail renders.
 - `Review packet backlog` / `Packet drill-in` is visible.
 - The latest snapshot starts as `Pending Review` after seed/reset.
+- Outcome Evidence Readiness is read-only. When latest persisted packet evidence is available, it shows ACCESS track evidence such as eCKM hypertension, systolic BP baseline/follow-up, readiness status, evidence completeness, and care update milestone.
 
 ### 3. Identify The Latest Actionable Packet
 
@@ -280,6 +281,7 @@ Expected observation:
 - The older rejected snapshot remains visible and read-only.
 - The new snapshot is generated from current evidence.
 - In the local proof, current evidence includes the post-rejection correction marker, a `systolic_bp` outcome value of `124`, source `access2_local_v2_post_rejection_correction`, and an improved outcome trend.
+- Outcome Evidence Readiness can show the synthetic ACCESS track story from the persisted packet: clinical track and condition, metric, baseline measure, follow-up measure, outcome readiness such as `control_achieved` or `minimum_improvement_achieved`, completeness, and the care update milestone.
 
 ### 8. Approve The Corrected Latest Pending Packet
 
@@ -351,18 +353,28 @@ Expected observation:
 Use this proof-chain language:
 
 ```text
-signal -> escalation -> intervention -> outcome -> evidence -> case summary -> immutable review packet snapshot -> assignment -> rejection -> corrected evidence -> new immutable review packet snapshot -> approval -> audit bundle/manifest expectations
+signal -> escalation -> intervention -> outcome -> care update -> evidence -> case summary -> immutable review packet snapshot -> assignment -> rejection -> corrected evidence -> new immutable review packet snapshot -> approval -> audit bundle/manifest expectations
 ```
 
 ACCESS2 does not overwrite review evidence when a reviewer rejects a packet. The rejected packet remains a historical immutable audit artifact, including packet JSON, packet Markdown, review state, reviewer assignment, rejection reason, and audit events.
 
 When evidence or outcomes are corrected, ACCESS2 creates a new immutable review packet snapshot from current evidence. In the local synthetic scenario, the corrected current evidence is visible as a post-rejection care update and an improved `systolic_bp` outcome trend. Review controls apply to the new latest pending snapshot only, while old rejected and approved packets stay available as audit history.
 
+Outcome Evidence Readiness is the presenter bridge between clinical facts and review posture. Say:
+
+```text
+This is not a claim submission or CMS submission. This is the evidence-readiness layer that helps a provider prove whether the outcome story is complete enough for review.
+```
+
+For the local synthetic patient, point out the ACCESS track, metric, baseline, follow-up, outcome readiness status, evidence completeness, and care update milestone. The section supports the ACCESS2 chain from signal to intervention to measurable outcome to care update to immutable review packet to audit-ready evidence; it is not CMS production submission, claims submission, billing automation, or a production mutation workflow.
+
 This supports the ACCESS proof chain because the system can show:
 
 - why the patient needed action
 - what intervention occurred
 - what measurable outcome followed
+- which ACCESS track outcome evidence was ready or missing
+- which care update milestone supported review
 - what evidence supported review
 - which packet was assigned
 - which packet was rejected and why
