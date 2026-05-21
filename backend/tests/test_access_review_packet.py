@@ -276,6 +276,66 @@ def _prepare_review_ready_patient(
     }
 
 
+def _prepare_access_track_review_ready_patient(
+    client: TestClient,
+    headers: dict[str, str],
+    patient_id: str,
+) -> dict:
+    base = datetime.now(timezone.utc).replace(microsecond=0)
+    escalation_id = _create_escalation(client, headers, patient_id)
+    task_id = _create_task(client, headers, escalation_id)
+    baseline = _create_outcome(
+        client,
+        headers,
+        patient_id,
+        metric_name="systolic_bp",
+        value_numeric=148,
+        observed_at=base - timedelta(days=7),
+    )
+    follow_up = _create_outcome(
+        client,
+        headers,
+        patient_id,
+        intervention_task_id=task_id,
+        metric_name="systolic_bp",
+        value_numeric=124,
+        observed_at=base + timedelta(days=1),
+    )
+    care_update = _create_care_update(
+        client,
+        headers,
+        patient_id,
+        summary="ACCESS eCKM hypertension care update milestone documented.",
+        occurred_at=base + timedelta(days=2),
+        escalation_id=escalation_id,
+        intervention_task_id=task_id,
+        outcome_id=follow_up["id"],
+    )
+    resolve_resp = client.post(
+        f"/api/v1/escalations/{escalation_id}/resolve",
+        json={
+            "resolution_reason": "clinically_stable",
+            "resolution_notes": "Synthetic ACCESS track evidence prepared for review packet.",
+            "outcome_id": follow_up["id"],
+            "care_update_id": care_update["id"],
+            "resolved_at": (base + timedelta(days=3)).isoformat(),
+        },
+        headers=headers,
+    )
+    assert resolve_resp.status_code == 200
+    complete_resp = client.post(
+        f"/api/v1/tasks/{task_id}/complete",
+        json={"completion_note": "Prepared ACCESS track outcome evidence."},
+        headers=headers,
+    )
+    assert complete_resp.status_code == 200
+    return {
+        "baseline": baseline,
+        "follow_up": follow_up,
+        "care_update": care_update,
+    }
+
+
 def _update_review_packet_snapshot_review(
     client: TestClient,
     headers: dict[str, str],
@@ -628,6 +688,68 @@ def test_access_review_packet_ready_for_review_matches_underlying_reports(
     assert "clinically_stable" in markdown
     assert "Intervention Summary" in markdown
     assert "Audit Evidence" in markdown
+
+
+def test_access_track_outcome_evidence_is_persisted_in_snapshot_and_audit_bundle(
+    client: TestClient,
+    db_session: Session,
+) -> None:
+    env = _bootstrap_patient_env(client, db_session, slug="review-packet-access-track")
+    prepared = _prepare_access_track_review_ready_patient(
+        client,
+        env["headers"],
+        env["patient_id"],
+    )
+
+    snapshot = _create_review_packet_snapshot(client, env["headers"], env["patient_id"])
+    approved = _update_review_packet_snapshot_review(
+        client,
+        env["headers"],
+        snapshot["id"],
+        review_status="approved",
+        review_note="Synthetic ACCESS track evidence approved.",
+        decision_note="Synthetic ACCESS track evidence approved.",
+    )
+    bundle = _get_review_packet_snapshot_audit_bundle(client, env["headers"], snapshot["id"])
+    bundle_markdown = _get_review_packet_snapshot_audit_bundle_markdown(
+        client,
+        env["headers"],
+        snapshot["id"],
+    )
+
+    evidence = approved["packet_json"]["case_summary"]["access_track_outcome_evidence"]
+    eckm_hypertension = next(
+        item
+        for item in evidence
+        if item["clinical_track"] == "eCKM"
+        and item["qualifying_condition"] == "hypertension"
+    )
+    assert eckm_hypertension == {
+        "clinical_track": "eCKM",
+        "qualifying_condition": "hypertension",
+        "metric_name": "systolic_bp",
+        "baseline_measure": 148.0,
+        "baseline_outcome_id": prepared["baseline"]["id"],
+        "baseline_observed_at": prepared["baseline"]["observed_at"],
+        "follow_up_measure": 124.0,
+        "follow_up_outcome_id": prepared["follow_up"]["id"],
+        "follow_up_observed_at": prepared["follow_up"]["observed_at"],
+        "outcome_status": "control_achieved",
+        "care_update_milestone": "ACCESS eCKM hypertension care update milestone documented.",
+        "care_update_id": prepared["care_update"]["id"],
+        "evidence_completeness_status": "complete",
+    }
+    assert approved["packet_json"]["evidence_report"]["access_track_outcome_evidence"] == evidence
+    assert approved["packet_json"]["case_summary"]["care_update_evidence"][0]["care_update_id"] == (
+        prepared["care_update"]["id"]
+    )
+    assert bundle["packet_json"] == approved["packet_json"]
+    assert bundle["packet_json"]["case_summary"]["access_track_outcome_evidence"] == evidence
+    assert bundle["review_checklist"]["missing_count"] == 0
+    assert "## ACCESS Track Outcome Evidence" in bundle["packet_markdown"]
+    assert "outcome_status=control_achieved" in bundle["packet_markdown"]
+    assert "## Care Update Evidence" in bundle["packet_markdown"]
+    assert "ACCESS eCKM hypertension care update milestone documented." in bundle_markdown
 
 
 def test_access_review_packet_active_open_work_for_mixed_history(

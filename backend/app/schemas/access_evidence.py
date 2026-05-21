@@ -18,6 +18,22 @@ class OutcomeMetricSummary(BaseModel):
     latest_outcome_id: UUID | None = None
 
 
+class AccessTrackOutcomeEvidence(BaseModel):
+    clinical_track: str
+    qualifying_condition: str
+    metric_name: str
+    baseline_measure: float | str | None = None
+    baseline_outcome_id: UUID | None = None
+    baseline_observed_at: datetime | None = None
+    follow_up_measure: float | str | None = None
+    follow_up_outcome_id: UUID | None = None
+    follow_up_observed_at: datetime | None = None
+    outcome_status: str
+    care_update_milestone: str | None = None
+    care_update_id: UUID | None = None
+    evidence_completeness_status: str
+
+
 class InterventionOutcomeLink(BaseModel):
     intervention_task_id: UUID
     intervention_timestamp: datetime | None = None
@@ -132,6 +148,8 @@ class AccessCaseSummaryResponse(BaseModel):
     escalation_summary: AccessCaseEscalationSummary
     interventions: list[AccessCaseInterventionSummaryItem] = Field(default_factory=list)
     outcome_summaries: list[OutcomeMetricSummary] = Field(default_factory=list)
+    access_track_outcome_evidence: list[AccessTrackOutcomeEvidence] = Field(default_factory=list)
+    care_update_evidence: list[AccessCaseCareUpdateSummary] = Field(default_factory=list)
     latest_care_update: AccessCaseCareUpdateSummary | None = None
     evidence_completeness: AccessCaseEvidenceCompleteness
     review_readiness: AccessReviewReadinessSummary
@@ -141,6 +159,8 @@ class AccessCaseSummaryResponse(BaseModel):
 class AccessEvidenceResponse(BaseModel):
     patient_id: UUID
     outcome_summaries: list[OutcomeMetricSummary] = Field(default_factory=list)
+    access_track_outcome_evidence: list[AccessTrackOutcomeEvidence] = Field(default_factory=list)
+    care_update_evidence: list[AccessCaseCareUpdateSummary] = Field(default_factory=list)
     intervention_outcome_links: list[InterventionOutcomeLink] = Field(default_factory=list)
     escalation_resolution_summaries: list[EscalationResolutionSummary] = Field(default_factory=list)
     review_readiness: AccessReviewReadinessSummary

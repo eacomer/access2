@@ -25,6 +25,8 @@ from scripts.seed_railway_demo_cases import (
     seed_demo_cases,
 )
 from scripts.seed_local_v2_rejection_mutation import (
+    ACCESS_TRACK_BASELINE_OUTCOME_SOURCE,
+    ACCESS_TRACK_BASELINE_OUTCOME_VALUE,
     ENABLE_ENV_VAR,
     LOCAL_REJECTION_EXTERNAL_PATIENT_ID,
     POST_REJECTION_CORRECTION_CARE_SUMMARY,
@@ -189,6 +191,26 @@ def test_local_v2_rejection_mutation_seed_creates_pending_review_disposable_pati
     assert latest_snapshot.review_status == AccessReviewPacketSnapshotReviewStatus.PENDING_REVIEW
     assert latest_snapshot.packet_json
     assert latest_snapshot.packet_markdown
+    access_track_evidence = latest_snapshot.packet_json["case_summary"][
+        "access_track_outcome_evidence"
+    ]
+    eckm_hypertension = next(
+        item
+        for item in access_track_evidence
+        if item["clinical_track"] == "eCKM"
+        and item["qualifying_condition"] == "hypertension"
+    )
+    assert eckm_hypertension["baseline_measure"] == ACCESS_TRACK_BASELINE_OUTCOME_VALUE
+    assert eckm_hypertension["follow_up_measure"] == 132
+    assert eckm_hypertension["outcome_status"] == "minimum_improvement_achieved"
+    assert eckm_hypertension["care_update_milestone"] == (
+        "Synthetic local V2 reviewer rejection mutation case."
+    )
+    assert eckm_hypertension["evidence_completeness_status"] == "complete"
+    assert latest_snapshot.packet_json["case_summary"]["care_update_evidence"]
+    assert "## ACCESS Track Outcome Evidence" in latest_snapshot.packet_markdown
+    assert "outcome_status=minimum_improvement_achieved" in latest_snapshot.packet_markdown
+    assert "## Care Update Evidence" in latest_snapshot.packet_markdown
     assert len(list_patient_signals(db=db_session, context=context, patient=patient)) >= 1
     assert len(list_patient_escalations(db=db_session, context=context, patient=patient)) >= 1
     assert any(
@@ -217,7 +239,7 @@ def test_local_v2_rejection_mutation_seed_rerun_restores_latest_pending_review(
     first_packet_markdown = first_snapshot.packet_markdown
 
     assert POST_REJECTION_CORRECTION_CARE_SUMMARY not in first_packet_markdown
-    assert "status=insufficient_data" in first_packet_markdown
+    assert "outcome_status=minimum_improvement_achieved" in first_packet_markdown
 
     update_access_review_packet_snapshot_review(
         db=db_session,
@@ -256,9 +278,20 @@ def test_local_v2_rejection_mutation_seed_rerun_restores_latest_pending_review(
     systolic_summary = next(
         item for item in outcome_summaries if item["metric_name"] == "systolic_bp"
     )
-    assert systolic_summary["baseline"] == 132
+    assert systolic_summary["baseline"] == ACCESS_TRACK_BASELINE_OUTCOME_VALUE
     assert systolic_summary["latest"] == POST_REJECTION_CORRECTION_OUTCOME_VALUE
     assert systolic_summary["status"] == "improved"
+    corrected_access_track_evidence = snapshots[0].packet_json["case_summary"][
+        "access_track_outcome_evidence"
+    ]
+    corrected_eckm_hypertension = next(
+        item
+        for item in corrected_access_track_evidence
+        if item["clinical_track"] == "eCKM"
+        and item["qualifying_condition"] == "hypertension"
+    )
+    assert corrected_eckm_hypertension["outcome_status"] == "control_achieved"
+    assert corrected_eckm_hypertension["evidence_completeness_status"] == "complete"
 
     latest_care_update = snapshots[0].packet_json["case_summary"]["latest_care_update"]
     assert latest_care_update["summary"] == POST_REJECTION_CORRECTION_CARE_SUMMARY
@@ -270,6 +303,7 @@ def test_local_v2_rejection_mutation_seed_rerun_restores_latest_pending_review(
         patient=restored_patient,
     )
     assert any(outcome.source == POST_REJECTION_CORRECTION_OUTCOME_SOURCE for outcome in outcomes)
+    assert any(outcome.source == ACCESS_TRACK_BASELINE_OUTCOME_SOURCE for outcome in outcomes)
     assert any(update.summary == POST_REJECTION_CORRECTION_CARE_SUMMARY for update in care_updates)
 
     restored_again = seed_local_v2_rejection_mutation_case(db_session)

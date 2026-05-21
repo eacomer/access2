@@ -28,8 +28,84 @@ from app.models.user import User
 from app.schemas.access_evidence import AccessReviewPacketResponse
 from app.services.authz import ensure_organization_access, ensure_tenant_scoped_resource
 
-LOWER_IS_BETTER = {"systolic_bp", "diastolic_bp", "a1c", "missed_days"}
-HIGHER_IS_BETTER = {"completed_checkins", "completed_checkin", "adherence_rate"}
+LOWER_IS_BETTER = {
+    "systolic_bp",
+    "diastolic_bp",
+    "a1c",
+    "hba1c",
+    "ldl",
+    "weight",
+    "uacr",
+    "pain_score",
+    "phq9",
+    "gad7",
+    "whodas",
+    "missed_days",
+}
+HIGHER_IS_BETTER = {"completed_checkins", "completed_checkin", "adherence_rate", "egfr"}
+
+ACCESS_TRACK_OUTCOME_RULES = {
+    "systolic_bp": {
+        "clinical_track": "eCKM",
+        "qualifying_condition": "hypertension",
+        "control_threshold": 130,
+        "minimum_improvement": 10,
+    },
+    "ldl": {
+        "clinical_track": "eCKM",
+        "qualifying_condition": "dyslipidemia",
+        "control_threshold": 100,
+        "minimum_improvement": 10,
+    },
+    "weight": {
+        "clinical_track": "eCKM",
+        "qualifying_condition": "obesity_or_overweight_with_central_obesity_marker",
+        "minimum_improvement": 5,
+    },
+    "hba1c": {
+        "clinical_track": "CKM",
+        "qualifying_condition": "diabetes",
+        "control_threshold": 8,
+        "minimum_improvement": 0.5,
+    },
+    "a1c": {
+        "clinical_track": "CKM",
+        "qualifying_condition": "diabetes",
+        "control_threshold": 8,
+        "minimum_improvement": 0.5,
+    },
+    "egfr": {
+        "clinical_track": "CKM",
+        "qualifying_condition": "chronic_kidney_disease",
+        "minimum_improvement": 0,
+        "higher_is_better": True,
+    },
+    "uacr": {
+        "clinical_track": "CKM",
+        "qualifying_condition": "chronic_kidney_disease",
+        "minimum_improvement": 30,
+    },
+    "pain_score": {
+        "clinical_track": "MSK",
+        "qualifying_condition": "chronic_musculoskeletal_pain",
+        "minimum_improvement": 2,
+    },
+    "phq9": {
+        "clinical_track": "BH",
+        "qualifying_condition": "depression",
+        "minimum_improvement": 5,
+    },
+    "gad7": {
+        "clinical_track": "BH",
+        "qualifying_condition": "anxiety",
+        "minimum_improvement": 4,
+    },
+    "whodas": {
+        "clinical_track": "BH",
+        "qualifying_condition": "behavioral_health_function",
+        "minimum_improvement": 5,
+    },
+}
 
 
 class AccessReviewPacketApprovalBlockedError(Exception):
@@ -64,9 +140,16 @@ def build_access_evidence_report(
     escalations = _load_escalations(db=db, patient=patient)
     care_updates = _load_care_updates(db=db, patient=patient)
     resolution_summaries = _summarize_escalation_resolutions(escalations)
+    access_track_evidence = _build_access_track_outcome_evidence(
+        outcomes=outcomes,
+        care_updates=care_updates,
+    )
+    care_update_evidence = _summarize_care_update_evidence(care_updates)
     return {
         "patient_id": patient.id,
         "outcome_summaries": _summarize_outcomes(outcomes),
+        "access_track_outcome_evidence": access_track_evidence,
+        "care_update_evidence": care_update_evidence,
         "intervention_outcome_links": _derive_intervention_outcome_links(
             tasks=tasks,
             outcomes=outcomes,
@@ -96,6 +179,11 @@ def build_access_case_summary(
     care_updates = _load_care_updates(db=db, patient=patient)
     resolution_summaries = _summarize_escalation_resolutions(escalations)
     outcome_summaries = _summarize_outcomes(outcomes)
+    access_track_evidence = _build_access_track_outcome_evidence(
+        outcomes=outcomes,
+        care_updates=care_updates,
+    )
+    care_update_evidence = _summarize_care_update_evidence(care_updates)
     review_readiness = _build_review_readiness_summary(
         outcomes=outcomes,
         care_updates=care_updates,
@@ -112,6 +200,8 @@ def build_access_case_summary(
         ),
         "interventions": _summarize_interventions(tasks=tasks, outcomes=outcomes),
         "outcome_summaries": outcome_summaries,
+        "access_track_outcome_evidence": access_track_evidence,
+        "care_update_evidence": care_update_evidence,
         "latest_care_update": _summarize_latest_care_update(care_updates),
         "evidence_completeness": _build_evidence_completeness(
             outcomes=outcomes,
@@ -182,6 +272,8 @@ def render_access_review_packet_markdown(packet: dict[str, Any]) -> str:
     latest_care_update = case_summary["latest_care_update"]
     latest_resolution = escalation_summary["latest_resolution"]
     interventions = case_summary["interventions"]
+    access_track_evidence = case_summary.get("access_track_outcome_evidence") or []
+    care_update_evidence = case_summary.get("care_update_evidence") or []
 
     lines = [
         "# ACCESS Review Packet",
@@ -228,6 +320,32 @@ def render_access_review_packet_markdown(packet: dict[str, Any]) -> str:
             "",
             "## Latest Care Update",
             _render_latest_care_update_line(latest_care_update),
+            "",
+            "## ACCESS Track Outcome Evidence",
+        ]
+    )
+
+    if access_track_evidence:
+        for evidence in access_track_evidence:
+            lines.append(_render_access_track_outcome_evidence_line(evidence))
+    else:
+        lines.append("- None")
+
+    lines.extend(
+        [
+            "",
+            "## Care Update Evidence",
+        ]
+    )
+
+    if care_update_evidence:
+        for update in care_update_evidence:
+            lines.append(_render_care_update_evidence_line(update))
+    else:
+        lines.append("- None")
+
+    lines.extend(
+        [
             "",
             "## Latest Resolution",
             _render_latest_resolution_line(latest_resolution),
@@ -2282,6 +2400,153 @@ def _summarize_outcomes(outcomes: list[Outcome]) -> list[dict[str, Any]]:
     return summaries
 
 
+def _build_access_track_outcome_evidence(
+    *,
+    outcomes: list[Outcome],
+    care_updates: list[CareUpdate],
+) -> list[dict[str, Any]]:
+    grouped: dict[str, list[Outcome]] = defaultdict(list)
+    for outcome in outcomes:
+        normalized_metric = outcome.metric_name.strip().lower()
+        if normalized_metric in ACCESS_TRACK_OUTCOME_RULES:
+            grouped[normalized_metric].append(outcome)
+
+    evidence_items: list[dict[str, Any]] = []
+    for metric_name in sorted(grouped):
+        metric_outcomes = sorted(
+            grouped[metric_name],
+            key=lambda outcome: (_normalize_datetime(outcome.observed_at), str(outcome.id)),
+        )
+        rule = ACCESS_TRACK_OUTCOME_RULES[metric_name]
+        baseline = metric_outcomes[0]
+        follow_up = metric_outcomes[-1] if len(metric_outcomes) > 1 else None
+        linked_care_update = _latest_care_update_for_outcome(
+            care_updates=care_updates,
+            outcome=follow_up or baseline,
+        )
+        status = _access_track_outcome_status(
+            metric_name=metric_name,
+            rule=rule,
+            baseline=baseline,
+            follow_up=follow_up,
+        )
+        completeness_status = _access_track_evidence_completeness_status(
+            baseline=baseline,
+            follow_up=follow_up,
+            care_update=linked_care_update,
+        )
+        evidence_items.append(
+            {
+                "clinical_track": rule["clinical_track"],
+                "qualifying_condition": rule["qualifying_condition"],
+                "metric_name": metric_name,
+                "baseline_measure": _outcome_value(baseline),
+                "baseline_outcome_id": baseline.id,
+                "baseline_observed_at": baseline.observed_at,
+                "follow_up_measure": _outcome_value(follow_up) if follow_up is not None else None,
+                "follow_up_outcome_id": follow_up.id if follow_up is not None else None,
+                "follow_up_observed_at": follow_up.observed_at if follow_up is not None else None,
+                "outcome_status": status,
+                "care_update_milestone": (
+                    linked_care_update.summary if linked_care_update is not None else None
+                ),
+                "care_update_id": linked_care_update.id if linked_care_update is not None else None,
+                "evidence_completeness_status": completeness_status,
+            }
+        )
+    return evidence_items
+
+
+def _access_track_outcome_status(
+    *,
+    metric_name: str,
+    rule: dict[str, Any],
+    baseline: Outcome,
+    follow_up: Outcome | None,
+) -> str:
+    if follow_up is None:
+        return "missing_evidence"
+    if baseline.value_numeric is None or follow_up.value_numeric is None:
+        return "incomplete"
+
+    follow_up_value = follow_up.value_numeric
+    control_threshold = rule.get("control_threshold")
+    direction = _metric_direction(metric_name)
+    if control_threshold is not None:
+        if direction == "higher_is_better" and follow_up_value >= control_threshold:
+            return "control_achieved"
+        if direction != "higher_is_better" and follow_up_value <= control_threshold:
+            return "control_achieved"
+
+    delta = follow_up.value_numeric - baseline.value_numeric
+    minimum_improvement = rule.get("minimum_improvement")
+    if minimum_improvement is not None:
+        if direction == "higher_is_better" and delta >= minimum_improvement:
+            return "minimum_improvement_achieved"
+        if direction != "higher_is_better" and -delta >= minimum_improvement:
+            return "minimum_improvement_achieved"
+    return "incomplete"
+
+
+def _access_track_evidence_completeness_status(
+    *,
+    baseline: Outcome,
+    follow_up: Outcome | None,
+    care_update: CareUpdate | None,
+) -> str:
+    if baseline is None or follow_up is None:
+        return "missing_evidence"
+    if care_update is None:
+        return "incomplete"
+    return "complete"
+
+
+def _latest_care_update_for_outcome(
+    *,
+    care_updates: list[CareUpdate],
+    outcome: Outcome,
+) -> CareUpdate | None:
+    linked_updates = [
+        update
+        for update in care_updates
+        if update.outcome_id == outcome.id
+        or (
+            update.intervention_task_id is not None
+            and outcome.intervention_task_id is not None
+            and update.intervention_task_id == outcome.intervention_task_id
+        )
+    ]
+    if not linked_updates:
+        return None
+    return max(
+        linked_updates,
+        key=lambda update: (_normalize_datetime(update.occurred_at), str(update.id)),
+    )
+
+
+def _summarize_care_update_evidence(care_updates: list[CareUpdate]) -> list[dict[str, Any]]:
+    return [
+        {
+            "care_update_id": update.id,
+            "occurred_at": update.occurred_at,
+            "care_update_type": update.care_update_type.value,
+            "summary": update.summary,
+            "escalation_id": update.escalation_id,
+            "intervention_task_id": update.intervention_task_id,
+            "outcome_id": update.outcome_id,
+        }
+        for update in sorted(
+            care_updates,
+            key=lambda item: (_normalize_datetime(item.occurred_at), str(item.id)),
+            reverse=True,
+        )
+    ]
+
+
+def _outcome_value(outcome: Outcome) -> float | str | None:
+    return outcome.value_numeric if outcome.value_numeric is not None else outcome.value_text
+
+
 def _trend_status(
     *,
     metric_name: str,
@@ -3230,6 +3495,28 @@ def _render_latest_care_update_line(latest_care_update: dict[str, Any] | None) -
         f"{_render_datetime(latest_care_update['occurred_at'])}: "
         f"{latest_care_update['summary']} "
         f"({latest_care_update['care_update_type']})"
+    )
+
+
+def _render_access_track_outcome_evidence_line(evidence: dict[str, Any]) -> str:
+    return (
+        "- "
+        f"{evidence['clinical_track']} / {evidence['qualifying_condition']} / "
+        f"{evidence['metric_name']}: baseline={evidence['baseline_measure']}, "
+        f"follow_up={evidence['follow_up_measure']}, "
+        f"outcome_status={evidence['outcome_status']}, "
+        f"care_update_milestone={evidence['care_update_milestone'] or 'none'}, "
+        f"evidence_completeness_status={evidence['evidence_completeness_status']}"
+    )
+
+
+def _render_care_update_evidence_line(update: dict[str, Any]) -> str:
+    return (
+        "- "
+        f"{_render_datetime(update['occurred_at'])}: "
+        f"{update['summary']} "
+        f"({update['care_update_type']}, care_update_id={update['care_update_id']}, "
+        f"outcome_id={update['outcome_id']})"
     )
 
 

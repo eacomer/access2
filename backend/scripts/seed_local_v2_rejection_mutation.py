@@ -40,6 +40,8 @@ from scripts.seed_railway_demo_cases import (
 
 ENABLE_ENV_VAR = "ACCESS2_ENABLE_LOCAL_MUTATION_E2E"
 LOCAL_REJECTION_EXTERNAL_PATIENT_ID = "access2-local-v2-mutation:reviewer-rejection"
+ACCESS_TRACK_BASELINE_OUTCOME_SOURCE = "access2_local_v2_access_track_baseline"
+ACCESS_TRACK_BASELINE_OUTCOME_VALUE = 148
 POST_REJECTION_CORRECTION_OUTCOME_SOURCE = "access2_local_v2_post_rejection_correction"
 POST_REJECTION_CORRECTION_OUTCOME_VALUE = 124
 POST_REJECTION_CORRECTION_CARE_SUMMARY = (
@@ -99,7 +101,7 @@ def seed_local_v2_rejection_mutation_case(db: Session) -> Patient:
         context=context,
         case=LOCAL_REVIEWER_REJECTION_CASE,
     )
-    _ensure_ready_workflow(
+    workflow = _ensure_ready_workflow(
         db=db,
         context=context,
         patient=patient,
@@ -108,6 +110,12 @@ def seed_local_v2_rejection_mutation_case(db: Session) -> Patient:
         resolution_notes="Synthetic local escalation resolved before reviewer rejection mutation test.",
         resolve_with_evidence=True,
     )
+    _ensure_access_track_outcome_evidence(
+        db=db,
+        context=context,
+        patient=patient,
+        follow_up_outcome=workflow["outcome"],
+    )
 
     if _latest_review_status(db=db, context=context, patient=patient) == (
         AccessReviewPacketSnapshotReviewStatus.REJECTED.value
@@ -115,13 +123,50 @@ def seed_local_v2_rejection_mutation_case(db: Session) -> Patient:
         _ensure_post_rejection_correction_evidence(db=db, context=context, patient=patient)
 
     snapshot = _latest_pending_review_snapshot(db=db, context=context, patient=patient)
-    if snapshot is None:
+    if snapshot is None or not _snapshot_has_access_track_outcome_evidence(snapshot):
         snapshot = create_access_review_packet_snapshot(db=db, context=context, patient=patient)
 
     if not snapshot.packet_json or not snapshot.packet_markdown:
         raise RuntimeError(f"Local mutation snapshot {snapshot.id} is missing persisted packet content.")
 
     return patient
+
+
+def _ensure_access_track_outcome_evidence(
+    *,
+    db: Session,
+    context: RequestContext,
+    patient: Patient,
+    follow_up_outcome,
+) -> None:
+    outcomes = list_outcomes_for_patient(db=db, context=context, patient=patient)
+    baseline = next(
+        (
+            item
+            for item in outcomes
+            if item.source == ACCESS_TRACK_BASELINE_OUTCOME_SOURCE
+            and item.metric_name == "systolic_bp"
+        ),
+        None,
+    )
+    if baseline is not None:
+        return
+
+    create_outcome(
+        db,
+        context=context,
+        payload=OutcomeCreate(
+            patient_id=patient.id,
+            intervention_task_id=None,
+            signal_id=follow_up_outcome.signal_id,
+            type=OutcomeType.BP,
+            metric_name="systolic_bp",
+            value_numeric=ACCESS_TRACK_BASELINE_OUTCOME_VALUE,
+            unit="mmHg",
+            observed_at=follow_up_outcome.observed_at - timedelta(days=7),
+            source=ACCESS_TRACK_BASELINE_OUTCOME_SOURCE,
+        ),
+    )
 
 
 def _ensure_post_rejection_correction_evidence(
@@ -236,6 +281,17 @@ def _latest_pending_review_snapshot(
     if audit_status["review_status"] == AccessReviewPacketSnapshotReviewStatus.PENDING_REVIEW.value:
         return snapshots[0]
     return None
+
+
+def _snapshot_has_access_track_outcome_evidence(snapshot) -> bool:
+    case_summary = (snapshot.packet_json or {}).get("case_summary") or {}
+    evidence = case_summary.get("access_track_outcome_evidence") or []
+    return any(
+        item.get("clinical_track") == "eCKM"
+        and item.get("qualifying_condition") == "hypertension"
+        and item.get("evidence_completeness_status") == "complete"
+        for item in evidence
+    )
 
 
 def _latest_review_status(
