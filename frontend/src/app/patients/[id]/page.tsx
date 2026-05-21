@@ -67,6 +67,16 @@ type EvidenceChainRow = {
   tone: EvidenceChainStatusTone;
   explanation: string;
 };
+type AccessTrackOutcomeEvidence = {
+  clinical_track?: string | null;
+  qualifying_condition?: string | null;
+  metric_name?: string | null;
+  baseline_measure?: string | number | null;
+  follow_up_measure?: string | number | null;
+  outcome_status?: string | null;
+  care_update_milestone?: string | null;
+  evidence_completeness_status?: string | null;
+};
 
 type PageProps = {
   params: Promise<{ id: string }>;
@@ -202,8 +212,56 @@ const formatAuditStatusValue = (value?: string | null) =>
         .join(" ")
     : "—";
 
+const formatEvidenceMeasure = (value?: string | number | null) =>
+  value === undefined || value === null || value === "" ? "Not available" : String(value);
+
+const formatClinicalTrack = (value?: string | null) => value || "Not available";
+
+const formatOutcomeMetric = (value?: string | null) => {
+  if (value === "systolic_bp") {
+    return "Systolic BP";
+  }
+  return formatAuditStatusValue(value);
+};
+
 const formatAssignedReviewer = (assignedReviewerUserId?: string | null) =>
   assignedReviewerUserId ? `User ID: ${assignedReviewerUserId}` : "Unassigned";
+
+const isRecord = (value: unknown): value is Record<string, unknown> =>
+  typeof value === "object" && value !== null && !Array.isArray(value);
+
+const readStringField = (source: Record<string, unknown>, key: string): string | null => {
+  const value = source[key];
+  return typeof value === "string" ? value : null;
+};
+
+const readMeasureField = (source: Record<string, unknown>, key: string): string | number | null => {
+  const value = source[key];
+  return typeof value === "string" || typeof value === "number" ? value : null;
+};
+
+const extractAccessTrackOutcomeEvidence = (
+  snapshot: ReviewPacketSnapshot | null | undefined,
+): AccessTrackOutcomeEvidence[] => {
+  const packetJson = snapshot?.packet_json;
+  if (!isRecord(packetJson)) {
+    return [];
+  }
+  const caseSummary = packetJson.case_summary;
+  if (!isRecord(caseSummary) || !Array.isArray(caseSummary.access_track_outcome_evidence)) {
+    return [];
+  }
+  return caseSummary.access_track_outcome_evidence.filter(isRecord).map((item) => ({
+    clinical_track: readStringField(item, "clinical_track"),
+    qualifying_condition: readStringField(item, "qualifying_condition"),
+    metric_name: readStringField(item, "metric_name"),
+    baseline_measure: readMeasureField(item, "baseline_measure"),
+    follow_up_measure: readMeasureField(item, "follow_up_measure"),
+    outcome_status: readStringField(item, "outcome_status"),
+    care_update_milestone: readStringField(item, "care_update_milestone"),
+    evidence_completeness_status: readStringField(item, "evidence_completeness_status"),
+  }));
+};
 
 const AUDIT_BUNDLE_DOWNLOADS = [
   { format: "json", label: "Download JSON" },
@@ -577,6 +635,104 @@ const renderOutcomeProofGapsPanel = ({
                   <span className={`badge badge--${row.tone}`}>{row.status}</span>
                 </td>
                 <td>{row.explanation}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </div>
+    </>
+  );
+};
+
+const renderAccessTrackOutcomeEvidencePanel = ({
+  backlog,
+  backlogLoadFailed,
+}: {
+  backlog: PatientBacklogDrillInResponse | null;
+  backlogLoadFailed: boolean;
+}) => {
+  if (backlogLoadFailed) {
+    return (
+      <StateNotice
+        tone="warning"
+        title="ACCESS track evidence unavailable"
+        body="Review-packet data failed to load, so ACCESS track outcome evidence readiness cannot be shown."
+      />
+    );
+  }
+
+  const latestSnapshot = backlog?.snapshots.find(
+    (snapshot) => snapshot.id === backlog.audit_status.latest_snapshot_id,
+  );
+  const evidenceItems = extractAccessTrackOutcomeEvidence(latestSnapshot);
+
+  if (!backlog || !latestSnapshot) {
+    return (
+      <StateNotice
+        tone="info"
+        title="No persisted packet evidence yet"
+        body="ACCESS track outcome evidence readiness appears after an immutable review packet snapshot is created."
+      />
+    );
+  }
+
+  if (evidenceItems.length === 0) {
+    return (
+      <StateNotice
+        tone="info"
+        title="No ACCESS track outcome evidence found"
+        body="The latest persisted packet does not include ACCESS clinical track outcome fields yet. This read-only section does not create or submit evidence."
+      />
+    );
+  }
+
+  return (
+    <>
+      <div className="timeline-arrival-context" data-testid="access-track-evidence-context">
+        <p className="worklist-context-label">Evidence readiness only</p>
+        <div className="timeline-arrival-context-body">
+          <ul>
+            <li>
+              Values below come from the latest persisted review packet snapshot and are not rebuilt on read.
+            </li>
+            <li>
+              This section shows outcome evidence readiness for review and demo walkthroughs. It is not CMS
+              submission, claims submission, or a billing workflow.
+            </li>
+          </ul>
+        </div>
+      </div>
+      <div className="audit-readiness-table-wrap">
+        <table className="audit-readiness-table">
+          <thead>
+            <tr>
+              <th>Track and condition</th>
+              <th>Measure</th>
+              <th>Baseline</th>
+              <th>Follow-up</th>
+              <th>Readiness</th>
+              <th>Care update milestone</th>
+            </tr>
+          </thead>
+          <tbody>
+            {evidenceItems.map((item, index) => (
+              <tr key={`${item.clinical_track ?? "track"}:${item.metric_name ?? "metric"}:${index}`}>
+                <th scope="row">
+                  {formatClinicalTrack(item.clinical_track)}{" "}
+                  {item.qualifying_condition ? `· ${formatAuditStatusValue(item.qualifying_condition)}` : ""}
+                </th>
+                <td>{formatOutcomeMetric(item.metric_name)}</td>
+                <td>{formatEvidenceMeasure(item.baseline_measure)}</td>
+                <td>{formatEvidenceMeasure(item.follow_up_measure)}</td>
+                <td>
+                  <span className="badge badge--info">
+                    {formatAuditStatusValue(item.outcome_status)}
+                  </span>
+                  <p className="inline-helper">
+                    Evidence completeness: {formatAuditStatusValue(item.evidence_completeness_status)}
+                  </p>
+                </td>
+                <td>{item.care_update_milestone ?? "Not available"}</td>
               </tr>
             ))}
           </tbody>
@@ -1750,6 +1906,21 @@ export default async function PatientDetailPage({ params, searchParams }: PagePr
           escalationEvidence,
           taskSummary,
           interventionEvidenceSummary,
+        })}
+      </section>
+      <section className="section-card" data-testid="patient-access-track-outcome-evidence-panel">
+        <div className="section-header">
+          <div>
+            <p className="eyebrow">ACCESS track outcome evidence</p>
+            <h2 className="section-title">Outcome Evidence Readiness</h2>
+            <p className="section-subtitle">
+              Read-only clinical track evidence from the latest persisted review packet. This shows readiness for review, not CMS submission.
+            </p>
+          </div>
+        </div>
+        {renderAccessTrackOutcomeEvidencePanel({
+          backlog: patientBacklog,
+          backlogLoadFailed: patientBacklogLoadFailed,
         })}
       </section>
       <section className="section-card" data-testid="patient-manifest-verification-panel">

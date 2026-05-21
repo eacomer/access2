@@ -11,6 +11,14 @@ function readPageSource() {
 
 function extractOutcomeProofGapsRenderer(source) {
   const start = source.indexOf("const renderOutcomeProofGapsPanel");
+  const end = source.indexOf("const renderAccessTrackOutcomeEvidencePanel");
+  assert.notEqual(start, -1);
+  assert.notEqual(end, -1);
+  return source.slice(start, end);
+}
+
+function extractAccessTrackOutcomeEvidenceRenderer(source) {
+  const start = source.indexOf("const renderAccessTrackOutcomeEvidencePanel");
   const end = source.indexOf("const renderEvidenceChainPanel");
   assert.notEqual(start, -1);
   assert.notEqual(end, -1);
@@ -105,6 +113,41 @@ test("outcome proof gaps cover ready, missing evidence, rejected, and override p
   ].forEach((text) => {
     assert.match(renderer, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
   });
+});
+
+test("patient detail renders ACCESS track outcome evidence as read-only readiness", () => {
+  const source = readPageSource();
+  const renderer = extractAccessTrackOutcomeEvidenceRenderer(source);
+
+  assert.match(source, /data-testid="patient-access-track-outcome-evidence-panel"/);
+  assert.match(source, /ACCESS track outcome evidence/);
+  assert.match(source, /Outcome Evidence Readiness/);
+  assert.match(source, /Read-only clinical track evidence from the latest persisted review packet/);
+  assert.match(source, /not CMS submission/);
+  assert.match(source, /extractAccessTrackOutcomeEvidence/);
+  assert.match(renderer, /latest persisted review packet snapshot/);
+  assert.match(renderer, /not rebuilt on read/);
+  assert.match(renderer, /Evidence readiness only/);
+  assert.match(renderer, /claims submission/);
+  assert.match(renderer, /billing workflow/);
+
+  [
+    "Track and condition",
+    "Measure",
+    "Baseline",
+    "Follow-up",
+    "Readiness",
+    "Care update milestone",
+    "Evidence completeness",
+    "No ACCESS track outcome evidence found",
+  ].forEach((text) => {
+    assert.match(renderer, new RegExp(text.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")));
+  });
+
+  assert.doesNotMatch(renderer, /<button/i);
+  assert.doesNotMatch(renderer, /<a\s/i);
+  assert.doesNotMatch(renderer, /href=/i);
+  assert.doesNotMatch(renderer, /method:\s*"POST"/i);
 });
 
 test("patient detail exposes audit bundle downloads only for approved export-ready snapshots", () => {
