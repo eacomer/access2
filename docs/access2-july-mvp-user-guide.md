@@ -59,7 +59,7 @@ Each step should make the next step easier to verify. The point is not only to r
 
 ## Screenshot Guide
 
-Existing screenshots are reused where available. Missing screenshots should be captured later into:
+Screenshots are stored in:
 
 ```text
 docs/assets/access2-july-mvp-user-guide/
@@ -78,57 +78,37 @@ Use this first for stakeholder walkthroughs.
 
 ### Screenshot 1 - Login Screen
 
-![Production login](assets/access2-demo-walkthrough/01-login.png)
+![Production login](assets/access2-july-mvp-user-guide/01-login.png)
 
 Caption: The ACCESS2 login screen for the production read-only walkthrough. Do not expose passwords, tokens, cookies, or session values.
 
 ### Screenshot 2 - Dashboard Or Landing Screen
 
-Screenshot placeholder:
-
-```text
-docs/assets/access2-july-mvp-user-guide/02-v1-dashboard-or-landing.png
-```
+![Dashboard or landing screen](assets/access2-july-mvp-user-guide/02-dashboard-or-landing.png)
 
 Caption: The first read-only screen after sign-in, used to orient stakeholders to the ACCESS2 demo path.
 
 ### Screenshot 3 - Patient Detail Page
 
-Screenshot placeholder:
-
-```text
-docs/assets/access2-july-mvp-user-guide/03-v1-patient-detail.png
-```
+![Patient detail page](assets/access2-july-mvp-user-guide/03-patient-detail.png)
 
 Caption: Patient detail shows the synthetic care story, including signal, escalation, intervention, outcome, and review evidence.
 
 ### Screenshot 4 - Outcome Evidence Readiness
 
-Screenshot placeholder:
+![Outcome Evidence Readiness](assets/access2-july-mvp-user-guide/04-outcome-evidence-readiness.png)
 
-```text
-docs/assets/access2-july-mvp-user-guide/04-v1-outcome-evidence-readiness.png
-```
-
-Caption: Outcome Evidence Readiness explains the ACCESS track, metric, baseline, follow-up, readiness status, evidence completeness, and care update milestone from persisted packet evidence.
+Caption: Outcome Evidence Readiness is a read-only section from persisted packet evidence. In this production screenshot, the latest persisted packet does not include ACCESS clinical track outcome fields yet, so the section clearly says that no evidence is created or submitted.
 
 ### Screenshot 5 - Immutable Review Packet Or Review Summary
 
-Screenshot placeholder:
-
-```text
-docs/assets/access2-july-mvp-user-guide/05-v1-immutable-review-packet.png
-```
+![Immutable review packet](assets/access2-july-mvp-user-guide/05-immutable-review-packet.png)
 
 Caption: The review packet is preserved as immutable evidence. Reads must use persisted `packet_json` and `packet_markdown`; the packet is not rebuilt during audit reads.
 
 ### Screenshot 6 - Audit-Ready Evidence Or Audit Bundle Visibility
 
-Screenshot placeholder:
-
-```text
-docs/assets/access2-july-mvp-user-guide/06-v1-audit-ready-evidence.png
-```
+![Audit-ready evidence](assets/access2-july-mvp-user-guide/06-audit-ready-evidence.png)
 
 Caption: Audit-ready evidence shows that an approved review packet can reach audit bundle posture and manifest verification without changing production workflow state during the read-only walkthrough.
 
@@ -146,17 +126,9 @@ The V2 local proof shows that a reviewer can assign, reject with a reason, prese
 
 ### Screenshot 7 - Localhost Correction-Loop Screen
 
-![V2 local login](assets/access2-demo-walkthrough/08-v2-local-login.png)
+![Localhost correction-loop entrypoint](assets/access2-july-mvp-user-guide/07-localhost-correction-loop.png)
 
-Caption: Localhost-only V2 access starts on loopback targets. Any mutation proof must remain local and synthetic.
-
-Additional screenshot placeholder:
-
-```text
-docs/assets/access2-july-mvp-user-guide/07-v2-localhost-correction-loop.png
-```
-
-Caption: The localhost-only correction-loop proof shows reviewer rejection, corrected evidence, preserved history, and corrected approval on disposable synthetic data.
+Caption: Localhost-only V2 access starts on loopback targets. This safe entrypoint image does not show a live mutation workflow. A full correction-loop screenshot should be captured manually only from verified localhost with disposable synthetic data.
 
 ## Local CSV Dry-Run Validation
 
@@ -194,11 +166,7 @@ ACCESS2 external CSV intake dry-run report
 
 ### Screenshot 8 - CSV Dry-Run Validation Terminal Output
 
-Screenshot placeholder:
-
-```text
-docs/assets/access2-july-mvp-user-guide/08-csv-dry-run-validation-terminal.png
-```
+![CSV dry-run validation terminal output](assets/access2-july-mvp-user-guide/08-csv-dry-run-output.png)
 
 Caption: The terminal output confirms a local no-write validation of the synthetic CSV fixture with 2 accepted rows and 0 rejected rows.
 

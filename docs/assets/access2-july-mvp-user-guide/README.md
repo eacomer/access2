@@ -9,12 +9,17 @@ Guardrails:
 - Do not capture staging or production mutation workflows.
 - Do not include real PHI, secrets, passwords, tokens, cookies, or session values.
 
-Planned files:
+## Captured Or Placed Files
 
-- `02-v1-dashboard-or-landing.png`
-- `03-v1-patient-detail.png`
-- `04-v1-outcome-evidence-readiness.png`
-- `05-v1-immutable-review-packet.png`
-- `06-v1-audit-ready-evidence.png`
-- `07-v2-localhost-correction-loop.png`
-- `08-csv-dry-run-validation-terminal.png`
+- `01-login.png` - captured from the production login screen; no visible secrets.
+- `02-dashboard-or-landing.png` - captured from the production read-only patient queue.
+- `03-patient-detail.png` - captured from the production read-only Demo Patient 1 detail page.
+- `04-outcome-evidence-readiness.png` - captured from the production read-only Outcome Evidence Readiness section. Current persisted production packet data shows no ACCESS clinical track outcome fields in this section.
+- `05-immutable-review-packet.png` - captured from the production read-only review packet backlog.
+- `06-audit-ready-evidence.png` - captured from the production read-only audit bundle verification posture.
+- `07-localhost-correction-loop.png` - placed from the existing safe localhost login screenshot. This is a localhost-only V2 entrypoint image, not a live mutation-loop capture.
+- `08-csv-dry-run-output.png` - generated from the documented local dry-run/no-write CSV validator output after the validator was run against the synthetic sample.
+
+## Pending Manual Capture
+
+- Full V2 correction-loop proof screenshot after reviewer rejection/correction/approval remains pending. Capture it only on verified loopback targets with disposable synthetic local data. Do not capture staging or production mutation workflows.
