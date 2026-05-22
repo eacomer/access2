@@ -27,7 +27,7 @@ July candidate scope should stay bounded to:
 - No CMS production submission, claims ingestion, or billing automation.
 - No production mutation controls, override approval expansion, broad admin features, AI features, or broad UI redesign.
 
-May 21, 2026 checkpoint: the July MVP package now includes Outcome Evidence Readiness as a completed read-only capability. The current July story is V1 production read-only demo, Outcome Evidence Readiness, V2 localhost-only correction loop, and local CSV dry-run validation. The next step is a final combined stakeholder/demo rehearsal using [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md), followed by feedback capture; staging mutation remains deferred until explicitly approved.
+May 21, 2026 checkpoint: the July MVP package now includes Outcome Evidence Readiness as a completed read-only capability. The current July story is V1 production read-only demo, Outcome Evidence Readiness, V2 localhost-only correction loop, and local CSV dry-run validation. The next step is a final combined stakeholder/demo rehearsal using [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md), which also carries the validation evidence summary, July must-fix template, and go/no-go criteria, followed by feedback capture; staging mutation remains deferred until explicitly approved.
 
 ## V1 Recap
 

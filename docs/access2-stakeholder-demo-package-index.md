@@ -10,7 +10,7 @@ This index is not a new product spec and does not authorize production mutation,
 
 1. [access2-product-release-positioning.md](C:/dev/access2/docs/access2-product-release-positioning.md) - use first for the product purpose, release posture, and stakeholder talk track.
 2. [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) - use to separate what can be shown now, what can be pilot-positioned by July, and what remains future production hardening.
-3. [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) - use for the final operator rehearsal, stakeholder questions, decision criteria, and go/no-go capture path.
+3. [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) - use for the final operator rehearsal, validation evidence summary, stakeholder questions, July must-fix template, decision criteria, and go/no-go capture path.
 4. [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) - use when stakeholders ask how approved pilot or partner outcome records could enter the ACCESS2 proof chain without FHIR/EHR integration yet.
 5. [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md) - use for the production read-only stakeholder walkthrough.
 6. [access2-v1-demo-handoff-summary.md](C:/dev/access2/docs/access2-v1-demo-handoff-summary.md) - use for production baseline, validation evidence, and handoff map.
@@ -40,7 +40,7 @@ This index is not a new product spec and does not authorize production mutation,
 - Demo-day readiness check: use the V1 demo-day script and release checklist; keep V2 local rehearsal separate unless explicitly planned.
 - Future staging decision review: use the V2 checkpoint/roadmap and staging docs only after isolated staging or preview infrastructure is explicitly approved.
 - July MVP/pilot-readiness conversation: use [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) to explain the May 21, 2026 checkpoint, what can be shown now, what can be pilot-positioned by July, and what remains future production hardening.
-- Final July rehearsal or go/no-go decision: use [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) for the practical presenter sequence, stakeholder questions, decision criteria, and July must-fix template.
+- Final July rehearsal or go/no-go decision: use [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) for the practical presenter sequence, validation evidence summary, stakeholder questions, decision criteria, July must-fix template, and capture path.
 - External intake conversation: use [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) to explain the controlled CSV template, validation/rejection posture, source/batch metadata, and why this is not FHIR/EHR integration, CMS production submission, claims ingestion, or billing automation.
 
 ## V1 Production Walkthrough Summary
@@ -89,6 +89,8 @@ Use this package when the stakeholder conversation needs the full July MVP and p
 - Local external CSV dry-run validation: synthetic fixture validated by `backend/scripts/validate_external_csv_intake.py` with `row count: 2`, `accepted row count: 2`, and `rejected row count: 0`; the recorded operator checkpoint is in [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md).
 
 This is pilot-positioned evidence, not full production-user readiness. The CSV validator is dry-run/no-write; V1 production remains read-only; V2 mutation remains localhost-only; and the package does not claim real PHI intake, CMS production submission, FHIR/EHR integration, billing/claims ingestion, staging mutation, or production mutation.
+
+The final rehearsal evidence summary lives in [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md). It should be treated as recorded evidence only, not as authorization to rerun production mutation, staging, or V2 mutation suites during the stakeholder walkthrough.
 
 ## Product Positioning Summary
 

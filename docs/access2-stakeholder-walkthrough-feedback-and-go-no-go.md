@@ -60,7 +60,9 @@ If the next walkthrough remains clear, keep the current package stable. If speci
 
 Use this section for the July MVP package walkthrough that connects the V1 production read-only demo, Outcome Evidence Readiness, V2 localhost-only correction-loop narrative or rehearsal, and local external CSV dry-run validation. This is a feedback and decision record only. It does not authorize staging, production mutation, real PHI, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, AI features, or new product scope.
 
-For the final rehearsal path, use [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) before completing the feedback record below.
+For the final rehearsal path, validation evidence summary, July must-fix template, and go/no-go criteria, use [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) before completing the feedback record below.
+
+May 22, 2026 package-readiness status: the final walkthrough rehearsal package is complete and ready for live stakeholder feedback capture. This is not a final stakeholder acceptance decision. Keep the current recommendation at `conditional go` until live July package feedback is recorded in the template below.
 
 ## July MVP Facilitator Rehearsal Checklist
 
@@ -69,6 +71,7 @@ Use this checklist before the next live stakeholder walkthrough if no live feedb
 ### Pre-Walkthrough Setup
 
 - Confirm the walkthrough uses [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md) as the entry point.
+- Confirm the presenter has [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) open for recorded validation evidence, stakeholder questions, decision criteria, and the July must-fix template.
 - Confirm the presenter order: V1 production read-only demo, Outcome Evidence Readiness, V2 localhost-only correction-loop narrative or rehearsal, then local CSV dry-run validation result.
 - Confirm the audience understands the July MVP posture: pilot-positioned evidence, not full production-user readiness.
 - Confirm no real PHI will be entered, pasted, imported, or discussed as live patient data.

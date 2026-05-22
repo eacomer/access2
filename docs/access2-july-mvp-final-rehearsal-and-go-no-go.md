@@ -32,6 +32,42 @@ This is a rehearsal and feedback-capture package. It is not a new product spec, 
 - Local CSV dry-run validation can show how a synthetic partner outcome record could be checked before import or persistence exists.
 - ACCESS2 can connect signal, intervention, measurable outcome, care update, immutable review, and audit-ready evidence in a stakeholder-readable chain.
 
+## Validation Evidence Summary
+
+Use this as the single rehearsal evidence summary. It records already captured validation evidence; it is not approval to rerun production mutation, staging, or local mutation E2E during the walkthrough.
+
+- V1 production read-only smoke: `npm run test:e2e:production-readonly-smoke` passed with `1 passed`. This was a strict no-data-change smoke check only; it did not run production mutation, staging mutation, or audit bundle export validation.
+- V2 localhost-only correction-loop proof: the local disposable synthetic flow previously proved assignment, rejection, preserved rejected packet history, corrected/new immutable snapshot creation, corrected approval, and `audit_bundle.available=true` on loopback targets only.
+- Local CSV dry-run/no-write validation: `backend/scripts/validate_external_csv_intake.py` validated `docs/examples/access2_external_csv_intake_valid_sample.csv` with `row count: 2`, `accepted row count: 2`, and `rejected row count: 0`, with no database, network, or file-write operations.
+- Outcome Evidence Readiness display: patient detail can show ACCESS track, qualifying condition, metric, baseline/follow-up, readiness status, evidence completeness, and care update milestone from persisted packet evidence as read-only review readiness.
+
+Evidence boundaries:
+
+- Production validation remains read-only.
+- V2 mutation evidence remains localhost-only.
+- CSV validation remains local dry-run/no-write.
+- None of this is CMS production submission, claims submission, billing automation, real PHI intake, staging mutation, production mutation, EHR/FHIR integration, AI, or broad admin scope.
+
+## July MVP Readiness Package Completion - May 22, 2026
+
+The July MVP readiness package is complete for a live final walkthrough rehearsal when the presenter can use this document from start to finish without tribal knowledge.
+
+Completion status:
+
+- Final walkthrough rehearsal path: complete in this document.
+- Validation evidence summary: complete in this document and bounded to recorded safe evidence.
+- Stakeholder feedback capture path: complete through [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md).
+- Go / conditional go / no-go criteria: complete in this document.
+- July must-fix template: complete in this document.
+- Main project doc routing: complete through the July readiness plan, stakeholder package index, V2 checkpoint/roadmap, V2 planning outline, and stakeholder feedback/go-no-go note.
+
+Current recommendation before live July feedback:
+
+- Recommendation: `conditional go` for conducting the live July MVP stakeholder walkthrough using the current package.
+- Reason: the rehearsal package, recorded validation evidence, stakeholder capture prompts, must-fix template, and decision criteria are ready, but actual July package feedback is not yet recorded.
+- Required next evidence: live stakeholder feedback covering V1 production read-only, Outcome Evidence Readiness, V2 localhost-only correction loop, local CSV dry-run/no-write validation, questions/objections, July must-fix items, and final go / conditional go / no-go recommendation.
+- Explicit non-authorization: this checkpoint does not approve production mutation, staging mutation, real PHI, CMS production submission, claims ingestion, billing automation, EHR/FHIR integration, AI features, broad admin scope, or rebuilding persisted immutable packet/audit-bundle content on read.
+
 ## What The Demo Does Not Prove
 
 - It does not prove production mutation is enabled.
@@ -57,6 +93,7 @@ This is a rehearsal and feedback-capture package. It is not a new product spec, 
 - Confirm the feedback recorder has [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md) open before the walkthrough begins.
 - Confirm no production, Railway, staging, `https://`, or non-loopback mutation target will be used.
 - Confirm no secrets or real credentials are pasted into screenshots, docs, logs, chats, or tickets.
+- Confirm the presenter treats this document's Validation Evidence Summary as recorded evidence, not as authorization to rerun broad tests or mutation suites.
 
 ## Step-By-Step Walkthrough Order
 
@@ -164,6 +201,8 @@ Capture:
 - Any future hardening requests.
 - Final go / conditional go / no-go recommendation.
 
+Keep the recommendation at `conditional go` until actual July package feedback is captured. Move to `go` only when the criteria below are satisfied from live stakeholder feedback, not from earlier package preparation.
+
 ## Presenter Talk Track
 
 Use this concise talk track:
@@ -203,6 +242,7 @@ Use `conditional go` if:
 - The core story is credible, but one or more docs/copy/demo-flow clarifications are needed before broader stakeholder reuse.
 - The needed fixes are bounded to docs, copy, presenter notes, or rehearsal polish.
 - No one is asking to treat staging, production mutation, CMS submission, claims, billing, or real PHI as July-ready.
+- Actual July package feedback is not yet captured, but the package is ready for a live walkthrough.
 
 Use `no-go` if:
 

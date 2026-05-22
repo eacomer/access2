@@ -51,7 +51,7 @@ Current July posture:
 Remaining July readiness gaps:
 
 - Full July stakeholder walkthrough feedback still needs to be captured.
-- A final combined rehearsal should cover V1 production, Outcome Evidence Readiness, V2 localhost correction loop, and CSV dry-run validation. Use [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) for that rehearsal path.
+- A final combined rehearsal should cover V1 production, Outcome Evidence Readiness, V2 localhost correction loop, and CSV dry-run validation. Use [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) for that rehearsal path, validation evidence summary, July must-fix template, and go/no-go criteria.
 - The final go/no-go checkpoint should stay pending until real stakeholder feedback is recorded.
 - Any non-local mutation path still requires separate isolated staging approval.
 
@@ -426,7 +426,7 @@ Override approval can approve a packet despite readiness gaps. That is useful fo
 
 - [access2-v2-planning.md](C:/dev/access2/docs/access2-v2-planning.md)
 - [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md) - July MVP/pilot readiness plan, external CSV intake requirement, and future FHIR boundary.
-- [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) - final July MVP rehearsal path, stakeholder questions, decision criteria, must-fix template, and post-walkthrough documentation instructions.
+- [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) - final July MVP rehearsal path, validation evidence summary, stakeholder questions, decision criteria, must-fix template, and post-walkthrough documentation instructions.
 - [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) - controlled external CSV intake columns, validation rules, batch/source metadata, and rejection examples.
 - [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md) - stakeholder-facing reading order, presenter order, proof boundaries, and next decision.
 - [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) - entry point for the localhost-only V2 demo package.

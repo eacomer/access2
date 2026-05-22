@@ -48,7 +48,7 @@ The July MVP should keep this chain visible and defensible. Any July scope shoul
 
 This checkpoint updates the July MVP posture after the ACCESS Track Outcome Evidence Readiness work. It is documentation-only and does not authorize backend behavior changes, frontend behavior changes, staging mutation, production mutation, CMS submission, claims submission, billing automation, real PHI intake, or changes to immutable packet/audit-bundle read semantics.
 
-Use [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) as the practical operator package for the final rehearsal and stakeholder go/no-go capture.
+Use [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) as the practical operator package for the final rehearsal, validation evidence summary, stakeholder feedback capture, July must-fix template, and go/no-go decision criteria.
 
 What ACCESS2 now proves for the July story:
 
@@ -72,7 +72,7 @@ Stakeholder improvement:
 Remaining July MVP gaps:
 
 - Manual stakeholder walkthrough feedback for the full July package still needs to be captured; do not infer acceptance from earlier partial walkthrough notes.
-- A final demo rehearsal should confirm the presenter can explain V1 production read-only posture, V2 localhost-only correction loop, Outcome Evidence Readiness, and CSV dry-run validation in one coherent sequence.
+- A final demo rehearsal should confirm the presenter can explain V1 production read-only posture, V2 localhost-only correction loop, Outcome Evidence Readiness, and CSV dry-run validation in one coherent sequence. The presenter-ready rehearsal package is now complete in [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md).
 - CSV dry-run demo polish may still be useful if stakeholders need a cleaner operator-facing result view or machine-readable report.
 - A final go/no-go checkpoint is still needed after real stakeholder walkthrough feedback is captured.
 - No staging mutation should proceed until an isolated staging or preview environment is explicitly approved with separate frontend, API, database, tenant, credentials, seed/reset ownership, and teardown.
@@ -189,6 +189,8 @@ The July MVP operator package combines four bounded evidence tracks:
 
 This package is pilot-positioned evidence for stakeholder walkthroughs and controlled partner conversations. It is not full production-user readiness and does not approve real PHI intake, production mutation, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, or staging mutation.
 
+May 22, 2026 completion checkpoint: the final walkthrough rehearsal, recorded validation evidence summary, stakeholder feedback capture path, July must-fix template, and go / conditional go / no-go criteria are complete and routed through [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md). The current decision posture remains `conditional go` until actual July stakeholder feedback is recorded.
+
 ## Risks And Guardrails
 
 - Do not blur V1 production read-only demo readiness with production mutation readiness.
@@ -206,6 +208,6 @@ The first approved implementation is a local-only dry-run CSV intake validator f
 
 Operator rehearsal can use the synthetic fixture at [docs/examples/access2_external_csv_intake_valid_sample.csv](C:/dev/access2/docs/examples/access2_external_csv_intake_valid_sample.csv) with the PowerShell command documented in the CSV intake specification.
 
-Recommended next step: run one final stakeholder/demo rehearsal using [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md), then capture the result in [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md). Keep the recommendation at conditional go until actual July package feedback is recorded.
+Recommended next step: run one final stakeholder/demo rehearsal using [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md), then capture the result in [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md). Keep the recommendation at conditional go until actual July package feedback is recorded. The recorded evidence remains bounded to V1 production read-only smoke `1 passed`, V2 localhost-only correction-loop proof, local CSV dry-run/no-write validation, and Outcome Evidence Readiness display.
 
 If the rehearsal exposes a concrete CSV dry-run presentation gap, keep the follow-up narrow: improve the local dry-run demo output or add a JSON report option. Do not implement CSV upload/import persistence, FHIR/EHR integration, CMS submission, claims ingestion, billing automation, staging mutation, or production mutation until a separate implementation slice is approved.
