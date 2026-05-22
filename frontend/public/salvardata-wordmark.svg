@@ -1,0 +1,8 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="184" height="40" viewBox="0 0 184 40" role="img" aria-labelledby="title desc">
+  <title id="title">SalvarData</title>
+  <desc id="desc">SalvarData wordmark</desc>
+  <rect width="40" height="40" rx="10" fill="#0f766e" />
+  <path d="M12 24c5 0 7-8 16-8" fill="none" stroke="#ffffff" stroke-width="3" stroke-linecap="round" />
+  <path d="M12 28h16" fill="none" stroke="#d9f99d" stroke-width="3" stroke-linecap="round" />
+  <text x="52" y="25" fill="#0f172a" font-family="Inter, Segoe UI, Arial, sans-serif" font-size="20" font-weight="700">SalvarData</text>
+</svg>
