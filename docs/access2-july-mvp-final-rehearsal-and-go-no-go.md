@@ -1,0 +1,240 @@
+# ACCESS2 July MVP Final Rehearsal And Go/No-Go Package
+
+Date/checkpoint: May 21, 2026
+
+## Purpose
+
+Use this document for the final ACCESS2 July MVP walkthrough rehearsal before stakeholder review. The goal is to confirm that the presenter can explain the complete July MVP story in a practical sequence:
+
+```text
+signal -> escalation -> intervention -> measurable outcome -> care update -> immutable review packet -> approval/rejection -> audit-ready evidence
+```
+
+This is a rehearsal and feedback-capture package. It is not a new product spec, does not approve new runtime behavior, and does not authorize staging or production mutation.
+
+## Current Scope And Guardrails
+
+- V1 production remains read-only.
+- V2 mutation remains localhost-only.
+- CSV validation remains local dry-run/no-write.
+- Use synthetic/demo data only.
+- Do not enter, paste, import, or discuss real PHI as live patient data.
+- Do not run staging or production mutation tests.
+- Do not run local mutation E2E as part of the production V1 walkthrough.
+- Do not add claims submission, CMS production submission, billing automation, EHR/FHIR integration, AI features, override approval, or broad admin workflows.
+- Persisted immutable snapshot and audit bundle content must be read from stored `packet_json` and `packet_markdown`; do not rebuild immutable packet or audit bundle content on read.
+
+## What The Demo Proves Today
+
+- V1 production can show a safe read-only evidence and audit-readiness walkthrough using synthetic data.
+- Patient detail can explain Outcome Evidence Readiness from persisted packet evidence: ACCESS track, metric, baseline/follow-up, readiness status, evidence completeness, and care update milestone.
+- V2 localhost can show the correction-loop proof on disposable synthetic local data: assignment, rejection, preserved rejected history, corrected/new immutable snapshot creation, corrected approval, and `audit_bundle.available=true`.
+- Local CSV dry-run validation can show how a synthetic partner outcome record could be checked before import or persistence exists.
+- ACCESS2 can connect signal, intervention, measurable outcome, care update, immutable review, and audit-ready evidence in a stakeholder-readable chain.
+
+## What The Demo Does Not Prove
+
+- It does not prove production mutation is enabled.
+- It does not prove staging mutation is approved or available.
+- It does not prove real PHI readiness.
+- It does not submit claims, submit to CMS, perform billing, or automate payment reconciliation.
+- It does not provide EHR/FHIR integration.
+- It does not create patient, evidence, review packet, audit bundle, database, API, or frontend state from the CSV dry-run.
+- It does not rebuild immutable packet or audit bundle content during read paths.
+
+## Required Pre-Demo Checks
+
+- Confirm `git status -sb` is clean or that any pending changes are known and docs-only.
+- Confirm recent commits include:
+  - `Add local ACCESS track outcome evidence readiness`
+  - `Display ACCESS track outcome evidence read-only`
+  - `Document outcome evidence readiness walkthrough`
+  - `Checkpoint July MVP readiness after outcome evidence`
+- Confirm the presenter has [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md) open as the package entry point.
+- Confirm the presenter has [access2-v1-demo-day-script.md](C:/dev/access2/docs/access2-v1-demo-day-script.md) ready for the production read-only walkthrough.
+- Confirm the presenter has [access2-v2-local-demo-handoff-index.md](C:/dev/access2/docs/access2-v2-local-demo-handoff-index.md) and [access2-v2-local-demo-operator-script.md](C:/dev/access2/docs/access2-v2-local-demo-operator-script.md) ready if showing the localhost-only correction loop.
+- Confirm the presenter has [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) ready for the CSV dry-run/no-write validation narrative.
+- Confirm the feedback recorder has [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md) open before the walkthrough begins.
+- Confirm no production, Railway, staging, `https://`, or non-loopback mutation target will be used.
+- Confirm no secrets or real credentials are pasted into screenshots, docs, logs, chats, or tickets.
+
+## Step-By-Step Walkthrough Order
+
+### 1. V1 Production Read-Only Demo
+
+Open the production read-only demo at:
+
+```text
+https://access2.salvardata.com
+```
+
+Show:
+
+- Demo Guide and Release Summary.
+- Reviewer Queue as read-only posture and navigation.
+- Seeded synthetic patient detail pages.
+- Evidence Chain, Outcome Proof Gaps, review packet history, approved audit bundle posture, and manifest verification.
+
+Say:
+
+```text
+This is the safe external demo. It uses synthetic data and shows audit-readiness evidence without exposing production mutation controls.
+```
+
+### 2. Outcome Evidence Readiness Read-Only Display
+
+On patient detail, point to the Outcome Evidence Readiness section when persisted packet evidence is available.
+
+Show:
+
+- ACCESS track and qualifying condition.
+- Metric.
+- Baseline and follow-up evidence.
+- Outcome readiness status.
+- Evidence completeness.
+- Care update milestone.
+
+Say:
+
+```text
+This is not a claim submission or CMS submission. This is the evidence-readiness layer that helps a provider prove whether the outcome story is complete enough for review.
+```
+
+### 3. V2 Localhost-Only Correction-Loop Proof
+
+Use a verified loopback frontend and API target only:
+
+```text
+http://localhost:3000
+http://localhost:3001
+http://localhost:8000/api/v1
+```
+
+Show or narrate:
+
+- Disposable synthetic local patient.
+- Latest pending packet assignment.
+- Rejection with reason.
+- Preserved rejected packet history.
+- Corrected/new immutable snapshot.
+- Corrected approval.
+- `audit_bundle.available=true`.
+
+Say:
+
+```text
+The old rejected packet is not repaired or overwritten. The corrected current evidence creates a new immutable packet, and only the corrected latest packet proceeds to approval.
+```
+
+Stop if any target is production-like, Railway-like, staging, `https://`, or non-loopback.
+
+### 4. Local CSV Dry-Run/No-Write Validation
+
+Use [access2-external-csv-intake-spec.md](C:/dev/access2/docs/access2-external-csv-intake-spec.md) and the synthetic fixture:
+
+```text
+docs/examples/access2_external_csv_intake_valid_sample.csv
+```
+
+Show or narrate the recorded dry-run result:
+
+```text
+row count: 2
+accepted row count: 2
+rejected row count: 0
+```
+
+Say:
+
+```text
+This is dry-run validation only. It does not create patients, evidence, review packets, audit bundles, database rows, API state, or frontend state.
+```
+
+### 5. Stakeholder Feedback Capture
+
+Open [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md) and capture feedback during the walkthrough.
+
+Capture:
+
+- What landed well.
+- What caused confusion.
+- Questions or objections.
+- Whether V1 read-only, V2 localhost-only, Outcome Evidence Readiness, and CSV dry-run/no-write boundaries were clear.
+- Any July must-fix items.
+- Any future hardening requests.
+- Final go / conditional go / no-go recommendation.
+
+## Presenter Talk Track
+
+Use this concise talk track:
+
+```text
+ACCESS2 is an evidence and audit-readiness system for chronic-care accountability. The July MVP package shows how a signal becomes an intervention, how the intervention is tied to measurable outcome evidence, how a care update supports review, and how that evidence is captured in an immutable review packet and audit-ready posture.
+
+The production V1 demo is read-only and synthetic. The V2 correction loop is localhost-only and synthetic. Outcome Evidence Readiness helps the reviewer see whether the outcome story is complete enough for review. CSV validation is local dry-run only. None of this is claims submission, CMS production submission, billing, real PHI intake, or production mutation.
+```
+
+## Stakeholder Questions To Ask
+
+- Is the chronic-care outcome accountability story clear?
+- Is it clear what ACCESS2 can show today in production?
+- Is it clear that V1 production remains read-only?
+- Is it clear that V2 mutation remains localhost-only?
+- Is Outcome Evidence Readiness understandable as review readiness, not submission or billing?
+- Is the path from measurable outcome to care update to immutable review packet clear?
+- Is the audit bundle handoff point clear?
+- Is the CSV dry-run/no-write boundary clear?
+- What would a provider, payor, CMS-oriented reviewer, or patient-facing audience need clarified before July?
+- What is a true July must-fix versus future production hardening?
+
+## Go / Conditional Go / No-Go Criteria
+
+Use `go` only if:
+
+- Stakeholders understand the ACCESS2 proof chain.
+- V1 production read-only posture is clear.
+- V2 localhost-only mutation posture is clear.
+- Outcome Evidence Readiness is clear as review readiness.
+- CSV dry-run/no-write posture is clear.
+- No July-blocking confusion or evidence gap is identified.
+
+Use `conditional go` if:
+
+- The core story is credible, but one or more docs/copy/demo-flow clarifications are needed before broader stakeholder reuse.
+- The needed fixes are bounded to docs, copy, presenter notes, or rehearsal polish.
+- No one is asking to treat staging, production mutation, CMS submission, claims, billing, or real PHI as July-ready.
+
+Use `no-go` if:
+
+- Stakeholders cannot understand the evidence-to-audit-bundle story.
+- The V1 production read-only or V2 localhost-only boundary is materially unclear.
+- Outcome Evidence Readiness is mistaken for CMS submission, claims submission, or billing.
+- CSV dry-run validation is mistaken for import/persistence.
+- A concrete July blocker requires product, compliance, staging, or mutation work that has not been approved.
+
+## July Must-Fix List Template
+
+Use this only for items that block a credible July MVP or pilot-positioned walkthrough.
+
+```text
+Must-fix item:
+Why it blocks July MVP readiness:
+Evidence source or stakeholder quote:
+Owner:
+Required by:
+Fix type: docs / copy / demo rehearsal / product implementation requiring separate approval
+Guardrails affected:
+Evidence needed for closure:
+Status:
+```
+
+## Post-Walkthrough Documentation Update Instructions
+
+After the walkthrough:
+
+1. Update [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md) with the actual audience, questions, objections, must-fix items, and go / conditional go / no-go recommendation.
+2. If the feedback changes July readiness, add a dated note to [access2-july-mvp-readiness-plan.md](C:/dev/access2/docs/access2-july-mvp-readiness-plan.md).
+3. If the feedback changes package routing, update [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md).
+4. If the feedback creates a V2 planning decision, update [access2-v2-checkpoint-and-roadmap.md](C:/dev/access2/docs/access2-v2-checkpoint-and-roadmap.md) or [access2-v2-planning.md](C:/dev/access2/docs/access2-v2-planning.md).
+5. Keep future-scope requests separate from July must-fix items unless they directly block the July MVP story.
+6. Do not convert stakeholder interest into implementation approval. Use a separate approved slice for any product, staging, mutation, PHI, CMS, claims, billing, EHR/FHIR, AI, or admin work.

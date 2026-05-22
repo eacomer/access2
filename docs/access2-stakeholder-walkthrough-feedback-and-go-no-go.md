@@ -58,7 +58,9 @@ If the next walkthrough remains clear, keep the current package stable. If speci
 
 ## July MVP Stakeholder Feedback And Go/No-Go Capture
 
-Use this section for the July MVP package walkthrough that connects the V1 production read-only demo, V2 localhost-only correction-loop narrative or rehearsal, and local external CSV dry-run validation. This is a feedback and decision record only. It does not authorize staging, production mutation, real PHI, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, AI features, or new product scope.
+Use this section for the July MVP package walkthrough that connects the V1 production read-only demo, Outcome Evidence Readiness, V2 localhost-only correction-loop narrative or rehearsal, and local external CSV dry-run validation. This is a feedback and decision record only. It does not authorize staging, production mutation, real PHI, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, AI features, or new product scope.
+
+For the final rehearsal path, use [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) before completing the feedback record below.
 
 ## July MVP Facilitator Rehearsal Checklist
 
@@ -67,7 +69,7 @@ Use this checklist before the next live stakeholder walkthrough if no live feedb
 ### Pre-Walkthrough Setup
 
 - Confirm the walkthrough uses [access2-stakeholder-demo-package-index.md](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md) as the entry point.
-- Confirm the presenter order: V1 production read-only demo, V2 localhost-only correction-loop narrative or rehearsal, then local CSV dry-run validation result.
+- Confirm the presenter order: V1 production read-only demo, Outcome Evidence Readiness, V2 localhost-only correction-loop narrative or rehearsal, then local CSV dry-run validation result.
 - Confirm the audience understands the July MVP posture: pilot-positioned evidence, not full production-user readiness.
 - Confirm no real PHI will be entered, pasted, imported, or discussed as live patient data.
 
@@ -77,6 +79,7 @@ Use this checklist before the next live stakeholder walkthrough if no live feedb
 - Ask what the audience believes is pilot-positioned by July.
 - Ask what the audience believes remains future production hardening.
 - Ask whether the V1 production read-only boundary is clear.
+- Ask whether Outcome Evidence Readiness is clear as review readiness, not CMS/claims/billing submission.
 - Ask whether the V2 localhost-only mutation boundary is clear.
 - Ask whether the CSV validator dry-run/no-write boundary is clear.
 - Ask whether the path from evidence to immutable review packet to audit bundle handoff is clear.
@@ -104,7 +107,7 @@ Status: actual stakeholder feedback has not yet been provided for the full July 
 - Date: May 19, 2026.
 - Checkpoint name: July MVP package feedback/go-no-go readiness checkpoint.
 - Presenter/operator: unknown.
-- Package version or docs reviewed: current July MVP package connecting V1 production read-only demo, V2 localhost-only correction-loop narrative or rehearsal, and local CSV dry-run validation.
+- Package version or docs reviewed: current July MVP package connecting V1 production read-only demo, Outcome Evidence Readiness, V2 localhost-only correction-loop narrative or rehearsal, and local CSV dry-run validation.
 
 ### Audience / Persona
 
@@ -127,6 +130,14 @@ Status: actual stakeholder feedback has not yet been provided for the full July 
 - Preserved rejected snapshot history: not yet confirmed by stakeholder feedback.
 - Corrected/new immutable snapshot and corrected latest approval: not yet confirmed by stakeholder feedback.
 - `audit_bundle.available=true` handoff point: not yet confirmed by stakeholder feedback.
+- Confusion, objections, or requested copy clarification: unknown.
+
+### Outcome Evidence Readiness Feedback
+
+- Read-only readiness boundary: not yet confirmed by stakeholder feedback.
+- ACCESS track/metric/baseline/follow-up explanation: not yet confirmed by stakeholder feedback.
+- Care update milestone explanation: not yet confirmed by stakeholder feedback.
+- Not CMS submission, claims submission, or billing: not yet confirmed by stakeholder feedback.
 - Confusion, objections, or requested copy clarification: unknown.
 
 ### CSV Dry-Run Validation Feedback
@@ -173,7 +184,7 @@ These remain future hardening categories and are not authorized by this checkpoi
 
 - Recommendation: conditional go for conducting the live July MVP stakeholder walkthrough using the current package; not yet a go/no-go decision on stakeholder acceptance because actual feedback is unavailable.
 - Reason: the package is prepared for capture, but the feedback fields needed for a final July MVP walkthrough recommendation are still unknown.
-- Conditions or blockers: capture audience/persona, V1 feedback, V2 feedback, CSV dry-run feedback, questions/objections, July must-fix items, future hardening items, and a final go / conditional go / no-go decision after the live walkthrough.
+- Conditions or blockers: capture audience/persona, V1 feedback, Outcome Evidence Readiness feedback, V2 feedback, CSV dry-run feedback, questions/objections, July must-fix items, future hardening items, and a final go / conditional go / no-go decision after the live walkthrough.
 - Explicit non-authorization: this recommendation does not approve staging, production mutation, real PHI, CMS production submission, FHIR/EHR integration, claims ingestion, billing automation, AI features, or new product scope.
 
 ### Walkthrough Date / Checkpoint
@@ -204,6 +215,13 @@ These remain future hardening categories and are not authorized by this checkpoi
 - Was it clear that rejected snapshots remain preserved/read-only history and are not rewritten?
 - Was it clear that corrected evidence creates a corrected/new immutable snapshot and only the corrected latest snapshot proceeds to approval?
 - Was `audit_bundle.available=true` clear as the handoff point?
+- Confusion, objections, or requested copy clarification:
+
+### Outcome Evidence Readiness Feedback
+
+- Was it clear that Outcome Evidence Readiness is read-only review readiness?
+- Was it clear how ACCESS track, metric, baseline/follow-up, readiness status, completeness, and care update milestone support review?
+- Was it clear that Outcome Evidence Readiness is not CMS submission, claims submission, billing, or production mutation?
 - Confusion, objections, or requested copy clarification:
 
 ### CSV Dry-Run Validation Feedback

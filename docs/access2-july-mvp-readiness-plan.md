@@ -48,6 +48,8 @@ The July MVP should keep this chain visible and defensible. Any July scope shoul
 
 This checkpoint updates the July MVP posture after the ACCESS Track Outcome Evidence Readiness work. It is documentation-only and does not authorize backend behavior changes, frontend behavior changes, staging mutation, production mutation, CMS submission, claims submission, billing automation, real PHI intake, or changes to immutable packet/audit-bundle read semantics.
 
+Use [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md) as the practical operator package for the final rehearsal and stakeholder go/no-go capture.
+
 What ACCESS2 now proves for the July story:
 
 ```text
@@ -204,6 +206,6 @@ The first approved implementation is a local-only dry-run CSV intake validator f
 
 Operator rehearsal can use the synthetic fixture at [docs/examples/access2_external_csv_intake_valid_sample.csv](C:/dev/access2/docs/examples/access2_external_csv_intake_valid_sample.csv) with the PowerShell command documented in the CSV intake specification.
 
-Recommended next step: run one final stakeholder/demo rehearsal using the updated package, then capture the result in [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md). Keep the recommendation at conditional go until actual July package feedback is recorded.
+Recommended next step: run one final stakeholder/demo rehearsal using [access2-july-mvp-final-rehearsal-and-go-no-go.md](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md), then capture the result in [access2-stakeholder-walkthrough-feedback-and-go-no-go.md](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md). Keep the recommendation at conditional go until actual July package feedback is recorded.
 
 If the rehearsal exposes a concrete CSV dry-run presentation gap, keep the follow-up narrow: improve the local dry-run demo output or add a JSON report option. Do not implement CSV upload/import persistence, FHIR/EHR integration, CMS submission, claims ingestion, billing automation, staging mutation, or production mutation until a separate implementation slice is approved.
