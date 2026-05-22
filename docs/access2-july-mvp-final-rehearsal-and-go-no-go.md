@@ -268,6 +268,70 @@ Evidence needed for closure:
 Status:
 ```
 
+## Automated Testing Validation Results - May 22, 2026
+
+The automated testing validation script has been executed against the active local build in the localhost environment (Docker Compose containers: `access2-backend`, `access2-frontend`, `access2-postgres`, `access2-redis`). 
+
+All **392 tests passed successfully** in `854.14 seconds`. The details of the validated test cases are summarized below:
+
+### 1. CSV Validator Intake Pipeline (TC-006 / TC-007)
+* **Test File:** `backend/tests/test_validate_external_csv_intake.py`
+* **Proof & Constraints Asserted:**
+  - Mocked the CSV validator intake pipeline and ran synthetic fixture files through `validate_external_csv_intake`.
+  - Asserted zero database writes, API mutations, or state modifications are executed.
+  - Test `test_validator_script_imports_no_app_db_or_network_modules` uses Abstract Syntax Trees (AST) to verify that `scripts/validate_external_csv_intake.py` imports no application, database (`app`, `sqlalchemy`), or network (`requests`, `httpx`, `socket`) modules, guaranteeing strict read-only dry-run isolation.
+* **Status:** **PASSED**
+
+### 2. Snapshot Rejection & Correction-Loop (TC-003 / TC-004)
+* **Test File:** `backend/tests/test_access_review_packet.py` (specifically `test_access_review_packet_snapshot_review_can_be_approved_and_rejected_without_mutating_packet`)
+* **Proof & Constraints Asserted:**
+  - Triggered simulated snapshot rejection (status updated to `"rejected"` with a reason).
+  - Asserted that the rejected snapshot becomes an immutable, read-only historic log where `packet_json` and `packet_markdown` do NOT mutate (asserted to remain strictly equal to their original state at creation).
+  - Validated that correcting the underlying evidence allows the creation of a distinct, new corrected snapshot, leaving the rejected history intact.
+* **Status:** **PASSED**
+
+### 3. Audit Bundle Availability Flag (`audit_bundle.available`)
+* **Test File:** `backend/tests/test_access_review_packet.py` (specifically `test_access_review_packet_snapshot_audit_bundle_returns_approved_snapshot` and `test_access_review_packet_snapshot_audit_manifest_rejected_snapshot_conflicts`)
+* **Proof & Constraints Asserted:**
+  - Verified that the flag `audit_bundle.available` (or `audit_bundle_available` in database/API events) is only evaluated as `true` on the approved local snapshot version.
+  - Verified that a rejected snapshot blocks any audit bundle retrieval or verification, raising an `AccessReviewPacketAuditBundleConflictError` and returning an HTTP 409 Conflict.
+* **Status:** **PASSED**
+
+### Test Pass/Fail Logs
+```text
+============================= test session starts ==============================
+platform linux -- Python 3.12.13, pytest-9.0.3, pluggy-1.6.0
+cachedir: .tmp/pytest_cache
+rootdir: /app
+configfile: pyproject.toml
+plugins: anyio-4.13.0
+collected 392 items
+
+tests/test_access_case_summary.py .......                                [  1%]
+tests/test_access_review_packet.py ..................................... [ 11%]
+...............................................................          [ 27%]
+tests/test_admin_workflow_bootstrap.py ...                               [ 28%]
+tests/test_auth.py .....                                                 [ 29%]
+tests/test_authorization.py ........                                     [ 31%]
+tests/test_care_updates.py ...........                                   [ 34%]
+tests/test_check_staging_v2_seed_reset_contract.py ................      [ 38%]
+tests/test_escalation_resolution.py ......                               [ 39%]
+tests/test_intervention_tasks.py ...............                         [ 43%]
+tests/test_organizations.py .....                                        [ 44%]
+tests/test_outcomes.py ......                                            [ 46%]
+tests/test_patient_timeline.py ......................................... [ 56%]
+........................................................................ [ 75%]
+........................................................                 [ 89%]
+tests/test_patients.py .......                                           [ 91%]
+tests/test_seed_railway_demo_cases.py .......                            [ 93%]
+tests/test_signals.py ..........                                         [ 95%]
+tests/test_users.py ......                                               [ 97%]
+tests/test_validate_external_csv_intake.py ...........                   [100%]
+
+================== 392 passed, 1 warning in 854.14s (0:14:14) ==================
+```
+
+
 ## Post-Walkthrough Documentation Update Instructions
 
 After the walkthrough:
