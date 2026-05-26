@@ -219,9 +219,50 @@ If something is confusing to you, it may also confuse a real stakeholder. Report
 
 ## Test Environments And Safety Boundaries
 
+### Tester Access Options
+
+Use this section before testing. It explains what you can test from outside the project owner's desktop.
+
+#### 1. External Hands-On Testing
+
+Use production read-only only:
+
+- URL: `https://access2.salvardata.com`
+- Test login, navigation, patient detail, Outcome Evidence Readiness, review packet visibility, audit-ready evidence visibility, guide clarity, confusing labels, and read-only behavior.
+- Do not test approval, rejection, correction-loop mutation, production writes, staging writes, or any other data-changing action.
+- Do not report "cannot access V2 localhost" as a defect. That is expected because V2 runs only on the project owner's local desktop unless you have your own local setup.
+- Do report confusion if this guide, the user guide, or the app makes the localhost-only limit unclear.
+
+#### 2. Supervised V2 Walkthrough
+
+Use this when the tester needs to see the V2 correction loop but does not have a local ACCESS2 setup.
+
+- The project owner runs localhost V2 on their desktop.
+- The tester observes by screen share or approved remote-control session.
+- Mutation remains localhost-only.
+- Data must remain disposable synthetic/demo data only.
+- The tester may comment on screen clarity, wording, workflow order, and whether the correction-loop story is understandable.
+
+#### 3. Independent Local V2 Testing
+
+Use this only if the tester has their own local ACCESS2 setup.
+
+- The tester needs Docker/local setup and approved synthetic data.
+- The tester must use loopback targets only, such as `localhost` or `127.0.0.1`.
+- The tester must not point V2 mutation testing at production, staging, Railway, `https://`, or any non-loopback target.
+- A separate local tester setup guide should cover this if independent local V2 testing is needed.
+
+#### 4. Future Shared Synthetic V2 Sandbox
+
+A shared synthetic V2 demo sandbox could be created later. It is not part of the current July MVP guardrails.
+
+- Do not assume a shared V2 environment exists.
+- Do not create or use staging/production mutation tests for this guide.
+- Treat shared sandbox work as a future planning item only.
+
 ### Production Read-Only V1 Demo
 
-Use this for the safe external demo.
+Use this for external hands-on testing.
 
 - Production is look-only.
 - Do not change anything.
@@ -231,11 +272,13 @@ Use this for the safe external demo.
 
 ### Localhost-Only V2 Correction-Loop Proof
 
-Use this only if your test plan specifically asks you to test the correction loop locally.
+Use this only if your test plan specifically asks you to test the correction loop locally or observe it through a supervised walkthrough.
 
 - Localhost means a loopback address such as `http://localhost:3000`, `http://localhost:3001`, or `http://127.0.0.1`.
 - This is the safe place for approved demo mutation tests with synthetic data.
 - Do not run this against production, staging, Railway, `https://`, or any non-loopback target.
+- External testers cannot open the project owner's localhost directly from their own browser. They can observe the owner's desktop by screen share or remote-control session if approved.
+- Independent V2 mutation testing requires the tester's own local ACCESS2 setup and approved synthetic data.
 
 ### Local CSV Dry-Run / No-Write Validator
 
@@ -345,12 +388,15 @@ Report a defect if audit evidence appears available for a rejected packet.
 Only do this if your test plan explicitly asks for it.
 
 - [ ] Confirm the URL is loopback only: `localhost`, `127.0.0.1`, or another approved local target.
+- [ ] Confirm you are either on your own local ACCESS2 setup or observing the project owner's localhost V2 session by approved screen share or remote control.
 - [ ] Confirm you are using disposable synthetic data.
 - [ ] Confirm the rejected packet remains preserved.
 - [ ] Confirm correction creates a new/corrected packet instead of editing old history.
 - [ ] Confirm approved corrected evidence can become audit-bundle-ready.
 
 Stop and report immediately if the target is production, staging, Railway, `https://`, or any non-loopback URL.
+
+External testers should not report "cannot access V2 localhost" as a defect. That limitation is expected. Report it only if the docs or test plan failed to explain it clearly.
 
 ### Optional CSV Dry-Run Validation Review
 
@@ -412,6 +458,8 @@ These are expected MVP limitations:
 - No clinical decision-making by the app.
 - Production V1 is intentionally read-only.
 - V2 correction-loop mutation is intentionally localhost-only.
+- External testers cannot directly open localhost V2 running on the project owner's desktop.
+- V2 correction-loop screenshots or walkthroughs may be observed by screen share or approved remote control, but they are not independently testable unless the tester has a local ACCESS2 setup.
 - CSV validation is intentionally dry-run/no-write.
 
 ## Simple Test Notes Template
@@ -478,10 +526,12 @@ No. Production V1 is read-only.
 **Where can V2 correction-loop mutation be tested?**  
 Only on approved localhost targets with synthetic data.
 
+**Can I open the project owner's localhost V2 from my own computer?**
+No. `localhost` means the computer running ACCESS2. If V2 is running on the project owner's desktop, an external tester can only observe it by approved screen share or remote control.
+
 ## Related Docs
 
 - [ACCESS2 July MVP User Guide](C:/dev/access2/docs/access2-july-mvp-user-guide.md)
 - [ACCESS2 July MVP Final Rehearsal And Go/No-Go](C:/dev/access2/docs/access2-july-mvp-final-rehearsal-and-go-no-go.md)
 - [ACCESS2 Stakeholder Walkthrough Feedback And Go/No-Go](C:/dev/access2/docs/access2-stakeholder-walkthrough-feedback-and-go-no-go.md)
 - [ACCESS2 Stakeholder Demo Package Index](C:/dev/access2/docs/access2-stakeholder-demo-package-index.md)
-

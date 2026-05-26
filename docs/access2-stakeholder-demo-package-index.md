@@ -38,6 +38,10 @@ This index is not a new product spec and does not authorize production mutation,
 ## Which Demo To Use
 
 - External stakeholder or executive overview: use the product positioning doc plus the V1 production read-only walkthrough.
+- External hands-on tester: use production read-only only at `https://access2.salvardata.com`; test login, navigation, patient detail, Outcome Evidence Readiness, review packet visibility, audit-ready evidence visibility, guide clarity, confusing labels, and read-only behavior. Do not test approval, rejection, correction-loop mutation, production writes, or staging writes.
+- Supervised V2 tester walkthrough: the project owner runs localhost V2 on their desktop, and the tester observes by screen share or approved remote control. Mutation remains localhost-only and synthetic-data-only.
+- Independent local V2 tester: only possible when the tester has their own Docker/local ACCESS2 setup and approved synthetic data. This needs a separate local tester setup guide if it becomes necessary.
+- Future shared synthetic V2 sandbox: possible later, but not part of the current July MVP guardrails.
 - Clinical, payer, or audit reviewer conversation: use V1 production first, then explain the V2 localhost correction loop as the next controlled review lifecycle proof.
 - Engineering handoff: use the V1 handoff summary, V2 local demo handoff index, and V2 checkpoint/roadmap.
 - Demo-day readiness check: use the V1 demo-day script and release checklist; keep V2 local rehearsal separate unless explicitly planned.
@@ -72,6 +76,8 @@ V2 localhost is the controlled correction-loop proof:
 - Posture: localhost-only mutation.
 
 The V2 local proof shows reviewer assignment, rejection with reason, immutable rejected snapshot history, corrected/new snapshot creation, corrected approval, `audit_bundle.available=true`, Outcome Evidence Readiness for synthetic ACCESS track evidence, and preserved rejected snapshot backlog/history. It must not run against production, Railway, staging, `https://`, or any non-loopback target.
+
+External testers should not report "cannot access V2 localhost" as a defect. That is expected when V2 is running only on the project owner's desktop. They may report a docs defect if the package does not clearly explain this limit. V2 correction-loop screenshots or walkthroughs may be observed by screen share or approved remote control, but they are not independently testable unless the tester has a local ACCESS2 setup.
 
 ## Outcome Evidence Readiness Talk Track
 

@@ -67,6 +67,47 @@ docs/assets/access2-july-mvp-user-guide/
 
 Production screenshots must be read-only. Localhost screenshots may be used only for V2 correction-loop proof. Do not capture staging or production mutation workflows.
 
+## Tester Access Options
+
+Use these options when deciding what a July MVP tester can do.
+
+### 1. External Hands-On Testing
+
+External testers should use production read-only only:
+
+- URL: `https://access2.salvardata.com`
+- Test login, navigation, patient detail, Outcome Evidence Readiness, review packet visibility, audit-ready evidence visibility, guide clarity, confusing labels, and read-only behavior.
+- Do not test approval, rejection, correction-loop mutation, production writes, staging writes, or any other data-changing action.
+- Do not report "cannot access V2 localhost" as a defect. That is expected because V2 exists only on the project owner's local desktop unless the tester has their own local setup.
+- Do report confusion if the docs or walkthrough plan do not clearly explain the V2 localhost-only limit.
+
+### 2. Supervised V2 Walkthrough
+
+Use this when a tester needs to see the V2 correction loop but does not have a local ACCESS2 setup.
+
+- The project owner runs localhost V2 on their desktop.
+- The tester observes by screen share or approved remote-control session.
+- Mutation remains localhost-only.
+- Data must remain disposable synthetic/demo data only.
+- The tester may review screen clarity, labels, workflow order, and whether the correction-loop story is understandable.
+
+### 3. Independent Local V2 Testing
+
+Independent V2 testing is possible only if the tester has their own local ACCESS2 setup.
+
+- The tester needs Docker/local setup and approved synthetic data.
+- The tester must use loopback targets only, such as `localhost` or `127.0.0.1`.
+- The tester must not point V2 mutation testing at production, staging, Railway, `https://`, or any non-loopback target.
+- A separate local tester setup guide should cover this if independent local V2 testing is needed.
+
+### 4. Future Shared Synthetic V2 Sandbox
+
+A shared synthetic V2 demo sandbox could be created later. It is not part of the current July MVP guardrails.
+
+- Do not assume a shared V2 environment exists.
+- Do not run staging or production mutation tests.
+- Treat shared sandbox work as a future planning item only.
+
 ## V1 Production Read-Only Usage
 
 Use this first for stakeholder walkthroughs.
@@ -121,6 +162,8 @@ Use this only when the audience needs to understand the future correction loop.
 - Data: disposable synthetic local demo patient only.
 - Posture: localhost-only mutation.
 - Do not run this against production, Railway, staging, `https://`, or any non-loopback target.
+- External testers cannot open the project owner's localhost V2 directly from their own browser. They can observe by screen share or approved remote-control session.
+- V2 correction-loop screenshots or walkthroughs may be observed, but they are not independently testable unless the tester has a local ACCESS2 setup.
 
 The V2 local proof shows that a reviewer can assign, reject with a reason, preserve rejected snapshot history, create a corrected/new immutable snapshot, approve the corrected packet, and reach `audit_bundle.available=true`.
 
